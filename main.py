@@ -3,6 +3,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse, JSONResponse
+import requests
 # --- Debug for API Key ---
 print("DEBUG - OPENAI_API_KEY from environment:", os.getenv("OPENAI_API_KEY"))
 
@@ -11,10 +13,49 @@ if not OPENAI_API_KEY:
     raise ValueError("❌ OPENAI_API_KEY is missing. Set it in Render > Environment")
     from openai import OpenAI
 client = OpenAI(api_key=OPENAI_API_KEY)
+# ----- Google OAuth Config -----
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
+OAUTH_REDIRECT_URI = "https://diriyah-ai-demo.onrender.com/drive/callback"
 # ----- Paths -----
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_PATH = os.path.join(APP_DIR, "index.html")
 STATIC_DIR = os.path.join(APP_DIR, "static")  # optional folder for css/js/images
+app = FastAPI(title="Diriyah AI Demo")
+
+# --- Google Drive OAuth Routes ---
+
+@app.get("/drive/login")
+def drive_login():
+    google_auth_url = (
+        "https://accounts.google.com/o/oauth2/v2/auth"
+        "?response_type=code"
+        f"&client_id={GOOGLE_CLIENT_ID}"
+        f"&redirect_uri={OAUTH_REDIRECT_URI}"
+        "&scope=https://www.googleapis.com/auth/drive.readonly"
+        "&access_type=offline"
+        "&prompt=consent"
+    )
+    return RedirectResponse(url=google_auth_url)
+
+
+@app.get("/drive/callback")
+def drive_callback(code: str):
+    token_url = "https://oauth2.googleapis.com/token"
+    data = {
+        "code": code,
+        "client_id": GOOGLE_CLIENT_ID,
+        "client_secret": GOOGLE_CLIENT_SECRET,
+        "redirect_uri": OAUTH_REDIRECT_URI,
+        "grant_type": "authorization_code",
+    }
+    response = requests.post(token_url, data=data)
+    tokens = response.json()
+
+    if "access_token" not in tokens:
+        return JSONResponse(content={"error": "Failed to get tokens", "details": tokens}, status_code=400)
+
+    return JSONResponse(content={"message": "✅ Google Drive connected!", "tokens": tokens})
 
 app = FastAPI(title="Diriyah AI Demo")
 

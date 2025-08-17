@@ -3,7 +3,14 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+# --- Debug for API Key ---
+print("DEBUG - OPENAI_API_KEY from environment:", os.getenv("OPENAI_API_KEY"))
 
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    raise ValueError("❌ OPENAI_API_KEY is missing. Set it in Render > Environment")
+    from openai import OpenAI
+client = OpenAI(api_key=OPENAI_API_KEY)
 # ----- Paths -----
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_PATH = os.path.join(APP_DIR, "index.html")

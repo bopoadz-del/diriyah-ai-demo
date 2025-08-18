@@ -1,84 +1,72 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Diriyah AI</title>
-  <style>
-    :root{
-      --bg:#f4efe6;        /* sand */
-      --brand:#006a4e;     /* Diriyah green vibe */
-      --ink:#1f2937;
-      --card:#ffffff;
-      --muted:#6b7280;
-    }
-    body{margin:0;background:var(--bg);font-family:system-ui,Segoe UI,Roboto,Arial;color:var(--ink)}
-    header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#e8dccf}
-    .brand{display:flex;gap:10px;align-items:center;font-weight:700}
-    .logo{width:32px;height:32px;background:var(--brand);border-radius:6px}
-    .wrap{max-width:860px;margin:16px auto;padding:0 12px}
-    .bar a{display:inline-block;margin:6px 6px 0 0;padding:10px 12px;border-radius:8px;text-decoration:none;color:#fff;background:var(--brand)}
-    .bar a.secondary{background:#444}
-    .bar a.warn{background:#9a3d3d}
-    .card{background:var(--card);border-radius:12px;padding:14px;margin-top:12px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
-    textarea{width:100%;min-height:120px;border:1px solid #ddd;border-radius:10px;padding:10px;font-size:16px}
-    button{padding:10px 14px;border:0;border-radius:10px;background:var(--brand);color:#fff;font-weight:600;margin-top:8px;cursor:pointer}
-    pre{white-space:pre-wrap}
-    .muted{color:var(--muted);font-size:12px;margin-top:6px}
-  </style>
-</head>
-<body>
-  <header>
-    <div class="brand">
-      <div class="logo"></div>
-      <div>Diriyah AI</div>
-    </div>
-    <div id="status" class="muted">checking…</div>
-  </header>
+import os
+import chromadb
+from chromadb.utils import embedding_functions
+import logging
 
-  <div class="wrap">
-    <div class="bar">
-      <a href="/drive/login">Connect Google Drive</a>
-      <a class="secondary" href="/drive/list" target="_blank">List Files</a>
-      <a class="secondary" href="/index/run">Index Drive</a>
-      <a class="warn" href="/index/status" target="_blank">Index Status</a>
-      <a class="warn" href="/index/log" target="_blank">Index Log</a>
-    </div>
+# ========= Logging =========
+log = logging.getLogger("index")
+logging.basicConfig(level=logging.INFO)
 
-    <div class="card">
-      <h3>Ask Diriyah AI</h3>
-      <form onsubmit="ask(event)">
-        <textarea id="q" placeholder="Ask about drawings, reports, schedules…"></textarea>
-        <button>Ask</button>
-      </form>
-      <pre id="out"></pre>
-      <div class="muted">Tip: first connect Google Drive, then click “Index Drive”.</div>
-    </div>
-  </div>
+# ========= Environment =========
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-  <script>
-    async function ask(e){
-      e.preventDefault();
-      const q = document.getElementById('q').value.trim();
-      if(!q) return;
-      setOut("Thinking…");
-      try{
-        const r = await fetch('/ask',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:q})});
-        const j = await r.json();
-        if(j.answer) setOut(j.answer);
-        else setOut(JSON.stringify(j,null,2));
-      }catch(err){
-        setOut('Error: '+err);
-      }
-    }
-    function setOut(t){document.getElementById('out').textContent=t;}
-    (async ()=>{
-      try{
-        const r = await fetch('/healthz'); const j = await r.json();
-        document.getElementById('status').textContent =
-          (j.ok?'✅':'❌') + ' AI='+(j.openai?'ON':'OFF')+' | Drive='+(j.drive_connected?'ON':'OFF');
-      }catch{document.getElementById('status').textContent='offline?'}
-    })();
-  </script>
-</body>
-</html>
+# ========= ChromaDB Setup =========
+chroma_client = chromadb.PersistentClient(path="/data/chroma")
+
+embedding_fn = embedding_functions.OpenAIEmbeddingFunction(
+    api_key=OPENAI_API_KEY,
+    model_name="text-embedding-3-small"
+)
+
+collection = chroma_client.get_or_create_collection(
+    name="diriyah_ai",
+    embedding_function=embedding_fn
+)
+
+# ========= Log Buffer =========
+_index_log = []
+
+def log_event(message: str):
+    """Append to in-memory log + console"""
+    log.info(message)
+    _index_log.append(message)
+    if len(_index_log) > 100:
+        _index_log.pop(0)
+
+# ========= Index Functions =========
+def add_documents(docs: list[str], metadatas: list[dict] = None, ids: list[str] = None):
+    """Add documents to Chroma collection"""
+    try:
+        collection.add(documents=docs, metadatas=metadatas, ids=ids)
+        log_event(f"Indexed {len(docs)} docs")
+    except Exception as e:
+        log.exception("Error adding documents")
+        log_event(f"Error indexing: {e}")
+        raise
+
+def query_documents(query: str, n_results: int = 3):
+    """Query indexed docs"""
+    try:
+        res = collection.query(query_texts=[query], n_results=n_results)
+        log_event(f"Query: {query} → {len(res['documents'][0])} results")
+        return res
+    except Exception as e:
+        log.exception("Query error")
+        log_event(f"Query error: {e}")
+        return {"documents": [], "metadatas": [], "ids": []}
+
+def get_index_count():
+    """Return count of chunks (compatible across ChromaDB versions)"""
+    try:
+        try:
+            return collection.count()
+        except AttributeError:
+            return len(collection.get()["ids"])
+    except Exception as e:
+        log.exception("Count error")
+        return 0
+
+def get_logs(n: int = 10):
+    """Return last N log entries"""
+    return _index_log[-n:]
+

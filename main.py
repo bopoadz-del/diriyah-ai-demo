@@ -1,3 +1,4 @@
+# main.py (Final Secured Version)
 import os
 import logging
 from fastapi import FastAPI, Request, HTTPException
@@ -24,8 +25,7 @@ log = logging.getLogger("diriyah-ai")
 # ========= Env Vars =========
 REQUIRED_ENV = [
     "OPENAI_API_KEY",
-    "GOOGLE_CLIENT_ID",
-    "GOOGLE_CLIENT_SECRET",
+    "GOOGLE_CLIENT_SECRET",  # Still need secret from environment!
     "OAUTH_REDIRECT_URI",
     "TOKEN_ENCRYPTION_KEY"
 ]
@@ -35,10 +35,11 @@ for var in REQUIRED_ENV:
         raise RuntimeError(f"Missing {var} in environment")
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+# Using your provided client ID but KEEP SECRET SAFE!
+GOOGLE_CLIENT_ID = "382554705937-v3s8kpvl7h0em2aekud73fro8rig0cvu.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")  # MUST come from environment
 OAUTH_REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI")
-USER_ID = os.getenv("DEFAULT_USER_ID", "admin")  # Single user for now
+USER_ID = os.getenv("DEFAULT_USER_ID", "admin")
 
 # ========= Clients =========
 client = OpenAI(api_key=OPENAI_API_KEY)
@@ -67,8 +68,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ========= Google OAuth Flow =========
 def build_flow() -> Flow:
-    return Flow.from_client_secrets_file(
-        {
+    return Flow.from_client_config(
+        client_config={
             "web": {
                 "client_id": GOOGLE_CLIENT_ID,
                 "client_secret": GOOGLE_CLIENT_SECRET,
@@ -100,10 +101,15 @@ def drive_login():
 def drive_callback(request: Request):
     flow = build_flow()
     flow.fetch_token(authorization_response=str(request.url))
+    creds = flow.credentials
     set_tokens(USER_ID, "google", {
-        "token": flow.credentials.token,
-        "refresh_token": flow.credentials.refresh_token,
-        "expiry": flow.credentials.expiry.isoformat()
+        "token": creds.token,
+        "refresh_token": creds.refresh_token,
+        "token_uri": creds.token_uri,
+        "client_id": GOOGLE_CLIENT_ID,
+        "client_secret": GOOGLE_CLIENT_SECRET,
+        "scopes": creds.scopes,
+        "expiry": creds.expiry.isoformat() if creds.expiry else None
     })
     return RedirectResponse("/?auth=success")
 
@@ -113,8 +119,16 @@ def get_drive_service():
         raise HTTPException(401, "Not authenticated")
     
     # Build credentials from stored tokens
-    # (Simplified for example - use google.oauth2.credentials in real project)
-    return build("drive", "v3", credentials=tokens)
+    class SimpleCredentials:
+        token = tokens["token"]
+        refresh_token = tokens["refresh_token"]
+        token_uri = tokens["token_uri"]
+        client_id = tokens["client_id"]
+        client_secret = tokens["client_secret"]
+        scopes = tokens["scopes"]
+        expiry = tokens["expiry"]
+    
+    return build("drive", "v3", credentials=SimpleCredentials())
 
 # ========= Indexing =========
 @app.get("/index/run")
@@ -171,11 +185,11 @@ async def ask(request: Request):
             messages=[
                 {
                     "role": "system", 
-                    "content": "You are Diriyah AI, a construction assistant."
+                    "content": "You are Diriyah AI, a construction assistant for mega projects in Saudi Arabia. Answer professionally."
                 },
                 {
                     "role": "user", 
-                    "content": f"Context: {context}\n\nQuestion: {q}"
+                    "content": f"Context:\n{context}\n\nQuestion: {q}"
                 }
             ],
             temperature=0.3

@@ -1,12 +1,28 @@
+# Core app
 fastapi==0.110.0
 uvicorn==0.29.0
-openai==1.43.0
+requests==2.32.3
+
+# OpenAI (new SDK)
+openai==1.40.0
+
+# Google OAuth + Drive API
 google-auth==2.34.0
 google-auth-oauthlib==1.2.0
 google-api-python-client==2.141.0
-requests==2.32.3
-pypdf==4.3.1
-python-docx==1.1.2
-openpyxl==3.1.5
-pandas==2.2.2
-python-dotenv==1.0.1
+google-auth-httplib2==0.2.0
+httplib2==0.22.0
+
+# Document parsing
+PyMuPDF==1.24.8         # PDF reader (drawings/text)
+pypdf==4.3.1            # fallback simple PDF text extractor
+python-docx==1.1.2      # .docx
+openpyxl==3.1.5         # .xlsx
+pandas==2.2.2           # table handling (csv/xlsx)
+lxml==5.2.2             # robust XML (P6 XML, others)
+
+# Primavera P6
+xer-parser==0.3.5       # .xer schedule parser
+
+# Vector DB (RAG)
+chromadb==0.5.5

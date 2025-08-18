@@ -5,8 +5,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-# Load configuration
-PATH = os.getenv("TOKEN_STORE_PATH", "./tokens.json")
+# Load configuration - use persistent storage path
+PATH = os.getenv("TOKEN_STORE_PATH", "/var/data/tokens.json")
 SECRET_KEY = os.getenv("TOKEN_ENCRYPTION_KEY")
 
 if not SECRET_KEY:
@@ -41,6 +41,8 @@ def _load() -> dict:
         return {}
 
 def _save(data: dict):
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(PATH), exist_ok=True)
     encrypted = FERNET.encrypt(json.dumps(data).encode())
     with open(PATH, "w", encoding="utf-8") as f:
         f.write(encrypted.decode())

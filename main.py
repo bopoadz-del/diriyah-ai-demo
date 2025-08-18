@@ -1,439 +1,352 @@
-"""
-Diriyah AI — FastAPI backend
-- /            : serves index.html if present (simple UI)
-- /healthz     : health and config flags
-- /ask         : RAG + OpenAI chat
-- /drive/login : start Google OAuth
-- /drive/callback : OAuth redirect
-- /drive/list  : list recent Drive files (demo)
-- /index/run   : crawl/parse/index Drive files into Chroma
-- /index/status: chunk count
-- /index/log   : last sync log
-
-Env (Render > Environment):
-  OPENAI_API_KEY
-  GOOGLE_OAUTH_CLIENT_ID
-  GOOGLE_OAUTH_CLIENT_SECRET
-  (optional) OAUTH_REDIRECT_URI  e.g. https://diriyah-ai-demo.onrender.com/drive/callback
-
-Tip: if your environment UI blocks underscores, also set:
-  OPENAIAPIKEY, GOOGLEOAUTHCLIENTID, GOOGLEOAUTHCLIENTSECRET
-"""
-
-from __future__ import annotations
-
-import os, io, re, time, base64, hashlib, secrets, logging
-from typing import Dict, List, Optional, Tuple
-
+import os
+import io
+import logging
 import requests
-from fastapi import FastAPI, HTTPException, Request
+from typing import Optional, List, Dict
+
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import FileResponse, RedirectResponse, JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
-from urllib.parse import urlencode
-
-# OpenAI 1.x SDK
+# --- OpenAI (new SDK) ---
 from openai import OpenAI
 
-# Parsers
+# --- Google OAuth + Drive API ---
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build, Resource
+from google_auth_oauthlib.flow import Flow
+from googleapiclient.http import MediaIoBaseDownload
+
+# --- Parsing & Vector DB ---
 import fitz  # PyMuPDF
 from pypdf import PdfReader
 from docx import Document
 import pandas as pd
-
-# Vector DB
 import chromadb
-from chromadb.config import Settings
 
-# ----------------------------- Logging -----------------------------
-logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
-log = logging.getLogger("diriyah-ai")
+# ========= Logging =========
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+log = logging.getLogger("diriyah")
 
-# ----------------------------- App & CORS -----------------------------
-app = FastAPI(title="Diriyah AI", version="1.0.0")
+# ========= Constants =========
+CHROMA_PATH = "./chroma_data"
+DB_COLLECTION_NAME = "drive_documents"
+EMBEDDING_MODEL = "text-embedding-3-small"
+
+# ========= Env helpers =========
+def getenv_any(*names: str, default: Optional[str] = None) -> Optional[str]:
+    for n in names:
+        v = os.getenv(n)
+        if v:
+            return v
+    return default
+
+OPENAI_API_KEY = getenv_any("OPENAI_API_KEY", "OPENAIAPIKEY")
+GOOGLE_CLIENT_ID = getenv_any("GOOGLE_OAUTH_CLIENT_ID", "GOOGLEOAUTHCLIENTID")
+GOOGLE_CLIENT_SECRET = getenv_any("GOOGLE_OAUTH_CLIENT_SECRET", "GOOGLEOAUTHCLIENTSECRET")
+OAUTH_REDIRECT_URI = getenv_any("OAUTH_REDIRECT_URI", "REDIRECT_URI")
+
+# Fail fast if redirect not set
+if not OAUTH_REDIRECT_URI:
+    raise RuntimeError("OAUTH_REDIRECT_URI not set (e.g. https://your-app.onrender.com/drive/callback)")
+
+# ========= OpenAI client =========
+client: Optional[OpenAI] = None
+if OPENAI_API_KEY:
+    try:
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        log.info("OpenAI client initialized.")
+    except Exception as e:
+        log.exception("Failed to init OpenAI client: %s", e)
+else:
+    log.warning("OPENAI_API_KEY not set. RAG features will be disabled.")
+
+# ========= FastAPI app =========
+app = FastAPI(title="Diriyah AI Demo", version="1.0.0")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten later
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["*"], allow_credentials=True,
+    allow_methods=["*"], allow_headers=["*"],
 )
 
-# ----------------------------- Paths -----------------------------
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
-INDEX_HTML = os.path.join(APP_DIR, "index.html")
-CHROMA_DIR = "/tmp/chroma"  # persistent on Render containers during runtime
+if os.path.exists("index.html"):
+    @app.get("/", response_class=HTMLResponse)
+    async def root():
+        return FileResponse("index.html")
+else:
+    @app.get("/", response_class=HTMLResponse)
+    async def root():
+        return HTMLResponse("<h1>Diriyah AI</h1><p>Backend is up.</p>")
 
-# ----------------------------- Env (with fallbacks) -----------------------------
-def _env(name: str, fallback_names: List[str] = []) -> Optional[str]:
-    val = os.getenv(name)
-    if val:
-        return val
-    for alt in fallback_names:
-        if os.getenv(alt):
-            return os.getenv(alt)
-    return None
-
-OPENAI_API_KEY = _env("OPENAI_API_KEY", ["OPENAIAPIKEY"])
-GOOGLE_OAUTH_CLIENT_ID = _env("GOOGLE_OAUTH_CLIENT_ID", ["GOOGLEOAUTHCLIENTID"])
-GOOGLE_OAUTH_CLIENT_SECRET = _env("GOOGLE_OAUTH_CLIENT_SECRET", ["GOOGLEOAUTHCLIENTSECRET"])
-
-YOUR_URL = os.getenv("YOUR_URL", "https://diriyah-ai-demo.onrender.com")
-OAUTH_REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI", f"{YOUR_URL}/drive/callback")
-OAUTH_SCOPES = "https://www.googleapis.com/auth/drive.readonly"
-
-GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
-GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
-GOOGLE_DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files"
-
-if not OPENAI_API_KEY:
-    log.warning("OPENAI_API_KEY is not set; /ask will respond with a helpful message.")
-
-# ----------------------------- OpenAI client -----------------------------
-client: Optional[OpenAI] = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
-
-# ----------------------------- Google OAuth (in-memory demo) -----------------------------
-_OAUTH_STATE: Dict[str, Dict] = {}  # state -> {cv: code_verifier, ts: created}
-_USER_TOKEN: Optional[Dict] = None  # {'access_token','refresh_token','exp',...}
-
-def _now() -> int:
-    return int(time.time())
-
-def _new_pkce_pair() -> Tuple[str, str]:
-    verifier = base64.urlsafe_b64encode(os.urandom(40)).decode().rstrip("=")
-    digest = hashlib.sha256(verifier.encode()).digest()
-    challenge = base64.urlsafe_b64encode(digest).decode().rstrip("=")
-    return verifier, challenge
-
-def _ensure_token() -> str:
-    """Return a valid Google access token; refresh if needed."""
-    global _USER_TOKEN
-    if not _USER_TOKEN:
-        raise HTTPException(401, "Not connected to Google Drive. Click 'Connect Google Drive' first.")
-
-    if _USER_TOKEN.get("exp", 0) > _now():
-        return _USER_TOKEN["access_token"]
-
-    if not _USER_TOKEN.get("refresh_token"):
-        raise HTTPException(401, "Session expired; reconnect Google Drive.")
-
-    data = {
-        "client_id": GOOGLE_OAUTH_CLIENT_ID,
-        "client_secret": GOOGLE_OAUTH_CLIENT_SECRET,
-        "grant_type": "refresh_token",
-        "refresh_token": _USER_TOKEN["refresh_token"],
-    }
-    tok = requests.post(GOOGLE_TOKEN_URL, data=data, timeout=20).json()
-    if "access_token" not in tok:
-        raise HTTPException(401, f"Refresh failed: {tok}")
-    _USER_TOKEN["access_token"] = tok["access_token"]
-    _USER_TOKEN["exp"] = _now() + int(tok.get("expires_in", 3600)) - 30
-    return _USER_TOKEN["access_token"]
-
-# ----------------------------- Root / UI -----------------------------
-@app.get("/", response_class=HTMLResponse)
-def root():
-    if os.path.exists(INDEX_HTML):
-        return FileResponse(INDEX_HTML)
-    # Fallback tiny page (if index.html missing)
-    return HTMLResponse("<h3>Diriyah AI backend is live.</h3><p>Open /drive/login, /index/run, then POST /ask.</p>")
+if os.path.isdir("static"):
+    app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/healthz")
-def healthz():
-    return {
-        "ok": True,
-        "openai": bool(OPENAI_API_KEY),
-        "drive_connected": bool(_USER_TOKEN),
-        "redirect_uri": OAUTH_REDIRECT_URI,
+async def healthz():
+    return {"ok": True}
+
+# ========= OAuth token store (in-memory) =========
+oauth_state: Optional[str] = None
+creds: Optional[Credentials] = None
+
+# ========= Google OAuth Flow =========
+def build_flow() -> Flow:
+    if not (GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET and OAUTH_REDIRECT_URI):
+        raise RuntimeError("Google OAuth env not set: GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET / OAUTH_REDIRECT_URI")
+
+    client_config = {
+        "web": {
+            "client_id": GOOGLE_CLIENT_ID,
+            "project_id": "diriyah-ai",
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_secret": GOOGLE_CLIENT_SECRET,
+            "redirect_uris": [OAUTH_REDIRECT_URI],
+        }
     }
+    scopes = [
+        "https://www.googleapis.com/auth/drive.readonly",
+        "openid", "email", "profile",
+    ]
+    return Flow.from_client_config(client_config, scopes=scopes, redirect_uri=OAUTH_REDIRECT_URI)
 
-# ----------------------------- Chroma (RAG) -----------------------------
-_chroma = chromadb.PersistentClient(path=CHROMA_DIR, settings=Settings(allow_reset=True))
-_collection = _chroma.get_or_create_collection("drive_docs")
+def get_creds() -> Credentials:
+    global creds
+    if creds and creds.valid:
+        return creds
+    if creds and creds.expired and creds.refresh_token:
+        try:
+            from google.auth.transport import requests as google_requests
+            creds.refresh(google_requests.Request())
+            log.info("Google OAuth token refreshed successfully.")
+            return creds
+        except Exception as e:
+            log.exception("Failed to refresh Google token: %s", e)
+            creds = None
+            raise HTTPException(401, "Google token expired. Please reconnect.")
+    raise HTTPException(401, "Not connected to Google. Visit /drive/login.")
 
-def _embed(texts: List[str]) -> List[List[float]]:
-    if not client:
-        raise HTTPException(500, "OPENAI_API_KEY not set on server.")
-    resp = client.embeddings.create(model="text-embedding-3-small", input=texts)
-    return [d.embedding for d in resp.data]
-
-def _retrieve_context(question: str, k: int = 6) -> List[Dict]:
-    q_emb = _embed([question])[0]
-    res = _collection.query(query_embeddings=[q_emb], n_results=k)
-    out: List[Dict] = []
-    for i in range(len(res.get("ids", [[]])[0])):
-        out.append({
-            "id": res["ids"][0][i],
-            "text": res["documents"][0][i],
-            "meta": res["metadatas"][0][i],
-            "distance": res.get("distances", [[None]])[0][i],
-        })
-    return out
-
-# ----------------------------- Ask (RAG + Chat) -----------------------------
-@app.post("/ask")
-async def ask(req: Request):
-    body = await req.json()
-    question = (body or {}).get("question") or (body or {}).get("message")
-    if not question:
-        return JSONResponse({"error": "Missing 'question' (or 'message')"}, status_code=400)
-    if client is None:
-        return JSONResponse({"answer": "⚠️ OPENAI_API_KEY not set on the server."}, status_code=200)
-
-    context_bits: List[str] = []
-    used = False
-    if _collection.count() > 0:
-        hits = _retrieve_context(question, k=6)
-        for h in hits:
-            fname = h["meta"].get("name", "file")
-            context_bits.append(f"[{fname}] {h['text'][:1200]}")
-        used = len(hits) > 0
-
-    prompt = (
-        "You are Diriyah AI. Use Drive context when helpful. "
-        "Keep answers concise; cite file names inline like [filename].\n\n"
-        f"Question:\n{question}\n\n"
-        f"Drive context (may be empty):\n{'\n\n'.join(context_bits) if context_bits else '—'}"
-    )
-
-    try:
-        res = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
-        )
-        return {"answer": res.choices[0].message.content, "used_context": used}
-    except Exception as e:
-        log.exception("OpenAI /ask failed")
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-# ----------------------------- Google OAuth -----------------------------
 @app.get("/drive/login")
 def drive_login():
-    if not (GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET):
-        raise HTTPException(500, "Google OAuth not configured (set GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET).")
-    state = secrets.token_urlsafe(24)
-    verifier, challenge = _new_pkce_pair()
-    _OAUTH_STATE[state] = {"cv": verifier, "ts": _now()}
-
-    params = {
-        "client_id": GOOGLE_OAUTH_CLIENT_ID,
-        "redirect_uri": OAUTH_REDIRECT_URI,
-        "response_type": "code",
-        "scope": OAUTH_SCOPES,
-        "access_type": "offline",
-        "prompt": "consent",
-        "state": state,
-        "code_challenge": challenge,
-        "code_challenge_method": "S256",
-    }
-    return RedirectResponse(f"{GOOGLE_AUTH_URL}?{urlencode(params)}")
+    global oauth_state
+    flow = build_flow()
+    auth_url, state = flow.authorization_url(
+        access_type="offline",
+        include_granted_scopes="true",
+        prompt="consent",
+    )
+    oauth_state = state
+    return RedirectResponse(auth_url)
 
 @app.get("/drive/callback")
-def drive_callback(code: str, state: str):
-    meta = _OAUTH_STATE.pop(state, None)
-    if not meta:
-        raise HTTPException(400, "Invalid/expired state")
-    data = {
-        "client_id": GOOGLE_OAUTH_CLIENT_ID,
-        "client_secret": GOOGLE_OAUTH_CLIENT_SECRET,
-        "code": code,
-        "code_verifier": meta["cv"],
-        "grant_type": "authorization_code",
-        "redirect_uri": OAUTH_REDIRECT_URI,
-    }
-    tok = requests.post(GOOGLE_TOKEN_URL, data=data, timeout=20).json()
-    if "access_token" not in tok:
-        raise HTTPException(400, f"Token exchange failed: {tok}")
-    tok["exp"] = _now() + int(tok.get("expires_in", 3600)) - 30
-    global _USER_TOKEN
-    _USER_TOKEN = tok
-    log.info("Google Drive connected")
-    return RedirectResponse("/?drive=connected")
+def drive_callback(request: Request):
+    global creds
+    flow = build_flow()
+    full_url = str(request.url)
+    try:
+        flow.fetch_token(authorization_response=full_url)
+        creds = flow.credentials
+        log.info("Google OAuth completed; token acquired.")
+        return HTMLResponse("<h3>Google Drive connected ✅</h3><p>You can close this tab.</p>")
+    except Exception as e:
+        log.exception("OAuth callback error: %s", e)
+        raise HTTPException(400, f"OAuth error: {e}")
+
+@app.get("/drive/disconnect")
+def drive_disconnect():
+    global creds
+    creds = None
+    return {"ok": True, "message": "Google Drive disconnected"}
+
+# ========= Google Drive helpers =========
+def drive_service() -> Resource:
+    c = get_creds()
+    return build("drive", "v3", credentials=c, cache_discovery=False)
+
+def list_drive_files(page_size: int = 50) -> List[Dict]:
+    svc = drive_service()
+    files = []
+    token = None
+    while True:
+        resp = svc.files().list(
+            pageSize=min(page_size, 100),
+            pageToken=token,
+            fields="nextPageToken, files(id, name, mimeType, modifiedTime, size)"
+        ).execute()
+        files.extend(resp.get("files", []))
+        token = resp.get("nextPageToken")
+        if not token or len(files) >= page_size:
+            break
+    return files
 
 @app.get("/drive/list")
-def drive_list():
-    access = _ensure_token()
-    headers = {"Authorization": f"Bearer {access}"}
-    params = {
-        "pageSize": 50,
-        "orderBy": "modifiedTime desc",
-        "q": "trashed=false",
-        "fields": "files(id,name,mimeType,modifiedTime,webViewLink,owners(displayName),size)",
-    }
-    r = requests.get(GOOGLE_DRIVE_FILES_URL, headers=headers, params=params, timeout=30)
-    if r.status_code != 200:
-        raise HTTPException(r.status_code, r.text)
-    return r.json()
-
-# ----------------------------- Drive helpers & Parsers -----------------------------
-EXPORT_MAP = {
-    "application/vnd.google-apps.document": "text/plain",
-    "application/vnd.google-apps.spreadsheet": "text/csv",
-    "application/vnd.google-apps.presentation": "application/pdf",
-}
-
-def _drive_export(file_id: str, export_mime: str, headers: Dict) -> bytes:
-    url = f"https://www.googleapis.com/drive/v3/files/{file_id}/export"
-    resp = requests.get(url, headers=headers, params={"mimeType": export_mime}, timeout=60)
-    if resp.status_code != 200:
-        raise RuntimeError(f"Export failed: {resp.text}")
-    return resp.content
-
-def _drive_download(file_id: str, headers: Dict) -> bytes:
-    url = f"https://www.googleapis.com/drive/v3/files/{file_id}"
-    resp = requests.get(url, headers=headers, params={"alt": "media"}, timeout=120)
-    if resp.status_code != 200:
-        raise RuntimeError(f"Download failed: {resp.text}")
-    return resp.content
-
-def _norm_ws(t: str) -> str:
-    return re.sub(r"\s+", " ", (t or "")).strip()
-
-def _parse_pdf(data: bytes) -> str:
+def drive_list(limit: int = 50):
     try:
-        out = []
-        with fitz.open(stream=data, filetype="pdf") as doc:
-            for p in doc:
-                out.append(p.get_text("text"))
-        text = "\n".join(out)
-        if _norm_ws(text):
-            return text
+        return {"files": list_drive_files(limit)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.exception("Drive list error: %s", e)
+        raise HTTPException(500, "Failed to list Drive files")
+
+# ========= Indexing (Chroma) =========
+os.makedirs(CHROMA_PATH, exist_ok=True)
+chroma_client = chromadb.PersistentClient(path=CHROMA_PATH)
+collection = chroma_client.get_or_create_collection(name=DB_COLLECTION_NAME)
+
+_index_log: List[str] = []
+def add_log(msg: str):
+    _index_log.append(msg)
+    log.info(msg)
+
+def extract_text_from_pdf(stream: io.BytesIO) -> str:
+    try:
+        stream.seek(0)
+        with fitz.open(stream=stream.read(), filetype="pdf") as doc:
+            return "\n".join(page.get_text() for page in doc)
     except Exception:
-        pass
-    # fallback
-    try:
-        reader = PdfReader(io.BytesIO(data))
-        out = []
-        for page in reader.pages:
-            out.append(page.extract_text() or "")
-        return "\n".join(out)
-    except Exception as e:
-        return f"[PDF parse error] {e}"
+        stream.seek(0)
+        reader = PdfReader(stream)
+        return "\n".join(p.extract_text() or "" for p in reader.pages)
 
-def _parse_docx(data: bytes) -> str:
-    try:
-        doc = Document(io.BytesIO(data))
-        return "\n".join(p.text for p in doc.paragraphs)
-    except Exception as e:
-        return f"[DOCX parse error] {e}"
+def extract_text_from_docx(stream: io.BytesIO) -> str:
+    stream.seek(0)
+    doc = Document(stream)
+    return "\n".join(p.text for p in doc.paragraphs)
 
-def _parse_xlsx_or_csv(data: bytes, is_xlsx: bool) -> str:
+def extract_text_from_tabular(stream: io.BytesIO, filename: str) -> str:
+    stream.seek(0)
     try:
-        if is_xlsx:
-            xl = pd.ExcelFile(io.BytesIO(data))
-            blocks = []
-            for sheet in xl.sheet_names:
-                df = xl.parse(sheet)
-                blocks.append(f"[Sheet: {sheet}]\n{df.to_csv(index=False)}")
-            return "\n\n".join(blocks)
+        if filename.lower().endswith(".csv"):
+            df = pd.read_csv(stream)
         else:
-            df = pd.read_csv(io.BytesIO(data))
-            return df.to_csv(index=False)
-    except Exception as e:
-        return f"[TABLE parse error] {e}"
+            df = pd.read_excel(stream)
+    except Exception:
+        stream.seek(0)
+        df = pd.read_excel(stream, engine="openpyxl")
+    return df.to_string(index=False)
 
-def _file_to_text(meta: Dict, data: bytes) -> str:
-    name = meta.get("name", "")
-    mime = meta.get("mimeType", "")
-    lower = name.lower()
+def download_file_content(file_id: str, mime: str, filename: str) -> Optional[str]:
+    svc = drive_service()
+    buf = io.BytesIO()
+    req = svc.files().get_media(fileId=file_id)
+    downloader = MediaIoBaseDownload(buf, req)
+    done = False
+    while not done:
+        _, done = downloader.next_chunk()
+    text = ""
+    if mime == "application/pdf" or filename.lower().endswith(".pdf"):
+        text = extract_text_from_pdf(buf)
+    elif mime in (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/msword",
+    ) or filename.lower().endswith(".docx"):
+        text = extract_text_from_docx(buf)
+    elif any(filename.lower().endswith(ext) for ext in (".xlsx", ".xls", ".csv")):
+        text = extract_text_from_tabular(buf, filename)
+    elif mime.startswith("text/"):
+        buf.seek(0)
+        text = buf.read().decode("utf-8", errors="ignore")
+    else:
+        return None
+    return text.strip()
 
-    if mime == "application/pdf" or lower.endswith(".pdf"):
-        return f"[FILE: {name}]\n{_parse_pdf(data)}"
-    if mime == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or lower.endswith(".docx"):
-        return f"[FILE: {name}]\n{_parse_docx(data)}"
-    if mime == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" or lower.endswith(".xlsx"):
-        return f"[FILE: {name}]\n{_parse_xlsx_or_csv(data, is_xlsx=True)}"
-    if mime == "text/csv" or lower.endswith(".csv"):
-        return f"[FILE: {name}]\n{_parse_xlsx_or_csv(data, is_xlsx=False)}"
-    if mime == "text/plain" or lower.endswith(".txt"):
-        return f"[FILE: {name}]\n{data.decode('utf-8', errors='ignore')}"
-    return f"[FILE: {name}] [Unsupported type for text extraction]"
-
-# ----------------------------- Indexing -----------------------------
-_LAST_SYNC_LOG: List[Dict] = []
-
-def _chunk(text: str, chunk_size: int = 1200, overlap: int = 150) -> List[str]:
-    out: List[str] = []
-    i, n = 0, len(text)
-    while i < n:
-        out.append(text[i:i + chunk_size])
-        i += max(1, chunk_size - overlap)
-    return out
+def embed_texts(chunks: List[str]) -> List[List[float]]:
+    if not client:
+        raise RuntimeError("OpenAI client not initialized")
+    resp = client.embeddings.create(model=EMBEDDING_MODEL, input=chunks)
+    return [d.embedding for d in resp.data]
 
 @app.get("/index/run")
-def index_run():
-    """
-    Crawl Drive (first ~300 files), export/parse to text, chunk, embed, upsert to Chroma.
-    """
-    access = _ensure_token()
-    headers = {"Authorization": f"Bearer {access}"}
-
-    added_chunks = 0
-    seen_files = 0
-    log_items: List[Dict] = []
-    page_token = None
-    MAX_FILES = 300
-
-    while True:
-        params = {
-            "pageSize": 200,
-            "pageToken": page_token,
-            "orderBy": "modifiedTime desc",
-            "q": "trashed=false",
-            "fields": "nextPageToken, files(id,name,mimeType,modifiedTime,webViewLink)",
-        }
-        r = requests.get(GOOGLE_DRIVE_FILES_URL, headers=headers, params=params, timeout=60)
-        if r.status_code != 200:
-            raise HTTPException(r.status_code, r.text)
-        resp = r.json()
-        files = resp.get("files", [])
-
+def index_run(limit: int = 30, chunk_chars: int = 1000):
+    _index_log.clear()
+    added = 0
+    try:
+        files = list_drive_files(limit)
+        add_log(f"Found {len(files)} candidate files.")
+        ids, docs, metas = [], [], []
         for f in files:
-            seen_files += 1
-            fid = f["id"]; name = f.get("name", ""); mime = f.get("mimeType", "")
+            fid, name, mime = f["id"], f["name"], f.get("mimeType", "")
+            add_log(f"Downloading: {name} ({mime})")
             try:
-                # Google-native export vs binary download
-                if mime in EXPORT_MAP:
-                    data = _drive_export(fid, EXPORT_MAP[mime], headers)
-                else:
-                    data = _drive_download(fid, headers)
-
-                text = _file_to_text(f, data)
-                if not text or not text.strip():
-                    log_items.append({"file": name, "status": "skipped", "reason": "empty"})
+                text = download_file_content(fid, mime, name)
+                if not text:
+                    add_log(f"Skipped (unsupported): {name}")
                     continue
-
-                chunks = _chunk(text)
-                embeds = _embed(chunks)
-                ids = [f"{fid}::{i}" for i in range(len(chunks))]
-                metas = [{"file_id": fid, "name": name, "mime": mime} for _ in chunks]
-                _collection.upsert(ids=ids, documents=chunks, metadatas=metas, embeddings=embeds)
-
-                added_chunks += len(chunks)
-                log_items.append({"file": name, "status": "indexed", "chunks": len(chunks)})
+                chunks = [text[i:i+chunk_chars] for i in range(0, len(text), chunk_chars)]
+                vecs = embed_texts(chunks)
+                for idx, chunk in enumerate(chunks):
+                    ids.append(f"{fid}-{idx}")
+                    docs.append(chunk)
+                    metas.append({"file": name, "file_id": fid, "chunk": idx})
+                add_log(f"Prepared {name} -> {len(chunks)} chunks for indexing.")
+                added += len(chunks)
             except Exception as e:
-                log_items.append({"file": name, "status": "error", "error": str(e)})
-
-            if seen_files >= MAX_FILES:
-                break
-
-        page_token = resp.get("nextPageToken")
-        if not page_token or seen_files >= MAX_FILES:
-            break
-
-    global _LAST_SYNC_LOG
-    _LAST_SYNC_LOG = log_items[-200:]
-    log.info(f"Index complete: files_seen={seen_files}, chunks_added={added_chunks}")
-    return {"files_seen": seen_files, "chunks_added": added_chunks, "log_items": len(log_items)}
+                log.exception("Error processing file %s: %s", name, e)
+                add_log(f"Error processing {name}: {e}")
+        if ids:
+            collection.upsert(ids=ids, documents=docs, metadatas=metas)
+        add_log(f"Upserted {added} total chunks into ChromaDB.")
+        return {"ok": True, "chunks_added": added}
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.exception("Index run failed: %s", e)
+        raise HTTPException(500, "An internal error occurred during indexing.")
 
 @app.get("/index/status")
 def index_status():
     try:
-        return {"chunks": _collection.count()}
+        count = collection.count()
+        return {"chunks": count}
     except Exception as e:
-        return {"error": str(e)}
+        log.exception("Status error: %s", e)
+        return {"chunks": 0, "error": "Could not connect to the database."}
 
 @app.get("/index/log")
 def index_log():
-    return {"log": _LAST_SYNC_LOG}
+    return {"log": _index_log[-200:]}
+
+# ========= Ask (RAG) =========
+@app.post("/ask")
+async def ask(payload: Dict):
+    if not client:
+        raise HTTPException(503, "OpenAI service is not configured on the server.")
+    question = (payload or {}).get("question", "").strip()
+    if not question:
+        raise HTTPException(400, "Missing 'question'")
+    context_bits: List[str] = []
+    try:
+        results = collection.query(query_texts=[question], n_results=6)
+        docs = results.get("documents", [[]])[0]
+        metas = results.get("metadatas", [[]])[0]
+        for d, m in zip(docs, metas):
+            if d:
+                fn = m.get("file", "source")
+                context_bits.append(f"[{fn}] {d[:800]}")
+    except Exception as e:
+        log.exception("Chroma query error: %s", e)
+    context_block = "\n\n".join(context_bits) if context_bits else "No relevant context found in Drive."
+    prompt = (
+        "You are Diriyah AI. Use the provided Drive context to answer the user's question. "
+        "Keep answers concise and directly address the question. "
+        "When you use information from the context, cite the file name inline, like [filename.pdf]."
+    )
+    try:
+        res = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": f"Question: {question}\n\nContext:\n{context_block}"},
+            ],
+            temperature=0.2,
+            max_tokens=500,
+        )
+        answer = res.choices[0].message.content
+    except Exception as e:
+        log.exception("OpenAI completion error: %s", e)
+        raise HTTPException(500, "Failed to get a response from the AI model.")
+    return {"answer": answer}

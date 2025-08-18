@@ -17,11 +17,11 @@ import io
 # Import token store
 from adapters.token_store import set_tokens, get_tokens
 
-# ========= Initialize Logging =========
+# Initialize logging
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("diriyah-ai")
 
-# ========= Validate Environment =========
+# Validate environment variables
 REQUIRED_ENV = [
     "OPENAI_API_KEY",
     "GOOGLE_CLIENT_ID",
@@ -33,18 +33,17 @@ for var in REQUIRED_ENV:
     if not os.getenv(var):
         raise RuntimeError(f"Missing {var} in environment")
 
-# Validate encryption key length
 if len(os.getenv("TOKEN_ENCRYPTION_KEY", "")) < 32:
     raise ValueError("TOKEN_ENCRYPTION_KEY must be at least 32 characters")
 
-# ========= Fixed Configuration =========
-OAUTH_REDIRECT_URI = "http://localhost:8000/drive/callback"  # Fixed as requested
+# Fixed configuration
+OAUTH_REDIRECT_URI = "http://localhost:8000/drive/callback"
 USER_ID = os.getenv("DEFAULT_USER_ID", "admin")
 CHROMA_DB_PATH = os.getenv("CHROMA_DB_PATH", "./chroma_data")
 AI_MODEL = os.getenv("AI_MODEL", "gpt-4o")
 STATIC_DIR = os.getenv("STATIC_DIR", "./static")
 
-# ========= Initialize Clients =========
+# Initialize clients
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 log.info("✅ OpenAI client initialized")
 
@@ -59,7 +58,7 @@ collection = chroma_client.get_or_create_collection(
     metadata={"hnsw:space": "cosine"}
 )
 
-# ========= App Setup =========
+# App setup
 app = FastAPI(title="Diriyah AI")
 app.add_middleware(
     CORSMiddleware,
@@ -69,7 +68,7 @@ app.add_middleware(
 )
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-# ========= Google OAuth Flow =========
+# Google OAuth flow
 def build_flow() -> Flow:
     return Flow.from_client_config(
         client_config={
@@ -81,10 +80,10 @@ def build_flow() -> Flow:
             }
         },
         scopes=["https://www.googleapis.com/auth/drive.readonly"],
-        redirect_uri=OAUTH_REDIRECT_URI  # Using fixed URI
+        redirect_uri=OAUTH_REDIRECT_URI
     )
 
-# ========= UI Endpoints =========
+# UI endpoints
 @app.get("/", response_class=HTMLResponse)
 def home():
     try:
@@ -96,7 +95,7 @@ def home():
 def healthz():
     return {"status": "ok"}
 
-# ========= Google Drive Auth =========
+# Google Drive auth
 @app.get("/drive/login")
 def drive_login():
     flow = build_flow()
@@ -135,7 +134,7 @@ def get_drive_service():
     
     return build("drive", "v3", credentials=SimpleCredentials())
 
-# ========= Indexing Endpoints =========
+# Indexing endpoints
 @app.get("/index/run")
 def run_index():
     try:
@@ -179,7 +178,7 @@ def index_status():
         except Exception:
             return {"chunks": 0, "error": "Unable to get count"}
 
-# ========= AI Endpoints =========
+# AI endpoints
 @app.post("/ask")
 async def ask(request: Request):
     data = await request.json()
@@ -213,3 +212,9 @@ async def ask(request: Request):
             status_code=500,
             content={"error": "Processing failed"}
         )
+
+# Render.com compatibility
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)

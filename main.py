@@ -1,5 +1,6 @@
 import os
 import logging
+from pathlib import Path  # Added for directory creation
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -43,8 +44,14 @@ CHROMA_DB_PATH = os.getenv("CHROMA_DB_PATH", "./chroma_data")
 AI_MODEL = os.getenv("AI_MODEL", "gpt-4o")
 STATIC_DIR = os.getenv("STATIC_DIR", "./static")
 
-# Initialize clients
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Create static directory if it doesn't exist
+Path(STATIC_DIR).mkdir(parents=True, exist_ok=True)
+
+# Initialize clients - FIXED OpenAI initialization
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    default_headers={"OpenAI-Beta": ""}  # Critical fix
+)
 log.info("✅ OpenAI client initialized")
 
 chroma_client = chromadb.PersistentClient(path=CHROMA_DB_PATH)

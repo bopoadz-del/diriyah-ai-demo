@@ -1,4 +1,3 @@
-# adapters/projects.py
 """
 Minimal demo adapter for projects.
 This keeps Render happy and lets the UI show some sample projects.

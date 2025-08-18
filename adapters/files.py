@@ -1,6 +1,5 @@
-# adapters/files.py
 # Minimal DEMO-only adapters so the app boots on Render.
-# Later we’ll replace these with real Google Drive API calls.
+# Later we'll replace these with real Google Drive API calls.
 
 import os
 from typing import List, Dict

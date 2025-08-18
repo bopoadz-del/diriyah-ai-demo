@@ -1,72 +1,381 @@
-import os
-import chromadb
-from chromadb.utils import embedding_functions
-import logging
-
-# ========= Logging =========
-log = logging.getLogger("index")
-logging.basicConfig(level=logging.INFO)
-
-# ========= Environment =========
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-# ========= ChromaDB Setup =========
-chroma_client = chromadb.PersistentClient(path="/data/chroma")
-
-embedding_fn = embedding_functions.OpenAIEmbeddingFunction(
-    api_key=OPENAI_API_KEY,
-    model_name="text-embedding-3-small"
-)
-
-collection = chroma_client.get_or_create_collection(
-    name="diriyah_ai",
-    embedding_function=embedding_fn
-)
-
-# ========= Log Buffer =========
-_index_log = []
-
-def log_event(message: str):
-    """Append to in-memory log + console"""
-    log.info(message)
-    _index_log.append(message)
-    if len(_index_log) > 100:
-        _index_log.pop(0)
-
-# ========= Index Functions =========
-def add_documents(docs: list[str], metadatas: list[dict] = None, ids: list[str] = None):
-    """Add documents to Chroma collection"""
-    try:
-        collection.add(documents=docs, metadatas=metadatas, ids=ids)
-        log_event(f"Indexed {len(docs)} docs")
-    except Exception as e:
-        log.exception("Error adding documents")
-        log_event(f"Error indexing: {e}")
-        raise
-
-def query_documents(query: str, n_results: int = 3):
-    """Query indexed docs"""
-    try:
-        res = collection.query(query_texts=[query], n_results=n_results)
-        log_event(f"Query: {query} → {len(res['documents'][0])} results")
-        return res
-    except Exception as e:
-        log.exception("Query error")
-        log_event(f"Query error: {e}")
-        return {"documents": [], "metadatas": [], "ids": []}
-
-def get_index_count():
-    """Return count of chunks (compatible across ChromaDB versions)"""
-    try:
-        try:
-            return collection.count()
-        except AttributeError:
-            return len(collection.get()["ids"])
-    except Exception as e:
-        log.exception("Count error")
-        return 0
-
-def get_logs(n: int = 10):
-    """Return last N log entries"""
-    return _index_log[-n:]
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diriyah AI | Construction Intelligence</title>
+    <style>
+        :root {
+            --primary: #1a56db;
+            --secondary: #0e2b5c;
+            --accent: #e53e3e;
+            --light: #f7fafc;
+            --dark: #1a202c;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--dark);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            padding: 40px 0;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%231a56db" opacity="0.1"/></svg>');
+            background-size: 200px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            color: var(--secondary);
+            margin-bottom: 10px;
+        }
+        
+        .tagline {
+            font-size: 1.2rem;
+            color: var(--primary);
+            max-width: 600px;
+            margin: 0 auto 30px;
+        }
+        
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+        }
+        
+        .card h2 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+        
+        .card p {
+            color: #4a5568;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 12px 25px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        
+        .btn:hover {
+            background: #0e2b5c;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+        
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .status-section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+        
+        .status-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        
+        .status-item {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+        }
+        
+        .status-item h3 {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            color: var(--secondary);
+        }
+        
+        .status-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .ai-section {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 40px;
+            margin-bottom: 40px;
+        }
+        
+        .ai-section h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2rem;
+        }
+        
+        .ai-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 30px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border-radius: 8px;
+            border: none;
+            font-size: 1rem;
+            min-height: 120px;
+            resize: vertical;
+        }
+        
+        .response {
+            background: rgba(255, 255, 255, 0.9);
+            color: var(--dark);
+            padding: 20px;
+            border-radius: 8px;
+            min-height: 150px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 30px 0;
+            color: #718096;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Diriyah AI Assistant</h1>
+            <p class="tagline">Intelligent construction project management powered by AI</p>
+            <a href="/drive/login" class="btn">Connect Google Drive</a>
+        </header>
+        
+        <div id="auth-status" class="status-section">
+            <div class="status-header">
+                <h2>Authentication Status</h2>
+            </div>
+            <div id="status-content">
+                {% if auth %}
+                <div class="status-item">
+                    <h3>Google Drive</h3>
+                    <div class="status-value">Connected</div>
+                </div>
+                {% else %}
+                <p>Not authenticated. <a href="/drive/login" style="color: var(--primary);">Connect Google Drive</a> to begin.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card-grid">
+            <div class="card">
+                <h2>Index Files</h2>
+                <p>Scan and index documents from your connected Google Drive account for AI processing.</p>
+                <a href="/index/run" class="btn">Run Indexing</a>
+            </div>
+            
+            <div class="card">
+                <h2>Index Status</h2>
+                <p>Check the status of your indexed documents and view recent indexing logs.</p>
+                <a href="/index/status" class="btn btn-outline">Check Status</a>
+            </div>
+            
+            <div class="card">
+                <h2>Projects</h2>
+                <p>View and manage your construction projects and associated documents.</p>
+                <a href="#" class="btn btn-outline">View Projects</a>
+            </div>
+        </div>
+        
+        <div class="status-section">
+            <div class="status-header">
+                <h2>System Status</h2>
+            </div>
+            <div class="status-grid">
+                <div class="status-item">
+                    <h3>Indexed Documents</h3>
+                    <div class="status-value" id="doc-count">0</div>
+                </div>
+                <div class="status-item">
+                    <h3>AI Model</h3>
+                    <div class="status-value">GPT-4o</div>
+                </div>
+                <div class="status-item">
+                    <h3>Last Indexed</h3>
+                    <div class="status-value" id="last-indexed">Never</div>
+                </div>
+                <div class="status-item">
+                    <h3>System Health</h3>
+                    <div class="status-value" id="health-status">OK</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="ai-section">
+            <h2>Ask Diriyah AI</h2>
+            <div class="ai-container">
+                <div class="input-group">
+                    <textarea id="question-input" placeholder="Ask a question about your construction projects, documents, or timelines..."></textarea>
+                </div>
+                <button class="btn" onclick="askQuestion()">Ask Question</button>
+                <div class="response" id="ai-response"></div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>© 2024 Diriyah AI Assistant | Secure Construction Intelligence Platform</p>
+            <p>All document processing is encrypted and secure</p>
+        </footer>
+    </div>
+    
+    <script>
+        // Authentication status check
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('auth') === 'success') {
+            const statusContent = document.getElementById('status-content');
+            statusContent.innerHTML = `
+                <div class="status-item">
+                    <h3>Google Drive</h3>
+                    <div class="status-value">Connected</div>
+                </div>
+                <p style="margin-top: 15px; color: green;">✅ Authentication successful! You can now index files.</p>
+            `;
+        }
+        
+        // Fetch document count
+        async function fetchDocumentCount() {
+            try {
+                const response = await fetch('/index/status');
+                const data = await response.json();
+                document.getElementById('doc-count').textContent = data.chunks || 0;
+            } catch (error) {
+                console.error('Error fetching document count:', error);
+            }
+        }
+        
+        // Ask question function
+        async function askQuestion() {
+            const question = document.getElementById('question-input').value.trim();
+            const responseEl = document.getElementById('ai-response');
+            
+            if (!question) {
+                responseEl.textContent = 'Please enter a question';
+                responseEl.style.display = 'block';
+                return;
+            }
+            
+            responseEl.textContent = 'Thinking...';
+            responseEl.style.display = 'block';
+            
+            try {
+                const response = await fetch('/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ question })
+                });
+                
+                const data = await response.json();
+                responseEl.innerHTML = `<strong>Answer:</strong><br>${data.answer || data.error || 'No response'}`;
+            } catch (error) {
+                responseEl.textContent = 'Error getting response: ' + error.message;
+            }
+        }
+        
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchDocumentCount();
+            
+            // Check health status
+            fetch('/healthz')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'ok') {
+                        document.getElementById('health-status').textContent = 'OK';
+                    } else {
+                        document.getElementById('health-status').textContent = 'Error';
+                        document.getElementById('health-status').style.color = 'var(--accent)';
+                    }
+                });
+        });
+    </script>
+</body>
+</html>

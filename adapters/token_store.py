@@ -5,6 +5,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
+# Load configuration
 PATH = os.getenv("TOKEN_STORE_PATH", "./tokens.json")
 SECRET_KEY = os.getenv("TOKEN_ENCRYPTION_KEY")
 
@@ -13,8 +14,9 @@ if not SECRET_KEY:
 if len(SECRET_KEY) < 32:
     raise ValueError("TOKEN_ENCRYPTION_KEY must be at least 32 characters")
 
+# Key derivation
 def _derive_key():
-    salt = b'diriyah_ai_salt_'  # Fixed salt for key derivation
+    salt = b'diriyah_ai_salt_'
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
@@ -26,6 +28,7 @@ def _derive_key():
 
 FERNET = Fernet(_derive_key())
 
+# Storage operations
 def _load() -> dict:
     if not os.path.exists(PATH):
         return {}
@@ -42,6 +45,7 @@ def _save(data: dict):
     with open(PATH, "w", encoding="utf-8") as f:
         f.write(encrypted.decode())
 
+# Public interface
 def set_tokens(user_id: str, provider: str, tokens: dict):
     data = _load()
     if user_id not in data:

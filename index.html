@@ -1,174 +1,84 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Diriyah AI</title>
   <style>
     :root{
-      --diriyah-sand:#d8c3a5;   /* sand / adobe */
-      --diriyah-clay:#b08968;   /* clay accent */
-      --diriyah-stone:#4b3f35;  /* dark stone text */
-      --diriyah-green:#3a5a40;  /* palm green */
-      --bg:#f6efe7;             /* page background */
+      --bg:#f4efe6;        /* sand */
+      --brand:#006a4e;     /* Diriyah green vibe */
+      --ink:#1f2937;
+      --card:#ffffff;
+      --muted:#6b7280;
     }
-    html,body{height:100%}
-    body{
-      margin:0;background:var(--bg);color:var(--diriyah-stone);
-      font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial;
-      display:flex;flex-direction:column;
-    }
-    header{
-      background:linear-gradient(90deg,var(--diriyah-sand),#e6d7c2);
-      border-bottom:3px solid var(--diriyah-clay);
-      padding:14px 16px;display:flex;align-items:center;gap:12px;
-      position:sticky;top:0;z-index:2;
-    }
-    .logo{
-      width:36px;height:36px;border-radius:50%;
-      background: radial-gradient(circle at 40% 40%, #fff 0 35%, var(--diriyah-sand) 36% 100%);
-      border:2px solid var(--diriyah-stone);
-      display:inline-block;
-    }
-    header h1{margin:0;font-size:18px;letter-spacing:.5px}
-    header .badge{
-      margin-left:auto;background:var(--diriyah-green);color:#fff;
-      padding:6px 10px;border-radius:999px;font-size:12px
-    }
-
-    .app{max-width:900px; width:100%; margin:18px auto; padding:0 12px; display:flex; gap:14px; align-items:stretch; flex:1}
-    .projects{
-      width:220px; background:#fff; border:1px solid #e8dccd; border-radius:12px; padding:12px; display:none;
-    }
-    @media (min-width: 880px){ .projects{display:block;} }
-    .projects h3{margin:6px 8px 10px; font-size:13px; color:#6b5b4d; text-transform:uppercase; letter-spacing:.6px}
-    .pill{
-      padding:8px 10px;border-radius:10px;border:1px solid #e8dccd;margin:6px 0;cursor:pointer;
-      display:flex; justify-content:space-between; align-items:center; font-size:14px; background:#fff;
-    }
-    .pill.active{background:#f3eadf;border-color:var(--diriyah-clay)}
-
-    .chat{
-      flex:1; display:flex; flex-direction:column; background:#fff;
-      border:1px solid #e8dccd; border-radius:14px; overflow:hidden;
-    }
-    .messages{flex:1; overflow:auto; padding:16px 16px 8px}
-    .bubble{
-      max-width:75%; padding:10px 12px; margin:8px 0; border-radius:12px;
-      box-shadow:0 1px 0 rgba(0,0,0,.03); white-space:pre-wrap;
-    }
-    .me{ margin-left:auto; background:#eef4ec; border:1px solid #d7e6d5 }
-    .bot{ background:#faf5ef; border:1px solid #eaded0 }
-    .meta{font-size:12px;color:#7a6a5c;margin:2px 0 6px}
-
-    form{
-      display:flex; gap:10px; padding:10px; border-top:1px solid #e8dccd; background:#fbf6f0
-    }
-    textarea{
-      flex:1; min-height:46px; max-height:160px; padding:10px 12px; resize:vertical;
-      border:1px solid #e0d2c0; border-radius:10px; outline:none; font:inherit; background:#fff
-    }
-    button{
-      background:var(--diriyah-green); color:#fff; border:0; padding:0 14px;
-      border-radius:10px; font-weight:600; cursor:pointer; min-width:95px
-    }
-    button:disabled{opacity:.6; cursor:not-allowed}
-    .hint{font-size:12px;color:#8a7a6a; padding:8px 14px}
-    .link a{color:var(--diriyah-green); text-decoration:none}
+    body{margin:0;background:var(--bg);font-family:system-ui,Segoe UI,Roboto,Arial;color:var(--ink)}
+    header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#e8dccf}
+    .brand{display:flex;gap:10px;align-items:center;font-weight:700}
+    .logo{width:32px;height:32px;background:var(--brand);border-radius:6px}
+    .wrap{max-width:860px;margin:16px auto;padding:0 12px}
+    .bar a{display:inline-block;margin:6px 6px 0 0;padding:10px 12px;border-radius:8px;text-decoration:none;color:#fff;background:var(--brand)}
+    .bar a.secondary{background:#444}
+    .bar a.warn{background:#9a3d3d}
+    .card{background:var(--card);border-radius:12px;padding:14px;margin-top:12px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+    textarea{width:100%;min-height:120px;border:1px solid #ddd;border-radius:10px;padding:10px;font-size:16px}
+    button{padding:10px 14px;border:0;border-radius:10px;background:var(--brand);color:#fff;font-weight:600;margin-top:8px;cursor:pointer}
+    pre{white-space:pre-wrap}
+    .muted{color:var(--muted);font-size:12px;margin-top:6px}
   </style>
 </head>
 <body>
   <header>
-    <span class="logo" aria-hidden="true"></span>
-    <h1>Diriyah AI</h1>
-    <span class="badge" id="status">Connecting…</span>
+    <div class="brand">
+      <div class="logo"></div>
+      <div>Diriyah AI</div>
+    </div>
+    <div id="status" class="muted">checking…</div>
   </header>
 
-  <div class="app">
-    <!-- optional project rail (static for now) -->
-    <aside class="projects" aria-label="Projects">
-      <h3>Projects</h3>
-      <div class="pill active">All Files <span>•</span></div>
-      <div class="pill">Opera House</div>
-      <div class="pill">Heritage Village</div>
-      <div class="pill">Landscape</div>
-    </aside>
+  <div class="wrap">
+    <div class="bar">
+      <a href="/drive/login">Connect Google Drive</a>
+      <a class="secondary" href="/drive/list" target="_blank">List Files</a>
+      <a class="secondary" href="/index/run">Index Drive</a>
+      <a class="warn" href="/index/status" target="_blank">Index Status</a>
+      <a class="warn" href="/index/log" target="_blank">Index Log</a>
+    </div>
 
-    <!-- chat pane -->
-    <section class="chat">
-      <div class="messages" id="messages" role="log" aria-live="polite"></div>
-      <form id="form">
-        <textarea id="input" placeholder="Ask about drawings, revisions, schedules…"></textarea>
-        <button id="send" type="submit">Send</button>
+    <div class="card">
+      <h3>Ask Diriyah AI</h3>
+      <form onsubmit="ask(event)">
+        <textarea id="q" placeholder="Ask about drawings, reports, schedules…"></textarea>
+        <button>Ask</button>
       </form>
-      <div class="hint link">
-        Tip: I’ll answer fast and include links when I reference files.
-      </div>
-    </section>
+      <pre id="out"></pre>
+      <div class="muted">Tip: first connect Google Drive, then click “Index Drive”.</div>
+    </div>
   </div>
 
   <script>
-    const $messages = document.getElementById('messages');
-    const $form = document.getElementById('form');
-    const $input = document.getElementById('input');
-    const $send = document.getElementById('send');
-    const $status = document.getElementById('status');
-
-    // Simple connectivity check
-    fetch('/healthz').then(r => r.ok ? r.json() : Promise.reject())
-      .then(() => $status.textContent = 'Connected')
-      .catch(() => $status.textContent = 'Offline');
-
-    function addBubble(text, who){
-      const wrap = document.createElement('div');
-      wrap.className = 'bubble ' + (who === 'me' ? 'me' : 'bot');
-      wrap.textContent = text;
-      $messages.appendChild(wrap);
-      $messages.scrollTop = $messages.scrollHeight;
-    }
-
-    function addMeta(text){
-      const m = document.createElement('div');
-      m.className = 'meta';
-      m.textContent = text;
-      $messages.appendChild(m);
-    }
-
-    async function askServer(message){
-      const res = await fetch('/ask', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ message })
-      });
-      if(!res.ok){
-        const err = await res.text();
-        throw new Error(err || res.statusText);
-      }
-      return res.json();
-    }
-
-    $form.addEventListener('submit', async (e)=>{
+    async function ask(e){
       e.preventDefault();
-      const text = $input.value.trim();
-      if(!text) return;
-      addBubble(text, 'me');
-      $input.value = '';
-      $input.focus();
-      $send.disabled = true;
-
+      const q = document.getElementById('q').value.trim();
+      if(!q) return;
+      setOut("Thinking…");
       try{
-        addMeta('Thinking…');
-        const data = await askServer(text);
-        const answer = (data && data.answer) ? data.answer : JSON.stringify(data);
-        addBubble(answer, 'bot');
+        const r = await fetch('/ask',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:q})});
+        const j = await r.json();
+        if(j.answer) setOut(j.answer);
+        else setOut(JSON.stringify(j,null,2));
       }catch(err){
-        addBubble('⚠️ ' + (err.message || 'Something went wrong'), 'bot');
-      }finally{
-        const lastMeta = document.querySelector('.meta:last-of-type');
-        if(lastMeta) lastMeta.remove();
-        $send.disabled = false;
+        setOut('Error: '+err);
       }
-    });
+    }
+    function setOut(t){document.getElementById('out').textContent=t;}
+    (async ()=>{
+      try{
+        const r = await fetch('/healthz'); const j = await r.json();
+        document.getElementById('status').textContent =
+          (j.ok?'✅':'❌') + ' AI='+(j.openai?'ON':'OFF')+' | Drive='+(j.drive_connected?'ON':'OFF');
+      }catch{document.getElementById('status').textContent='offline?'}
+    })();
   </script>
 </body>
 </html>

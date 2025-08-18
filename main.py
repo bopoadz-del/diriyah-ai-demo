@@ -1,6 +1,6 @@
 import os
 import logging
-from pathlib import Path  # Added for directory creation
+from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -17,6 +17,9 @@ import io
 
 # Import token store
 from adapters.token_store import set_tokens, get_tokens
+
+# Disable ChromaDB telemetry to prevent errors
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
@@ -37,17 +40,16 @@ for var in REQUIRED_ENV:
 if len(os.getenv("TOKEN_ENCRYPTION_KEY", "")) < 32:
     raise ValueError("TOKEN_ENCRYPTION_KEY must be at least 32 characters")
 
-# Fixed configuration
-OAUTH_REDIRECT_URI = "http://localhost:8000/drive/callback"
+# Fixed configuration - UPDATED FOR PRODUCTION
 USER_ID = os.getenv("DEFAULT_USER_ID", "admin")
 CHROMA_DB_PATH = os.getenv("CHROMA_DB_PATH", "./chroma_data")
 AI_MODEL = os.getenv("AI_MODEL", "gpt-4o")
-STATIC_DIR = os.getenv("STATIC_DIR", "./static")
+STATIC_DIR = os.getenv("STATIC_DIR", "/var/data/static")
 
 # Create static directory if it doesn't exist
 Path(STATIC_DIR).mkdir(parents=True, exist_ok=True)
 
-# Initialize clients - FIXED OpenAI initialization
+# Initialize clients - FIXED
 client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY"),
     default_headers={"OpenAI-Beta": ""}  # Critical fix
@@ -75,19 +77,26 @@ app.add_middleware(
 )
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-# Google OAuth flow
+# Google OAuth flow - UPDATED FOR PRODUCTION
 def build_flow() -> Flow:
+    # Get redirect URI from environment (with fallback)
+    oauth_redirect_uri = os.getenv(
+        "OAUTH_REDIRECT_URI", 
+        "https://diriyah-ai-demo.onrender.com/drive/callback"
+    )
+    
     return Flow.from_client_config(
         client_config={
             "web": {
                 "client_id": os.getenv("GOOGLE_CLIENT_ID"),
                 "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                "token_uri": "https://oauth2.googleapis.com/token"
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "redirect_uris": [oauth_redirect_uri]  # Must match Google Console
             }
         },
         scopes=["https://www.googleapis.com/auth/drive.readonly"],
-        redirect_uri=OAUTH_REDIRECT_URI
+        redirect_uri=oauth_redirect_uri
     )
 
 # UI endpoints

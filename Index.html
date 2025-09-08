@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Diriyah Brain AI</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f4f4f4; }
+    .chat-box { border: 1px solid #ccc; border-radius: 10px; padding: 20px; background: white; max-width: 600px; margin: auto; }
+    h1 { color: #333; }
+    input, button { padding: 10px; margin: 5px; }
+    .response { margin-top: 20px; padding: 10px; background: #eef; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <div class="chat-box">
+    <h1>🤖 Diriyah Brain AI</h1>
+    <p>Type a message to test the demo assistant:</p>
+    <input type="text" id="userInput" placeholder="Ask me about your project..." size="40">
+    <button onclick="sendMessage()">Send</button>
+    <div class="response" id="responseBox">Response will appear here...</div>
+  </div>
+
+  <script>
+    async function sendMessage() {
+      const input = document.getElementById("userInput").value;
+      if (!input) return;
+      const res = await fetch("/projects"); // demo: fetch projects API
+      const data = await res.json();
+      document.getElementById("responseBox").innerText = 
+        "You said: " + input + "\\nAI Demo: " + JSON.stringify(data, null, 2);
+    }
+  </script>
+</body>
+</html>

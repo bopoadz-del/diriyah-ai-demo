@@ -1,7 +1,7 @@
 import os
 import json
 import uvicorn
-from fastapi import FastAPI, UploadFile, Form, Request
+from fastapi import FastAPI, UploadFile, Form, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -27,11 +27,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Serve static files (the front-end)
 app.mount("/static", StaticFiles(directory="."), name="static")
 
 @app.get("/", response_class=FileResponse)
 async def root_page():
-    return FileResponse("index.html")
+    # Serve index.html if present
+    if os.path.exists("index.html"):
+        return FileResponse("index.html")
+    return HTMLResponse("<h1>Diriyah Brain AI</h1><p>No index.html found.</p>", status_code=404)
 
 # ---------- OpenAI ----------
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -41,11 +45,14 @@ async def ai_query(query: str = Form(...)):
     """
     Send user query to OpenAI and return assistant reply.
     """
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": query}]
-    )
-    return {"reply": response.choices[0].message.content}
+    try:
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": query}]
+        )
+        return {"reply": resp.choices[0].message.content}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ---------- Google Drive OAuth ----------
 CLIENT_SECRETS_FILE = "client_secret.json"
@@ -67,6 +74,7 @@ async def auth_callback(request: Request):
     )
     flow.fetch_token(authorization_response=str(request.url))
     creds = flow.credentials
+    # Save the Google OAuth tokens via your existing token_store
     set_tokens(openai_api_key="", google_oauth=creds.to_json())
     return {"status": "Google Drive connected"}
 

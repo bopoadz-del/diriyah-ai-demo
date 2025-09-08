@@ -1,0 +1,13 @@
+# Ignore virtual environments and caches
+venv/
+__pycache__/
+*.pyc
+
+# Ignore environment & credential files
+.env
+*.env
+client_secret.json
+tokens.json
+
+# OS junk
+.DS_Store

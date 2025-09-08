@@ -1,5 +1,7 @@
 from fastapi import FastAPI, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 from token_store import set_tokens, get_tokens
@@ -18,11 +20,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ✅ Serve static files (for index.html, css, js)
+app.mount("/static", StaticFiles(directory="."), name="static")
 
-@app.get("/")
-async def root():
-    return {"message": "Welcome to Diriyah Brain AI!"}
+# ✅ Root now shows demo webpage instead of JSON
+@app.get("/", response_class=HTMLResponse)
+async def root_page():
+    with open("index.html", "r", encoding="utf-8") as f:
+        return f.read()
 
+
+# ---------- API ENDPOINTS ---------- #
 
 @app.post("/set-tokens")
 async def set_tokens_endpoint(openai_api_key: str = Form(...),
@@ -55,14 +63,4 @@ async def get_project_folders():
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-
-# Add this after creating `app = FastAPI(...)`
-app.mount("/static", StaticFiles(directory="."), name="static")
-
-@app.get("/demo", response_class=HTMLResponse)
-async def demo_page():
-    with open("index.html", "r", encoding="utf-8") as f:
-        return f.read()
+    uvicorn.run(app, host="0.0.0.0", port=8000)

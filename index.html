@@ -2,88 +2,124 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Diriyah Brain AI Demo</title>
+  <title>Diriyah Brain AI</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 40px; background: #f4f4f4; }
-    .box { border: 1px solid #ccc; border-radius: 10px; padding: 20px; background: white; max-width: 600px; margin: 20px auto; }
-    h1, h2 { color: #333; }
-    input, button { padding: 10px; margin: 5px; }
-    .response { margin-top: 10px; padding: 10px; background: #eef; border-radius: 5px; white-space: pre-wrap; }
+    body { margin: 0; font-family: Arial, sans-serif; background: #f5f2e9; color: #333; display: flex; height: 100vh; }
+    .sidebar { width: 220px; background: #eee3d1; padding: 15px; display: flex; flex-direction: column; }
+    .sidebar h2 { font-size: 1.2rem; margin-top: 0; }
+    .sidebar button { background: none; border: none; text-align: left; padding: 10px; margin: 3px 0; cursor: pointer; border-radius: 6px; }
+    .sidebar button:hover { background: #d2b48c; color: white; }
+    .chat-area { flex: 1; display: flex; flex-direction: column; }
+    .chat-header { background: #d2b48c; color: white; padding: 15px; font-size: 1.3rem; font-weight: bold; text-align: center; }
+    .messages { flex: 1; padding: 20px; overflow-y: auto; }
+    .bubble { max-width: 70%; padding: 10px 15px; margin: 8px 0; border-radius: 12px; line-height: 1.4; }
+    .user-bubble { background: #c1d3ff; align-self: flex-end; }
+    .ai-bubble { background: #f0e6d2; align-self: flex-start; }
+    .input-bar { display: flex; padding: 15px; border-top: 1px solid #ccc; background: #faf7f0; }
+    .input-bar input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin-right: 10px; }
+    .input-bar button { padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; background: #d2b48c; color: white; }
+    .input-bar button:hover { background: #a8875b; }
   </style>
 </head>
 <body>
 
-  <div class="box">
-    <h1>🤖 Diriyah Brain AI Demo</h1>
-    <p>Try the backend features directly:</p>
-  </div>
+<div class="sidebar">
+  <h2>Menu</h2>
+  <button onclick="newChat()">➕ New Chat</button>
+  <button onclick="loadDrive()">📂 Google Drive</button>
+  <button onclick="loadProjects()">🏗 Projects</button>
+  <button onclick="loadFolders()">📊 Folders</button>
+  <button onclick="openSettings()">⚙️ Settings</button>
+</div>
 
-  <!-- Chat / Projects -->
-  <div class="box">
-    <h2>Chat / Projects</h2>
-    <input type="text" id="chatInput" placeholder="Ask me..." size="40">
-    <button onclick="testProjects()">Send</button>
-    <div class="response" id="chatResponse">Response will appear here...</div>
+<div class="chat-area">
+  <div class="chat-header">Diriyah Brain AI</div>
+  <div class="messages" id="chatMessages"></div>
+  <div class="input-bar">
+    <input type="text" id="chatInput" placeholder="Ask something...">
+    <button onclick="sendMessage()">Send</button>
   </div>
-
-  <!-- Folders -->
-  <div class="box">
-    <h2>List Folders</h2>
-    <button onclick="testFolders()">Get Folders</button>
-    <div class="response" id="folderResponse">Folders will appear here...</div>
-  </div>
-
-  <!-- Tokens -->
-  <div class="box">
-    <h2>Set Tokens</h2>
-    <input type="text" id="openai" placeholder="OpenAI Key">
-    <input type="text" id="google" placeholder="Google OAuth">
-    <input type="text" id="onedrive" placeholder="OneDrive OAuth">
-    <button onclick="setTokens()">Save Tokens</button>
-    <div class="response" id="tokenResponse">Token status will appear here...</div>
-  </div>
-
-  <!-- File Upload -->
-  <div class="box">
-    <h2>Upload File</h2>
-    <input type="file" id="fileInput">
-    <button onclick="uploadFile()">Upload</button>
-    <div class="response" id="fileResponse">File result will appear here...</div>
-  </div>
+</div>
 
 <script>
-async function testProjects() {
-  const input = document.getElementById("chatInput").value;
+function appendMessage(sender, text) {
+  const chatBox = document.getElementById("chatMessages");
+  const div = document.createElement("div");
+  div.className = sender === "user" ? "bubble user-bubble" : "bubble ai-bubble";
+  div.innerText = text;
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+async function sendMessage() {
+  const input = document.getElementById("chatInput").value.trim();
+  if (!input) return;
+  appendMessage("user", input);
+
+  // Smart routing
+  if (input.toLowerCase().startsWith("search drive")) {
+    const q = input.replace(/search drive/i, "").trim();
+    await searchDrive(q);
+  } else if (input.toLowerCase().includes("list projects")) {
+    await loadProjects();
+  } else if (input.toLowerCase().includes("list folders")) {
+    await loadFolders();
+  } else {
+    await askAI(input);
+  }
+
+  document.getElementById("chatInput").value = "";
+}
+
+async function askAI(query) {
+  const formData = new FormData();
+  formData.append("query", query);
+  const res = await fetch("/ai/query", { method: "POST", body: formData });
+  const data = await res.json();
+  appendMessage("ai", data.reply);
+}
+
+async function loadProjects() {
   const res = await fetch("/projects");
   const data = await res.json();
-  document.getElementById("chatResponse").innerText = "You said: " + input + "\nProjects: " + JSON.stringify(data, null, 2);
+  appendMessage("ai", "Projects:\n" + data.projects.map(p => p.name).join(", "));
 }
 
-async function testFolders() {
+async function loadFolders() {
   const res = await fetch("/folders");
   const data = await res.json();
-  document.getElementById("folderResponse").innerText = JSON.stringify(data, null, 2);
+  appendMessage("ai", "Folders:\n" + JSON.stringify(data.folders, null, 2));
 }
 
-async function setTokens() {
-  const formData = new FormData();
-  formData.append("openai_api_key", document.getElementById("openai").value);
-  formData.append("google_oauth", document.getElementById("google").value);
-  formData.append("onedrive_oauth", document.getElementById("onedrive").value);
-
-  const res = await fetch("/set-tokens", { method: "POST", body: formData });
+async function loadDrive() {
+  const res = await fetch("/drive/files");
   const data = await res.json();
-  document.getElementById("tokenResponse").innerText = JSON.stringify(data, null, 2);
+  if (data.error) {
+    appendMessage("ai", data.error);
+  } else {
+    appendMessage("ai", "Google Drive Files:\n" + data.map(f => f.name).join("\n"));
+  }
 }
 
-async function uploadFile() {
-  const file = document.getElementById("fileInput").files[0];
-  if (!file) return alert("Choose a file first!");
-  const formData = new FormData();
-  formData.append("file", file);
-  const res = await fetch("/upload-file", { method: "POST", body: formData });
+async function searchDrive(q) {
+  const res = await fetch(`/drive/search?q=${encodeURIComponent(q)}`);
   const data = await res.json();
-  document.getElementById("fileResponse").innerText = JSON.stringify(data, null, 2);
+  if (data.error) {
+    appendMessage("ai", data.error);
+  } else if (data.length === 0) {
+    appendMessage("ai", "No files found for: " + q);
+  } else {
+    appendMessage("ai", "Search Results:\n" + data.map(f => f.name).join("\n"));
+  }
+}
+
+function newChat() {
+  document.getElementById("chatMessages").innerHTML = "";
+  appendMessage("ai", "New chat started.");
+}
+
+function openSettings() {
+  appendMessage("ai", "Settings: Manage tokens and API keys via /set-tokens.");
 }
 </script>
 

@@ -1,7 +1,7 @@
 import os, json
 from typing import Optional, Dict
 
-PATH = os.getenv("PROJECT_FOLDER_STORE","./project_folders.json")
+PATH = os.getenv("PROJECT_FOLDER_STORE", "./project_folders.json")
 
 def _load() -> Dict[str, dict]:
     if not os.path.exists(PATH):
@@ -36,7 +36,3 @@ def delete_mapping(project_name: str):
     d = _load()
     d.pop(project_name.lower(), None)
     _save(d)
-
-# 👇 Add this so main.py doesn’t break
-PROJECT_FOLDERS = list_mappings()
-

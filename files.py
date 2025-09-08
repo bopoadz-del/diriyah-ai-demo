@@ -68,4 +68,31 @@ def extract_data_from_excel(content: bytes) -> list:
 
     try:
         workbook = openpyxl.load_workbook(tmp_path, data_only=True)
-        sheet = workboo
+        sheet = workbook.active
+        data = []
+        for row in sheet.iter_rows(values_only=True):
+            data.append(list(row))
+        return data
+    finally:
+        os.remove(tmp_path)
+
+
+# --- Google Drive query builder helpers (safe f-strings) ---
+
+def build_query_with_fulltext(base: str, query: str) -> str:
+    """
+    Build a Google Drive API query string with fullText search.
+    Escapes single quotes in the query to prevent syntax errors.
+    """
+    sanitized_query = query.replace("'", "")
+    return f"{base} and fullText contains '{sanitized_query}'"
+
+
+def build_folder_query(folder_id: str, extra: str = "") -> str:
+    """
+    Build a query for listing files inside a Google Drive folder.
+    """
+    if extra:
+        return f"'{folder_id}' in parents and {extra}"
+    return f"'{folder_id}' in parents and trashed=false"
+

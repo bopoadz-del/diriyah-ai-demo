@@ -42,6 +42,7 @@
 </div>
 
 <script>
+// Append message bubble to chat
 function appendMessage(sender, text) {
   const chatBox = document.getElementById("chatMessages");
   const div = document.createElement("div");
@@ -97,7 +98,7 @@ async function loadDrive() {
   if (data.error) {
     appendMessage("ai", data.error);
   } else {
-    appendMessage("ai", "Google Drive Files:\n" + data.map(f => f.name).join("\n"));
+    appendMessage("ai", "Google Drive Files:\n" + data.map(f => f.name).join("\\n"));
   }
 }
 
@@ -109,7 +110,7 @@ async function searchDrive(q) {
   } else if (data.length === 0) {
     appendMessage("ai", "No files found for: " + q);
   } else {
-    appendMessage("ai", "Search Results:\n" + data.map(f => f.name).join("\n"));
+    appendMessage("ai", "Search Results:\n" + data.map(f => f.name).join("\\n"));
   }
 }
 

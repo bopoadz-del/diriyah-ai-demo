@@ -55,4 +55,14 @@ async def get_project_folders():
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000) 
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+
+# Add this after creating `app = FastAPI(...)`
+app.mount("/static", StaticFiles(directory="."), name="static")
+
+@app.get("/demo", response_class=HTMLResponse)
+async def demo_page():
+    with open("index.html", "r", encoding="utf-8") as f:
+        return f.read()

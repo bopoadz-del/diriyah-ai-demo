@@ -96,3 +96,5 @@ def build_folder_query(folder_id: str, extra: str = "") -> str:
         return f"'{folder_id}' in parents and {extra}"
     return f"'{folder_id}' in parents and trashed=false"
 
+
+

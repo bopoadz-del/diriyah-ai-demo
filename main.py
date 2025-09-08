@@ -5,8 +5,8 @@ import uvicorn
 
 from token_store import set_tokens, get_tokens
 from files import process_file
-from projects import PROJECTS
-from project_folders import PROJECT_FOLDERS
+from projects import fetch_projects          # ✅ dynamic import
+from project_folders import list_mappings    # ✅ dynamic import
 
 app = FastAPI(title="Diriyah Brain AI", version="1.0.0")
 
@@ -47,12 +47,12 @@ async def upload_file(file: UploadFile):
 
 @app.get("/projects")
 async def get_projects():
-    return {"projects": PROJECTS}
+    return {"projects": await fetch_projects()}   # ✅ always fresh
 
 
 @app.get("/folders")
 async def get_project_folders():
-    return {"folders": PROJECT_FOLDERS}
+    return {"folders": list_mappings()}           # ✅ always fresh
 
 
 if __name__ == "__main__":

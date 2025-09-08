@@ -1,0 +1,30 @@
+diriyah-brain-ai/
+ ├── adapters/
+ │   ├── __init__.py
+ │   ├── files.py
+ │   ├── project_folders.py
+ │   ├── projects.py
+ │   └── token_store.py
+ │
+ ├── Dockerfile
+ ├── docker-compose.yml
+ ├── index.html
+ ├── main.py
+ ├── nginx.conf
+ ├── requirements.txt
+ ├── README.md
+ │
+ ├── frontend/
+ │   ├── src/
+ │   │   ├── App.tsx
+ │   │   ├── index.tsx
+ │   │   ├── components/
+ │   │   │   ├── Sidebar.tsx
+ │   │   │   ├── ChatBox.tsx
+ │   │   │   ├── MilestoneCard.tsx
+ │   │   │   └── RoleGuard.tsx
+ │   ├── public/
+ │   │   └── index.html
+ │   ├── package.json
+ │   ├── tailwind.config.js
+ │   └── tsconfig.json

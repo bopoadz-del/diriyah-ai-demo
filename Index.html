@@ -2,33 +2,90 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Diriyah Brain AI</title>
+  <title>Diriyah Brain AI Demo</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 40px; background: #f4f4f4; }
-    .chat-box { border: 1px solid #ccc; border-radius: 10px; padding: 20px; background: white; max-width: 600px; margin: auto; }
-    h1 { color: #333; }
+    .box { border: 1px solid #ccc; border-radius: 10px; padding: 20px; background: white; max-width: 600px; margin: 20px auto; }
+    h1, h2 { color: #333; }
     input, button { padding: 10px; margin: 5px; }
-    .response { margin-top: 20px; padding: 10px; background: #eef; border-radius: 5px; }
+    .response { margin-top: 10px; padding: 10px; background: #eef; border-radius: 5px; white-space: pre-wrap; }
   </style>
 </head>
 <body>
-  <div class="chat-box">
-    <h1>🤖 Diriyah Brain AI</h1>
-    <p>Type a message to test the demo assistant:</p>
-    <input type="text" id="userInput" placeholder="Ask me about your project..." size="40">
-    <button onclick="sendMessage()">Send</button>
-    <div class="response" id="responseBox">Response will appear here...</div>
+
+  <div class="box">
+    <h1>🤖 Diriyah Brain AI Demo</h1>
+    <p>Try the backend features directly:</p>
   </div>
 
-  <script>
-    async function sendMessage() {
-      const input = document.getElementById("userInput").value;
-      if (!input) return;
-      const res = await fetch("/projects"); // demo: fetch projects API
-      const data = await res.json();
-      document.getElementById("responseBox").innerText = 
-        "You said: " + input + "\\nAI Demo: " + JSON.stringify(data, null, 2);
-    }
-  </script>
+  <!-- Chat / Projects -->
+  <div class="box">
+    <h2>Chat / Projects</h2>
+    <input type="text" id="chatInput" placeholder="Ask me..." size="40">
+    <button onclick="testProjects()">Send</button>
+    <div class="response" id="chatResponse">Response will appear here...</div>
+  </div>
+
+  <!-- Folders -->
+  <div class="box">
+    <h2>List Folders</h2>
+    <button onclick="testFolders()">Get Folders</button>
+    <div class="response" id="folderResponse">Folders will appear here...</div>
+  </div>
+
+  <!-- Tokens -->
+  <div class="box">
+    <h2>Set Tokens</h2>
+    <input type="text" id="openai" placeholder="OpenAI Key">
+    <input type="text" id="google" placeholder="Google OAuth">
+    <input type="text" id="onedrive" placeholder="OneDrive OAuth">
+    <button onclick="setTokens()">Save Tokens</button>
+    <div class="response" id="tokenResponse">Token status will appear here...</div>
+  </div>
+
+  <!-- File Upload -->
+  <div class="box">
+    <h2>Upload File</h2>
+    <input type="file" id="fileInput">
+    <button onclick="uploadFile()">Upload</button>
+    <div class="response" id="fileResponse">File result will appear here...</div>
+  </div>
+
+<script>
+async function testProjects() {
+  const input = document.getElementById("chatInput").value;
+  const res = await fetch("/projects");
+  const data = await res.json();
+  document.getElementById("chatResponse").innerText = "You said: " + input + "\nProjects: " + JSON.stringify(data, null, 2);
+}
+
+async function testFolders() {
+  const res = await fetch("/folders");
+  const data = await res.json();
+  document.getElementById("folderResponse").innerText = JSON.stringify(data, null, 2);
+}
+
+async function setTokens() {
+  const formData = new FormData();
+  formData.append("openai_api_key", document.getElementById("openai").value);
+  formData.append("google_oauth", document.getElementById("google").value);
+  formData.append("onedrive_oauth", document.getElementById("onedrive").value);
+
+  const res = await fetch("/set-tokens", { method: "POST", body: formData });
+  const data = await res.json();
+  document.getElementById("tokenResponse").innerText = JSON.stringify(data, null, 2);
+}
+
+async function uploadFile() {
+  const file = document.getElementById("fileInput").files[0];
+  if (!file) return alert("Choose a file first!");
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch("/upload-file", { method: "POST", body: formData });
+  const data = await res.json();
+  document.getElementById("fileResponse").innerText = JSON.stringify(data, null, 2);
+}
+</script>
+
 </body>
 </html>

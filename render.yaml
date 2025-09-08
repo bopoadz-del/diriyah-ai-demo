@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: diriyah-brain-ai
+    env: docker
+    plan: starter
+    autoDeploy: true
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GOOGLE_OAUTH_CLIENT_ID
+        sync: false
+      - key: GOOGLE_OAUTH_CLIENT_SECRET
+        sync: false
+      - key: OAUTH_REDIRECT_URI
+        sync: false
+      - key: POSTGRES_USER
+        sync: false
+      - key: POSTGRES_PASSWORD
+        sync: false
+      - key: POSTGRES_DB
+        sync: false
+      - key: POSTGRES_HOST
+        fromService:
+          name: diriyah-brain-db
+          type: pserv
+
+databases:
+  - name: diriyah-brain-db
+    databaseName: diriyah_brain_ai
+    plan: starter

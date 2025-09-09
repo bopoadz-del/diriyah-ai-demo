@@ -1,3 +1,40 @@
-<.github>
-<workflows>
-<full ci.yml code>
+# ================================
+# path: .github/workflows/ci.yml
+# ================================
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          # pytest might be in requirements; install if missing:
+          python - << 'PY'
+          import pkgutil, sys
+          sys.exit(0 if pkgutil.find_loader('pytest') else 1)
+          PY
+          if [ $? -ne 0 ]; then pip install pytest; fi
+
+      - name: Run tests
+        env:
+          # Prevents real API calls in tests that use OpenAI
+          OPENAI_API_KEY: dummy
+          # Optional: if you want Drive tests to run against real tokens, add this in GitHub → Settings → Secrets → Actions
+          GOOGLE_OAUTH_JSON: ${{ secrets.GOOGLE_OAUTH_JSON }}
+        run: pytest -q

@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: diriyah-brain-ai-demo
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
+      - key: GOOGLE_APPLICATION_CREDENTIALS
+        value: service_account.json  # replace with your own JSON key filename
+      - key: OPENAI_API_KEY
+        sync: false

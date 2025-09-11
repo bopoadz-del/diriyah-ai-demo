@@ -1,0 +1,14 @@
+{
+  "eng_ahmed": {
+    "role": "engineer",
+    "projects": ["Boulevard", "Northern Community"]
+  },
+  "com_sara": {
+    "role": "commercial",
+    "projects": ["Civic Quarter"]
+  },
+  "dir_khalid": {
+    "role": "director",
+    "projects": ["ALL"]
+  }
+}

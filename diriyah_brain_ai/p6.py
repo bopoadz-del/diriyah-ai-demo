@@ -1,1 +1,0 @@
-def milestones(project): return []

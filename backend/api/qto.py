@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query
-from services.qto_pipeline import generate_qto
+from backend.services.qto_pipeline import generate_qto
 
 router = APIRouter()
 

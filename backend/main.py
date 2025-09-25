@@ -1,4 +1,4 @@
-from api import qto
+from backend.api import qto
 
 import uvicorn
 from fastapi import FastAPI
@@ -32,7 +32,7 @@ if __name__ == "__main__":
 
 app.include_router(qto.router, prefix='/api')
 
-from api import ai, auth, connectors, google_drive, users, analytics, aconex
+from backend.api import ai, auth, connectors, google_drive, users, analytics, aconex
 
 app.include_router(ai.router, prefix='/api')
 

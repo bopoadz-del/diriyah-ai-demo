@@ -1,0 +1,10 @@
+replicaCount: 2
+image:
+  repository: ghcr.io/your-org/diriyah-brain-ai
+  tag: latest
+
+
+persistence:
+  enabled: true
+  storageClass: standard
+  size: 1Gi

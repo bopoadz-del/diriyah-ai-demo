@@ -1,0 +1,1 @@
+def transcribe(file_path): return 'Transcribed text from ' + file_path

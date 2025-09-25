@@ -1,0 +1,23 @@
+fastapi
+uvicorn
+sqlalchemy
+google-api-python-client
+google-auth
+google-auth-oauthlib
+ultralytics
+ezdxf
+shapely
+opencv-python
+ifcopenshell
+pandas
+
+# Extra dependencies for new services
+pytesseract
+pdfplumber
+sentence-transformers
+faiss-cpu
+transformers
+ifcopenshell
+scikit-learn
+prophet
+networkx

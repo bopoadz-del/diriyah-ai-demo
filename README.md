@@ -78,3 +78,50 @@ It is **Aconex-style approvals + DevOps reasoning + project delivery intelligenc
 - New API: `POST /api/chat_addons` (ensemble intents + context + entities + memory + KG + suggestions)
 - Addons services under `backend/services/addons/`
 - Docker/K8s persistence for Redis+Chroma added in `deploy/k8s/`
+
+
+---
+
+## 🔭 Tracing
+
+OpenTelemetry is enabled for the backend.
+
+- Default exporter: OTLP → `otel-collector` in the cluster.  
+- The collector currently exports to logs.  
+- DevOps can extend the collector to forward to Jaeger, Tempo, or Datadog.
+
+
+---
+
+## 🐳 Docker Images
+
+Each CI build publishes:
+- `:latest` → moving pointer for dev/staging
+- `:vX.Y.Z` → immutable tag for production (current: v1.21.0)
+
+
+---
+
+## 🔐 Secret Scanning & Notifications
+
+- **Gitleaks** runs in CI to detect hardcoded secrets in commits/PRs.  
+- **Slack notifications** are triggered on pipeline failures (requires `SLACK_WEBHOOK_URL` in repo secrets).  
+
+
+---
+
+## 💰 Cost Monitoring
+
+- Kubecost manifests (`deploy/k8s/kubecost.yaml`) provide in-cluster cost visibility.  
+- Access the Kubecost dashboard via the `kubecost` service (port 9003).  
+
+
+---
+
+## 🌱 Demo Data
+
+Populate the app with demo data for quick testing:
+
+```bash
+python scripts/seed_demo_data.py
+```

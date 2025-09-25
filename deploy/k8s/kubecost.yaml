@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubecost
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubecost
+  namespace: kubecost
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubecost
+  template:
+    metadata:
+      labels:
+        app: kubecost
+    spec:
+      containers:
+        - name: kubecost
+          image: gcr.io/kubecost1/cost-model:latest
+          ports:
+            - containerPort: 9003
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubecost
+  namespace: kubecost
+spec:
+  selector:
+    app: kubecost
+  ports:
+    - port: 9003
+      targetPort: 9003
+      name: http

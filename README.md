@@ -1,67 +1,80 @@
-# Diriyah Brain AI (Demo)
+# Diriyah Brain AI
 
-This repository contains a **lightweight prototype** of the Diriyah Brain AI assistant.  It exposes a web interface styled like a chat application, backed by a FastAPI server.  The goal of this demo is to show how an AI assistant can answer questions about construction projects by searching Google Drive, parsing uploaded documents, and surfacing alerts – all while remaining simple to deploy and extend.
+![Diriyah Logo](frontend/public/diriyah-logo.png)
 
-## Key Features
+## Overview
+Diriyah Brain AI is an integrated platform for **mega-project delivery**, built to unify CAD/BIM data, BOQs, Primavera schedules, and Aconex documentation into one AI-driven system.
 
-* **Always‑On Drive Integration:**  A service account is used to connect to a central Google Drive.  The assistant searches across the entire Drive for relevant snippets from BOQs, schedules, insurance policies and correspondence.
-* **Project Scoping:**  Projects are defined in `projects.json` and users in `users.json`.  The UI presents a project selector that scopes all queries, alerts and caches to the chosen mega project.
-* **Role‑Aware Answers:**  Responses are tailored to the role specified by the client (engineer, director or commercial), providing the appropriate level of detail.
-* **Arabic & English Support:**  Queries containing Arabic characters trigger Arabic responses by default.  English queries are handled as usual.
-* **Alerts in Chat:**  The assistant scans retrieved snippets for keywords indicating delays, insurance expiry or other risks and injects a warning message directly into the conversation.
-* **PDF Export:**  Users can export the current chat history as a PDF using the **Export PDF** button in the sidebar.
-* **Caching & Refresh:**  A background thread refreshes the local cache for each project every six hours.  A **Refresh Now** button lets users fetch updates on demand.  A hover tooltip on “Last update” shows when the cache was last refreshed.
-* **Photo Upload with Geolocation:**  Photos captured from the device camera are tagged with latitude, longitude and elevation (when available) and stored for later processing.  A stub in `bim_adapter.py` shows how these images could be matched to BIM elements.
-* **Skeleton Integrations:**  Stubs are included for WhatsApp group integration, quality/defect detection (YOLOv10), Primavera P6, Aconex, Microsoft Teams and Power BI.  These endpoints return placeholder responses and can be wired up when you are ready to integrate with real services.
+## Key Modules
+- **CAD/BOQ/QTO Parsing**: Automated quantity take-off and bill of quantities parsing.
+- **BIM Integration**: Direct handling of BIM/IFC models and data.
+- **YOLO Vision Models**: Placeholder models (yolov8m, yolov8n, yolov8s) for site photo analysis and vision AI.
+- **Speech-to-Text**: Voice commands and transcription, integrated in services.
+- **API Layer**: Full suite of APIs for chat, projects, Aconex, Google Drive, QTO, and analytics.
+- **Frontend**: React-based interface with Chat, Sidebar, Navbar, and live integration with backend services.
 
-## Structure
+## Branding
+This build is fully branded for **Diriyah Company**, replacing prior placeholders.
 
-```
-diriyah_brain_ai/
-├── index.html           # Frontend UI (vanilla HTML/JS/CSS)
-├── main.py              # FastAPI server entry point
-├── drive_adapter.py     # Drive search, caching and refresh logic
-├── alerts.py            # Simple rule‑based alert detection
-├── export_pdf.py        # Utility to convert chat history to PDF
-├── quality.py           # Stub for photo quality/defect analysis (YOLO)
-├── p6.py                # Stub for Primavera P6 integration
-├── aconex.py            # Stub for Aconex integration
-├── teams.py             # Stub for Microsoft Teams MoM generation
-├── powerbi.py           # Stub for Power BI summary integration
-├── whatsapp_adapter.py  # Stub for WhatsApp group webhook
-├── photos.py            # Photo upload with geolocation metadata
-├── bim_adapter.py       # Stub for matching photos to BIM elements
-├── token_store.py       # Simple JSON token cache (not used in service mode)
-├── projects.json        # Mapping of project names to Drive folder IDs
-├── users.json           # Mapping of user IDs to roles and project access
-├── requirements.txt     # Python dependencies
-├── Dockerfile           # Container build definition
-├── render.yaml          # Render.com deployment config
-├── README.md            # This file
-├── test_api.py          # Minimal smoke test
-├── cache/               # Populated at runtime with per‑project caches
-└── static/
-    └── logo.png        # Company logo (replace with your own)
-```
 
-To deploy on [Render](https://render.com), create environment variables for your service account (`GOOGLE_APPLICATION_CREDENTIALS`) and, optionally, an OpenAI API key (`OPENAI_API_KEY`) if you plan to enable language model summarisation.
 
-## Running Locally
+## 🧠 Logic Thinking Features
 
-1. Install dependencies:
+### 1. Intent Recognition & Routing
+- Registry-based router — each service self-registers.
+- Classifier fallback (TF-IDF + Logistic Regression).
+- Validation layer (CAD ↔ BOQ mismatches).
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+### 2. Context & Memory
+- Session context in chat.
+- Database persistence (`projects`, `alerts`, `approvals`).
+- Models stored in `backend/models/` and persisted with K8s PVC.
 
-2. Provide a Google service account key JSON file and share your project folders with that service account.  Set the environment variable `GOOGLE_APPLICATION_CREDENTIALS` to the path of the JSON file.
+### 3. Reasoning / Orchestration
+- Multi-service orchestration (e.g., Consolidated Takeoff).
+- Fallback clarification for low-confidence intents.
+- Automated validation checks → alerts.
 
-3. Start the server:
+### 4. Alerts & Monitoring
+- Real-time alerts over WebSockets.
+- Role- & project-based filtering (`/api/alerts`, `/api/users/me`).
+- Alerts visible in:
+  - Chat feed (inline, clickable).
+  - Alerts Panel (filterable dashboard).
+  - Visual toast popup (deployment alerts).
 
-   ```bash
-   python main.py
-   ```
+### 5. Slack-Driven Approvals
+- Interactive Slack buttons (Approve/Reject).
+- Multi-approver threshold logic.
+- Threaded updates in Slack (clean UX).
+- Decisions logged in DB + raised as alerts.
 
-4. Open [http://localhost:8080](http://localhost:8080) in your browser.
+### 6. CI/CD Intelligence
+- CI pipeline trains and tests intent model.
+- Artifacts → models, Docker images, Helm charts.
+- Approval-gated production deploy (via Slack).
+- Rollbacks via versioned Helm charts.
 
-You can modify `projects.json` and `users.json` to add more projects and adjust role‑based access without touching the code.
+### 7. Kubernetes / GitOps Integration
+- Persistent DB + models (PVC).
+- ArgoCD for auto-sync + drift correction.
+- Multi-environment flow: **Dev → Staging → Prod (approval required)**.
+
+---
+
+## 🚀 Why It Matters
+Diriyah Brain AI doesn’t just run commands — it *thinks*:
+- Understands intent.
+- Validates outputs.
+- Raises alerts.
+- Involves humans in critical decisions.
+- Improves itself automatically via CI/CD.
+- Deploys with safety gates and rollback paths.
+
+It is **Aconex-style approvals + DevOps reasoning + project delivery intelligence** combined in one platform.
+
+
+## Addons (18-feature bundle)
+- New API: `POST /api/chat_addons` (ensemble intents + context + entities + memory + KG + suggestions)
+- Addons services under `backend/services/addons/`
+- Docker/K8s persistence for Redis+Chroma added in `deploy/k8s/`

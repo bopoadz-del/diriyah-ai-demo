@@ -1,14 +1,11 @@
 services:
   - type: web
-    name: diriyah-brain-ai-demo
+    name: diriyah-backend
     env: python
-    plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: python main.py
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11
-      - key: GOOGLE_APPLICATION_CREDENTIALS
-        value: service_account.json  # replace with your own JSON key filename
-      - key: OPENAI_API_KEY
-        sync: false
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port 10000
+  - type: static
+    name: diriyah-frontend
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist

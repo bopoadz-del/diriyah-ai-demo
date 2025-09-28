@@ -18,13 +18,7 @@ from backend.api import (
 )
 
 app = FastAPI(title="Diriyah Brain AI", version="v1.24")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 app.include_router(chat.router, prefix="/api", tags=["Chat"])
 app.include_router(project.router, prefix="/api", tags=["Intel"])
@@ -40,7 +34,6 @@ app.include_router(preferences.router, prefix="/api", tags=["Preferences"])
 app.include_router(drive_scan.router, prefix="/api", tags=["Drive"])
 app.include_router(drive_diagnose.router, prefix="/api", tags=["Drive"])
 app.include_router(users.router, prefix="/api", tags=["Users"])
-
 
 @app.get("/health")
 def health_check():

@@ -8,7 +8,6 @@ router = APIRouter()
 
 class UserStub(BaseModel):
     """Representation of the placeholder user served during Render debugging."""
-
     id: int
     name: str
     role: str
@@ -16,7 +15,6 @@ class UserStub(BaseModel):
 
 class UpdateAck(BaseModel):
     """Stub acknowledgement returned when the UI posts user updates."""
-
     status: str
     message: str
 

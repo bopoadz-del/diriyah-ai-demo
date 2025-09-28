@@ -1,9 +1,16 @@
-# Diriyah Brain AI v1.24
-- Backend (FastAPI) with Chat/Upload/Vision/Speech/Projects/Scan-Drive/Drive-Diagnose/Preferences/Alerts
-- Frontend (React) with Navbar icons, lockable Sidebar w/ refresh, Chat (mic/cam/upload), Analytics, Settings, resizable Split
-- Infra: Docker Compose (backend, frontend, redis, chroma, postgres)
-## Run
+# Diriyah Brain – Users Stub
+
+This repo includes a stubbed **Users API** for FastAPI with matching tests.
+
+## Run locally
 ```bash
-cp .env.example .env
-docker compose up --build
+pip install -r requirements.txt
+uvicorn backend.main:app --reload
+```
+
+Visit [http://localhost:8000/health](http://localhost:8000/health) for a health check.
+
+## Run tests
+```bash
+pytest -v
 ```

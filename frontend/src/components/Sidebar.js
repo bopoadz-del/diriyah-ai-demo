@@ -1,17 +1,26 @@
-
-import React from 'react';
-import logo from '../public/masterise-logo.png';
-
-function Sidebar() {
+import React, { useEffect, useState } from "react";
+const Sidebar = ({ onSelectProject }) => {
+  const [projects, setProjects] = useState([]);
+  const [activeProject, setActiveProject] = useState(null);
+  const [locked, setLocked] = useState(true);
+  useEffect(() => { fetch("/api/projects").then((res) => res.json()).then((data) => setProjects(data)); }, []);
+  const handleClick = async (projectId, name) => {
+    await fetch(`/api/projects/${projectId}/context`, { method: "POST" });
+    setActiveProject(name); onSelectProject(projectId);
+  };
   return (
-    <aside style={{ width: '240px', backgroundColor: '#f8f8f8', height: '100vh', padding: '20px', boxShadow: '2px 0 4px rgba(0,0,0,0.1)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
-        <img src={logo} alt="Diriyah Brain Logo" style={{ height: '50px', marginRight: '10px' }} />
-        <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#444' }}>Diriyah Brain</span>
+    <div className={`sidebar ${locked ? "locked" : "collapsed"}`}>
+      <div className="sidebar-header">
+        <h3>Projects</h3>
+        <div>
+          <button onClick={() => window.location.reload()}>Refresh</button>
+          <button onClick={() => setLocked(!locked)}>{locked ? "Unlock" : "Lock"}</button>
+        </div>
       </div>
-      {/* Add sidebar links/components here */}
-    </aside>
+      {locked && (<ul>{projects.map((p) => (
+        <li key={p.id} onClick={() => handleClick(p.id, p.name)} className={activeProject === p.name ? "active" : ""}>{p.name}</li>
+      ))}</ul>)}
+    </div>
   );
-}
-
+};
 export default Sidebar;

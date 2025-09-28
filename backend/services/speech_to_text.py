@@ -1,1 +1,2 @@
-def transcribe(file_path): return 'Transcribed text from ' + file_path
+def transcribe_audio(file_id: str) -> str:
+    return "Transcription placeholder for file " + file_id

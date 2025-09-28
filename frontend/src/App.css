@@ -1,0 +1,20 @@
+.app-container { display: flex; flex-direction: column; height: 100vh; }
+.content { display: flex; flex: 1; }
+.main-view { flex: 1; overflow: auto; }
+.sidebar { width: 220px; background: #f5f0e6; border-right: 1px solid #ccc; padding: 10px; transition: width 0.3s ease; min-height: 100vh; }
+.sidebar.collapsed { width: 60px; overflow: hidden; }
+.sidebar-header { display: flex; justify-content: space-between; align-items: center; }
+.sidebar ul { list-style: none; padding: 0; margin-top: 10px; }
+.sidebar li { padding: 8px; cursor: pointer; }
+.sidebar li.active { background: #a0522d; color: white; border-radius: 4px; }
+.navbar { background: #a0522d; color: white; padding: 10px; display: flex; gap: 10px; }
+.navbar button { background: white; color: #a0522d; border: none; padding: 5px 10px; cursor: pointer; }
+.dropdown { position: absolute; background: white; border: 1px solid #ccc; margin-top: 5px; padding: 5px; }
+.chat-window { display: flex; flex-direction: column; height: calc(100vh - 50px); padding: 10px; }
+.messages { flex: 1; overflow-y: auto; background: #fff; padding: 10px; border: 1px solid #ddd; margin-bottom: 10px; }
+.input-bar { display: flex; gap: 8px; }
+.split-layout { display: flex; height: 100%; width: 100%; overflow: hidden; }
+.left-panel, .right-panel { height: 100%; overflow-y: auto; transition: width 0.1s ease-out; }
+.left-panel { background: #fff; }
+.right-panel { background: #f5f0e6; border-left: 1px solid #ccc; padding: 10px; }
+.divider { width: 5px; background: #a0522d; cursor: col-resize; user-select: none; }

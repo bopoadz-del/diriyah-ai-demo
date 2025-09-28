@@ -22,18 +22,18 @@ def test_get_current_user_returns_stub() -> None:
     response = client.get("/api/users/me")
 
     assert response.status_code == 200
-    assert response.json() == {
-        "id": 1,
-        "name": "Test User",
-        "role": "Engineer",
-    }
+    assert response.json() == users.UserStub(
+        id=1, name="Test User", role="Engineer"
+    ).model_dump()
 
 
 def test_update_user_returns_stub_acknowledgement() -> None:
     response = client.post("/api/users/update")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "message": "Updated (stub)"}
+    assert response.json() == users.UpdateAck(
+        status="ok", message="Updated (stub)"
+    ).model_dump()
 
 
 def test_main_registers_users_router() -> None:

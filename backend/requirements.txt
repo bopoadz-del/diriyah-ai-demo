@@ -6,6 +6,7 @@ sqlalchemy==2.0.35
 psycopg2-binary==2.9.9
 numpy==1.26.4
 pandas==2.2.3
+# Pin to a Python 3.10-compatible build; vanilla 0.7.0 wheels only exist for 3.11+
 ifcopenshell==0.7.0.240627
 ezdxf==1.2.0
 spacy==3.7.5

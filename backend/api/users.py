@@ -1,23 +1,37 @@
 """User-related API routes for Diriyah Brain."""
 
 from fastapi import APIRouter
+from pydantic import BaseModel
 
 router = APIRouter()
 
-_USER_STUB = {
-    "id": 1,
-    "name": "Test User",
-    "role": "Engineer",
-}
+
+class UserStub(BaseModel):
+    """Representation of the placeholder user served during Render debugging."""
+
+    id: int
+    name: str
+    role: str
 
 
-@router.get("/users/me")
-def get_user() -> dict:
-    """Return a stub response representing the authenticated user."""
+class UpdateAck(BaseModel):
+    """Stub acknowledgement returned when the UI posts user updates."""
+
+    status: str
+    message: str
+
+
+_USER_STUB = UserStub(id=1, name="Test User", role="Engineer")
+_UPDATE_ACK = UpdateAck(status="ok", message="Updated (stub)")
+
+
+@router.get("/users/me", response_model=UserStub)
+def get_user() -> UserStub:
+    """Return the stub response representing the authenticated user."""
     return _USER_STUB
 
 
-@router.post("/users/update")
-def update_user() -> dict:
+@router.post("/users/update", response_model=UpdateAck)
+def update_user() -> UpdateAck:
     """Return a stub acknowledgement for update requests."""
-    return {"status": "ok", "message": "Updated (stub)"}
+    return _UPDATE_ACK

@@ -7,7 +7,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends     build-essential     gcc     g++     libffi-dev     libssl-dev     python3-dev     sqlite3     curl     libboost-all-dev     && rm -rf /var/lib/apt/lists/*
 
 # Install Python requirements
-COPY backend/requirements.txt .
+COPY backend/requirements.txt backend/requirements.txt
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
 # Copy project code

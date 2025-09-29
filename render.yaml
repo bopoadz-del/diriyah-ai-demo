@@ -1,30 +1,31 @@
 services:
   - type: web
-    name: diriyah-brain-backend
+    name: mba-backend-main
     env: docker
-    dockerfilePath: ./Dockerfile
     plan: starter
-    autoDeploy: true
+    branch: main
+    buildCommand: docker build -t mba-backend .
+    startCommand: bash -c "alembic upgrade head && uvicorn backend.main:app --host 0.0.0.0 --port 8000"
     envVars:
-      - key: APP_ENV
-        value: production
-      - key: APP_PORT
-        value: 8000
+      - key: OPENAI_API_KEY
+        sync: false
       - key: DATABASE_URL
-        sync: false
+        fromService:
+          name: mba-postgres-main
+          property: connectionString
       - key: REDIS_URL
-        sync: false
-      - key: SECRET_KEY
-        sync: false
-
-  - type: web
-    name: diriyah-brain-frontend
-    env: docker
-    dockerfilePath: ./frontend/Dockerfile
-    plan: starter
-    autoDeploy: true
+        fromService:
+          name: mba-redis
+          property: connectionString
 
 databases:
-  - name: diriyah-brain-redis
+  - name: mba-postgres-main
+    databaseName: masterise_ai_main
     plan: starter
-    ipAllowList: [] # open access (configure for prod)
+    region: oregon
+
+services:
+  - type: redis
+    name: mba-redis
+    plan: starter
+    region: oregon

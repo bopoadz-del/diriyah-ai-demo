@@ -1,0 +1,91 @@
+{
+  "info": {
+    "name": "Masterise Brain AI API",
+    "_postman_id": "masterise-brain-ai",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": "{{BASE_URL}}/health"
+      }
+    },
+    {
+      "name": "List Projects",
+      "request": {
+        "method": "GET",
+        "url": "{{BASE_URL}}/api/projects"
+      }
+    },
+    {
+      "name": "Sync Drive",
+      "request": {
+        "method": "GET",
+        "url": "{{BASE_URL}}/api/projects/sync_drive"
+      }
+    },
+    {
+      "name": "List Chats",
+      "request": {
+        "method": "GET",
+        "url": "{{BASE_URL}}/api/projects/1/chats"
+      }
+    },
+    {
+      "name": "AI Query",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"project_id\": \"1\", \"query\": \"What changed today?\"}"
+        },
+        "url": "{{BASE_URL}}/api/ai/query"
+      }
+    },
+    {
+      "name": "AI Query (with sources)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"project_id\": \"1\", \"query\": \"Show context\"}"
+        },
+        "url": "{{BASE_URL}}/api/ai/query_with_sources"
+      }
+    },
+    {
+      "name": "Search",
+      "request": {
+        "method": "GET",
+        "url": "{{BASE_URL}}/api/search?project_id=1&q=test"
+      }
+    },
+    {
+      "name": "Share Message (create)",
+      "request": {
+        "method": "POST",
+        "url": "{{BASE_URL}}/api/messages/1/share"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost:8000"
+    }
+  ]
+}

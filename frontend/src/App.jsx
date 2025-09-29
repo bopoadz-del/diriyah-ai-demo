@@ -1,28 +1,29 @@
-import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import ChatWindow from "./components/ChatWindow";
-import AlertsPanel from "./components/AlertsPanel";
-import ProjectDashboard from "./components/ProjectDashboard";
+import { useState } from "react";
+import Sidebar from "./components/Sidebar";
+import Chat from "./components/Chat";
+import Admin from "./pages/Admin";
+import Metrics from "./pages/Metrics";
+import ProjectSettings from "./pages/ProjectSettings";
 
-function App() {
+export default function App() {
+  const [project, setProject] = useState(null);
+  const [selectedChat, setSelectedChat] = useState(null);
+  const [view, setView] = useState("chat");
+
   return (
-    <Router>
-      <div className="flex h-screen">
-        {/* Left: Chat */}
-        <div className="flex-1 border-r">
-          <Routes>
-            <Route path="/" element={<ChatWindow />} />
-            <Route path="/projects/:id" element={<ProjectDashboard />} />
-          </Routes>
-        </div>
-
-        {/* Right: Alerts */}
-        <div className="w-96">
-          <AlertsPanel />
-        </div>
+    <div className="flex h-screen">
+      <Sidebar
+        project={project}
+        setProject={setProject}
+        setSelectedChat={setSelectedChat}
+        setView={setView}
+      />
+      <div className="flex-1">
+        {view === "chat" && <Chat project={project} chat={selectedChat} />}
+        {view === "admin" && <Admin />}
+        {view === "metrics" && <Metrics />}
+        {view === "settings" && <ProjectSettings projectId={project?.id || null} />}
       </div>
-    </Router>
+    </div>
   );
 }
-
-export default App;

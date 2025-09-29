@@ -1,0 +1,21 @@
+version: "3.9"
+services:
+  backend:
+    build: ./backend
+    container_name: masterise-backend
+    env_file: .env
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/images:/app/images
+      - ./backend/storage:/app/storage
+      - ./service_account.json:/app/service_account.json:ro
+    ports:
+      - "8000:8000"
+  frontend:
+    build: ./frontend
+    container_name: masterise-frontend
+    env_file: .env
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"

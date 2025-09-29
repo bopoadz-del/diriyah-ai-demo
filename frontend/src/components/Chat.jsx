@@ -1,109 +1,110 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import { useEffect, useState } from "react";
+import MessageActions from "./MessageActions";
+import UploadButton from "./UploadButton";
+import MicButton from "./MicButton";
+import CamButton from "./CamButton";
 
-function Chat() {
+export default function Chat({ project, chat }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [file, setFile] = useState(null);
 
-  const sendMessage = async () => {
-    if (!input && !file) return;
-
-    const formData = new FormData();
-    formData.append("message", input);
-    if (file) {
-      formData.append("file", file);
+  const reload = async () => {
+    if (chat) {
+      const r = await fetch(`/api/chats/${chat}/messages`);
+      setMessages(await r.json());
     }
-
-    try {
-      const res = await axios.post("/api/chat", formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setMessages([...messages, { role: "user", text: input, file: file?.name }, { role: "ai", data: res.data.result }]);
-    } catch (err) {
-      console.error(err);
-      setMessages([...messages, { role: "ai", text: "Error: could not process" }]);
-    }
-
-    setInput("");
-    setFile(null);
   };
 
-  const renderAIResponse = (data) => {
-    if (!data) return null;
+  useEffect(() => { reload(); }, [chat]);
 
-    if (Array.isArray(data)) {
-      const keys = Object.keys(data[0] || {});
-      return (
-        <table className="table-auto border-collapse border border-gray-400 text-sm w-full">
-          <thead>
-            <tr>
-              {keys.map((k) => (
-                <th key={k} className="border border-gray-400 px-2 py-1 bg-gray-100">{k}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((row, i) => (
-              <tr key={i}>
-                {keys.map((k) => (
-                  <td key={k} className="border border-gray-400 px-2 py-1">{row[k]}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      );
+  const send = async () => {
+    if (!project?.id || !chat || !input.trim()) return;
+
+    const res = await fetch(`/api/chats/${chat}/messages`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: "user", content: input }),
+    });
+    const userMsg = await res.json();
+
+    const aiRes = await fetch(`/api/ai/query`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ project_id: String(project.id), query: input }),
+    });
+    const aiData = await aiRes.json();
+
+    const res2 = await fetch(`/api/chats/${chat}/messages`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: "assistant", content: aiData.answer }),
+    });
+    const aiMsg = await res2.json();
+
+    setMessages(prev => [...prev, userMsg, aiMsg]);
+    setInput("");
+  };
+
+  const summarizeChat = async () => {
+    if (!chat) return;
+    const res = await fetch(`/api/ai/summarize`, {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ chat_id: chat })
+    });
+    const data = await res.json();
+    const res2 = await fetch(`/api/chats/${chat}/messages`, {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ role: "assistant", content: data.summary })
+    });
+    const msg = await res2.json();
+    setMessages(prev => [...prev, msg]);
+  };
+
+  const handleRefresh = async (msgId, msgIndex) => {
+    const msg = messages[msgIndex];
+    if (msg.role !== "assistant") return;
+
+    let prompt = "";
+    for (let i = msgIndex - 1; i >= 0; i--) {
+      if (messages[i].role === "user") { prompt = messages[i].content; break; }
     }
+    if (!prompt) return;
 
-    if (typeof data === "object") {
-      return (
-        <table className="table-auto border-collapse border border-gray-400 text-sm w-full">
-          <tbody>
-            {Object.entries(data).map(([k, v]) => (
-              <tr key={k}>
-                <td className="border border-gray-400 px-2 py-1 font-semibold bg-gray-100">{k}</td>
-                <td className="border border-gray-400 px-2 py-1">{JSON.stringify(v)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      );
-    }
+    const aiRes = await fetch(`/api/ai/query`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ project_id: String(project.id), query: prompt }),
+    });
+    const aiData = await aiRes.json();
 
-    return <pre>{String(data)}</pre>;
+    await fetch(`/api/messages/${msgId}?content=${encodeURIComponent(aiData.answer)}`, { method: "PUT" });
+    await reload();
   };
 
   return (
-    <div className="chat-container p-4">
-      <div className="messages mb-4 h-96 overflow-y-auto border p-2">
+    <div className="p-4 flex flex-col h-full">
+      <div className="flex justify-between items-center mb-2">
+        <div className="text-sm text-gray-600">Project: {project?.name || "—"} · Chat #{chat || "—"}</div>
+        <button className="border px-2 py-1 rounded" onClick={summarizeChat}>🧠 Summarize Chat</button>
+      </div>
+
+      <div className="flex-1 overflow-auto border rounded p-2">
         {messages.map((m, i) => (
-          <div key={i} className={`mb-4 ${m.role === "user" ? "text-right" : "text-left"}`}>
-            <span className="block font-semibold">{m.role.toUpperCase()}:</span>
-            {m.text && <p>{m.text}</p>}
-            {m.file && <em className="block text-sm">📎 {m.file}</em>}
-            {m.data && renderAIResponse(m.data)}
+          <div key={m.id} className="flex justify-between hover:bg-gray-50 p-1 rounded">
+            <div className="pr-2">
+              <div><b>{m.role}:</b> {m.content}</div>
+              <div className="text-xs text-gray-500">
+                {m.created_at ? new Date(m.created_at).toLocaleString() : ""} {m.read ? "· Read" : ""}
+              </div>
+            </div>
+            <MessageActions msg={m} index={i} onRefresh={() => handleRefresh(m.id, i)} />
           </div>
         ))}
       </div>
 
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type a message... (e.g. run cad takeoff, parse boq, check bim)"
-          className="flex-1 border p-2"
-        />
-        <input
-          type="file"
-          onChange={(e) => setFile(e.target.files[0])}
-          className="border p-2"
-        />
-        <button onClick={sendMessage} className="bg-blue-600 text-white px-4 py-2">Send</button>
+      <div className="flex mt-2 gap-2">
+        <input className="flex-1 border p-2" value={input} onChange={e => setInput(e.target.value)} placeholder="Type a message…" />
+        <button className="px-3 py-2 border" onClick={send}>Send</button>
+        <UploadButton projectId={project?.id} driveFolderId={project?.drive_id} chatId={chat} />
+        <MicButton projectId={project?.id} />
+        <CamButton projectId={project?.id} />
       </div>
     </div>
   );
 }
-
-export default Chat;

@@ -1,1 +1,1 @@
-export { default } from "./App";
+# Placeholder for frontend/src/App.jsx

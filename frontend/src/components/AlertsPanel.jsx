@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 function AlertsPanel() {
@@ -8,41 +8,60 @@ function AlertsPanel() {
   const [user, setUser] = useState({ role: "", projects: [] });
 
   useEffect(() => {
-    fetch("/api/users/me").then(res => res.json()).then(data => setUser(data));
+    fetch("/api/users/me")
+      .then((response) => response.json())
+      .then((data) => setUser(data))
+      .catch((error) => console.error("Failed to fetch user", error));
   }, []);
 
-  const fetchAlerts = () => {
-    let url = "/api/alerts?";
-    if (category !== "all") url += `category=${category}&`;
-    if (projectId !== "all") url += `project_id=${projectId}&`;
-    fetch(url).then(res => res.json()).then(data => setAlerts(data.alerts || []));
-  };
+  useEffect(() => {
+    fetch("/api/alerts/recent")
+      .then((response) => response.json())
+      .then((data) => {
+        setAlerts(Array.isArray(data) ? data : []);
+      })
+      .catch((error) => console.error("Failed to fetch alerts", error));
+  }, []);
 
-  useEffect(() => { if (user.role) fetchAlerts(); }, [category, projectId, user]);
+  const filteredAlerts = useMemo(() => {
+    return alerts.filter((alert) => {
+      const categoryMatches = category === "all" || alert.level === category;
+      const projectMatches =
+        projectId === "all" || String(alert.project_id) === String(projectId);
+      return categoryMatches && projectMatches;
+    });
+  }, [alerts, category, projectId]);
 
   return (
     <div className="p-4 bg-white shadow rounded-lg h-full overflow-y-auto">
       <h2 className="text-xl font-bold mb-3">⚠️ Alerts</h2>
       <div className="flex gap-2 mb-3">
-        <select value={category} onChange={e => setCategory(e.target.value)}>
+        <select value={category} onChange={(event) => setCategory(event.target.value)}>
           <option value="all">All</option>
-          <option value="deployment">Deployment</option>
-          <option value="compliance">Compliance</option>
-          <option value="analytics">Analytics</option>
+          <option value="warning">Warnings</option>
+          <option value="info">Info</option>
+          <option value="error">Errors</option>
         </select>
-        <select value={projectId} onChange={e => setProjectId(e.target.value)}>
+        <select value={projectId} onChange={(event) => setProjectId(event.target.value)}>
           <option value="all">All Projects</option>
-          {user.projects.map(pid => <option key={pid} value={pid}>Project {pid}</option>)}
+          {user.projects.map((pid) => (
+            <option key={pid} value={pid}>Project {pid}</option>
+          ))}
         </select>
       </div>
-      {alerts.map((a) => (
-        <li key={a.id} className={a.category==="deployment" ? "bg-red-50" : "bg-yellow-50"}>
-          <div>{a.message}</div>
-          {a.project_id && a.project_id !== 0 && (
-            <Link to={`/projects/${a.project_id}`} className="text-blue-600 underline">View Project</Link>
-          )}
-        </li>
-      ))}
+      <ul className="space-y-2">
+        {filteredAlerts.map((alert, index) => (
+          <li key={`${alert.message}-${index}`} className={`alert-card alert-${alert.level ?? "info"}`}>
+            <div>{alert.message}</div>
+            {alert.project_id && alert.project_id !== 0 && (
+              <Link to={`/projects/${alert.project_id}`} className="text-blue-600 underline">
+                View Project
+              </Link>
+            )}
+          </li>
+        ))}
+        {filteredAlerts.length === 0 && <li>No alerts to display.</li>}
+      </ul>
     </div>
   );
 }

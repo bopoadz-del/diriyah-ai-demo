@@ -1,1 +1,1 @@
-export default function App(){ return <div>Frontend placeholder</div> }
+export { default } from "./App";

@@ -1,4 +1,30 @@
-
-fastapi
-uvicorn
-python-multipart
+fastapi==0.115.0
+uvicorn==0.30.6
+python-dotenv==1.0.1
+sqlalchemy==2.0.35
+psycopg2-binary==2.9.9
+numpy==1.26.4
+pandas==2.2.3
+# Pin to a Python 3.10-compatible build; vanilla 0.7.0 wheels only exist for 3.11+
+ifcopenshell==0.7.0.240627
+ezdxf==1.2.0
+spacy==3.7.5
+en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
+requests==2.32.3
+aiofiles==24.1.0
+python-multipart==0.0.9
+openpyxl==3.1.5
+reportlab==4.2.5
+PyMuPDF==1.24.9
+redis==5.0.8
+chromadb==0.5.5
+google-api-python-client==2.149.0
+google-auth==2.35.0
+google-auth-oauthlib==1.2.1
+openai==0.28.1
+PyPDF2==3.0.1
+python-docx==1.1.0
+python-pptx==0.6.23
+rarfile==4.1
+scikit-learn==1.5.2
+pytest==8.2.0

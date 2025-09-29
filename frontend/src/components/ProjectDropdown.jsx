@@ -1,14 +1,33 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
+
 const ProjectDropdown = ({ onSelect }) => {
-  const [projects, setProjects] = useState([]);
-  const [active, setActive] = useState("");
-  useEffect(() => { fetch("/api/projects/scan-drive").then((res) => res.json()).then((data) => setProjects(data.projects)); }, []);
-  const handleChange = (e) => { const project = e.target.value; setActive(project); onSelect(project); };
+  const [options, setOptions] = useState([]);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch("/api/projects/scan-drive");
+        if (!res.ok) throw new Error(`Scan failed (${res.status})`);
+        const data = await res.json();
+        setOptions(data.projects || []);
+      } catch (e) {
+        console.error("Failed to scan drive", e);
+        setError("Unable to scan drive for project folders.");
+      }
+    };
+    load();
+  }, []);
+
   return (
-    <select value={active} onChange={handleChange} className="w-full border border-gray-300 rounded p-2">
-      <option value="">Select Project</option>
-      {projects.map((p, idx) => (<option key={idx} value={p}>{p}</option>))}
-    </select>
+    <div className="project-dropdown">
+      <select onChange={(e) => onSelect?.(e.target.value)} defaultValue="">
+        <option value="" disabled>Select a Drive project…</option>
+        {options.map((name) => (<option key={name} value={name}>{name}</option>))}
+      </select>
+      {error && <p className="project-dropdown-error">{error}</p>}
+    </div>
   );
 };
+
 export default ProjectDropdown;

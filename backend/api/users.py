@@ -11,6 +11,7 @@ class UserStub(BaseModel):
     id: int
     name: str
     role: str
+    projects: list[int]
 
 
 class UpdateAck(BaseModel):
@@ -19,7 +20,12 @@ class UpdateAck(BaseModel):
     message: str
 
 
-_USER_STUB = UserStub(id=1, name="Test User", role="Engineer")
+_USER_STUB = UserStub(
+    id=1,
+    name="Test User",
+    role="Engineer",
+    projects=[101, 202, 303],
+)
 _UPDATE_ACK = UpdateAck(status="ok", message="Updated (stub)")
 
 

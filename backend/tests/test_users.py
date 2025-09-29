@@ -23,7 +23,10 @@ def test_get_current_user_returns_stub() -> None:
 
     assert response.status_code == 200
     assert response.json() == users.UserStub(
-        id=1, name="Test User", role="Engineer"
+        id=1,
+        name="Test User",
+        role="Engineer",
+        projects=[101, 202, 303],
     ).model_dump()
 
 

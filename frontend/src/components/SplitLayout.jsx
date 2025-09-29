@@ -1,18 +1,59 @@
-import React, { useState, useRef } from "react";
-import ChatWindow from "./ChatWindow";
+import React, { useCallback, useState } from "react";
+
 import Analytics from "./Analytics";
+import ChatWindow from "./ChatWindow";
+
+const MIN_WIDTH_PERCENT = 20;
+const MAX_WIDTH_PERCENT = 80;
+
 const SplitLayout = () => {
-  const [dividerPos, setDividerPos] = useState(50);
-  const isDragging = useRef(false);
-  const startDrag = () => { isDragging.current = true; };
-  const stopDrag = () => { isDragging.current = false; };
-  const onDrag = (e) => { if (!isDragging.current) return; const newPos = (e.clientX / window.innerWidth) * 100; if (newPos > 20 && newPos < 80) setDividerPos(newPos); };
+  const [dividerPosition, setDividerPosition] = useState(50);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleMouseDown = () => {
+    setIsDragging(true);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseMove = useCallback(
+    (event) => {
+      if (!isDragging) {
+        return;
+      }
+
+      const nextPosition = (event.clientX / window.innerWidth) * 100;
+      if (nextPosition > MIN_WIDTH_PERCENT && nextPosition < MAX_WIDTH_PERCENT) {
+        setDividerPosition(nextPosition);
+      }
+    },
+    [isDragging],
+  );
+
   return (
-    <div className="split-layout" onMouseMove={onDrag} onMouseUp={stopDrag} onMouseLeave={stopDrag}>
-      <div className="left-panel" style={{ width: `${dividerPos}%` }}><ChatWindow /></div>
-      <div className="divider" onMouseDown={startDrag} />
-      <div className="right-panel" style={{ width: `${100 - dividerPos}%` }}><Analytics /></div>
+    <div
+      className="split-layout"
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+    >
+      <div className="left-panel" style={{ width: `${dividerPosition}%` }}>
+        <ChatWindow />
+      </div>
+      <div
+        className="divider"
+        role="separator"
+        aria-orientation="vertical"
+        tabIndex={0}
+        onMouseDown={handleMouseDown}
+      />
+      <div className="right-panel" style={{ width: `${100 - dividerPosition}%` }}>
+        <Analytics />
+      </div>
     </div>
   );
 };
+
 export default SplitLayout;

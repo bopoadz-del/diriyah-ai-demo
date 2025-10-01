@@ -1,1 +1,1 @@
-# Placeholder for frontend/src/components/Navbar.js
+export { default } from "./Navbar.jsx";

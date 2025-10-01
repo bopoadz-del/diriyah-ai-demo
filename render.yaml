@@ -17,15 +17,13 @@ services:
         fromService:
           name: mba-redis
           property: connectionString
+  - type: redis
+    name: mba-redis
+    plan: starter
+    region: oregon
 
 databases:
   - name: mba-postgres-main
     databaseName: masterise_ai_main
-    plan: starter
-    region: oregon
-
-services:
-  - type: redis
-    name: mba-redis
     plan: starter
     region: oregon

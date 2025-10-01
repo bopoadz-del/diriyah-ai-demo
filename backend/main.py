@@ -42,16 +42,8 @@ app.include_router(vision.router, prefix="/api")
 def health():
     """Expose a lightweight health payload with Drive diagnostics."""
 
-    credentials_available = google_drive.drive_credentials_available()
-    service_error = google_drive.drive_service_error()
-    return {
-        "status": "ok",
-        "drive": {
-            "credentials_available": credentials_available,
-            "service_error": service_error,
-            "stubbed": (not credentials_available) or (service_error is not None),
-        },
-    }
+    diagnostics = google_drive.drive_stub_diagnostics()
+    return {"status": "ok", "drive": diagnostics}
 
 @app.on_event("startup")
 async def log_startup_state() -> None:
@@ -60,9 +52,10 @@ async def log_startup_state() -> None:
     mode = "FIXTURE" if os.getenv("USE_FIXTURE_PROJECTS", "true").lower() == "true" else "GOOGLE DRIVE"
     print(f"📂 Project API running in {mode} mode")
 
-    credentials_available = google_drive.drive_credentials_available()
-    service_error = google_drive.drive_service_error()
-    stubbed = (not credentials_available) or (service_error is not None)
+    diagnostics = google_drive.drive_stub_diagnostics()
+    credentials_available = diagnostics["credentials_available"]
+    service_error = diagnostics["service_error"]
+    stubbed = diagnostics["stubbed"]
 
     drive_mode = "STUBBED" if stubbed else "LIVE"
     print(
@@ -72,6 +65,17 @@ async def log_startup_state() -> None:
 
     if service_error:
         print(f"   ↳ Drive service error: {service_error}")
+        hint = diagnostics.get("credentials_hint", {})
+        expected_path = hint.get("expected_path")
+        if expected_path:
+            print(
+                "   ↳ Credentials expected at %s (exists=%s, readable=%s)",
+                expected_path,
+                hint.get("path_exists"),
+                hint.get("readable"),
+            )
+        elif hint.get("env_var_set") is False:
+            print("   ↳ GOOGLE_APPLICATION_CREDENTIALS environment variable is not set")
 
 # Keep this literal for tests:
 # app.include_router(users.router ...

@@ -32,6 +32,10 @@ def test_health_reports_missing_credentials(stubbed_client: TestClient) -> None:
     # service_error should be recorded even before any Drive call
     assert "Credentials" in payload["drive"]["service_error"]
     assert payload["drive"]["stubbed"] is True
+    hint = payload["drive"]["credentials_hint"]
+    assert hint["env_var_set"] is True
+    assert hint["expected_path"] == str(Path("/tmp/google-credentials-missing.json"))
+    assert hint["path_exists"] is False
 
 
 def test_upload_endpoint_stubbed(stubbed_client: TestClient) -> None:
@@ -99,3 +103,7 @@ def test_drive_diagnose_endpoint_stubbed(stubbed_client: TestClient) -> None:
     assert payload["projects"] == google_drive.STUB_FOLDERS
     assert payload["detail"] == google_drive.drive_service_error()
     assert payload["credentials_available"] is False
+    hint = payload["credentials_hint"]
+    assert hint["env_var_set"] is True
+    assert hint["expected_path"] == str(Path("/tmp/google-credentials-missing.json"))
+    assert hint["path_exists"] is False

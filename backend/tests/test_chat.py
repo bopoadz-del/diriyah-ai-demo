@@ -12,7 +12,15 @@ class _MockCollection:
     def __init__(self):
         self.queries = []
 
+ codex/add-tests-for-active-project-in-chat-ojreow
     def query(self, *, query_texts, n_results):  # pragma: no cover - simple stub
+
+codex/add-tests-for-active-project-in-chat-nr6q6k
+    def query(self, *, query_texts, n_results):  # pragma: no cover - simple stub
+
+    def query(self, query_texts, n_results):  # pragma: no cover - simple stub
+ main
+ main
         self.queries.append({"query_texts": query_texts, "n_results": n_results})
         return {"documents": [["Doc snippet"]]}
 
@@ -51,6 +59,14 @@ def test_chat_with_empty_documents(client):
     finally:
         set_active_project(None)
 
+ codex/add-tests-for-active-project-in-chat-ojreow
+=======
+    try:
+        response = client.post("/api/chat", data={"message": "Hello"})
+    finally:
+        set_active_project(None)
+
+ main
     assert response.status_code == 200
 
     payload = response.json()

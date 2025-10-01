@@ -12,7 +12,11 @@ class _MockCollection:
     def __init__(self):
         self.queries = []
 
+codex/add-tests-for-active-project-in-chat-nr6q6k
     def query(self, *, query_texts, n_results):  # pragma: no cover - simple stub
+
+    def query(self, query_texts, n_results):  # pragma: no cover - simple stub
+ main
         self.queries.append({"query_texts": query_texts, "n_results": n_results})
         return {"documents": [["Doc snippet"]]}
 

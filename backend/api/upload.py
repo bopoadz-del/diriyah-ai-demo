@@ -1,8 +1,23 @@
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, File, UploadFile
+
+from backend.services import google_drive
 
 router = APIRouter()
 
+
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
-    # Stub implementation
-    return {"filename": file.filename, "status": "uploaded"}
+    """Upload a file to Drive or return a stubbed identifier."""
+
+    service = google_drive.get_drive_service()
+    if service is None:
+        return {
+            "status": "stubbed",
+            "file_id": google_drive.upload_to_drive(file, lookup_service=False),
+            "filename": file.filename,
+            "detail": google_drive.drive_service_error(),
+            "detail_source": google_drive.drive_service_error_source(),
+        }
+
+    file_id = google_drive.upload_to_drive(file, service=service, lookup_service=False)
+    return {"status": "ok", "file_id": file_id, "filename": file.filename}

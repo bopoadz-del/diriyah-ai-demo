@@ -1,5 +1,7 @@
-from fastapi import APIRouter, HTTPException
 import os
+from fastapi import APIRouter, HTTPException
+
+from backend.services import google_drive
 
 USE_FIXTURE_PROJECTS = os.getenv("USE_FIXTURE_PROJECTS", "true").lower() == "true"
 
@@ -50,9 +52,24 @@ router = APIRouter()
 @router.get("/projects")
 def list_projects():
     if USE_FIXTURE_PROJECTS:
-        return list(PROJECT_FIXTURES.values())
-    from backend.services import google_drive
-    return google_drive.list_project_folders()
+        return {"status": "stubbed", "projects": list(PROJECT_FIXTURES.values())}
+
+    service = google_drive.get_drive_service()
+    if service is None:
+        return {
+            "status": "stubbed",
+            "projects": google_drive.list_project_folders(lookup_service=False),
+            "detail": google_drive.drive_service_error(),
+            "detail_source": google_drive.drive_service_error_source(),
+        }
+
+    return {
+        "status": "ok",
+        "projects": google_drive.list_project_folders(
+            service=service, lookup_service=False
+        ),
+    }
+
 
 @router.get("/projects/{project_id}")
 def get_project(project_id: str):
@@ -60,9 +77,18 @@ def get_project(project_id: str):
         project = PROJECT_FIXTURES.get(project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
-        return project
-    from backend.services import google_drive
-    return google_drive.get_project(project_id)
+        return {"status": "stubbed", "project": project}
+
+    service = google_drive.get_drive_service()
+    if service is None:
+        return {
+            "status": "stubbed",
+            "project": google_drive.get_project(project_id),
+            "detail": google_drive.drive_service_error(),
+            "detail_source": google_drive.drive_service_error_source(),
+        }
+
+    return {"status": "ok", "project": google_drive.get_project(project_id)}
 
 @router.post("/projects/{project_id}/context")
 def set_project_context(project_id: str):

@@ -1,17 +1,29 @@
 """Drive diagnostic endpoints for the demo UI."""
+
 from typing import Any, Dict
+
 from fastapi import APIRouter
-from backend.services.google_drive import get_drive_service, list_project_folders
+
+from backend.services import google_drive
 
 router = APIRouter()
 
 @router.get("/drive/diagnose")
 def drive_diagnose() -> Dict[str, Any]:
     """Return debugging details about the Google Drive connection."""
+    service = google_drive.get_drive_service()
+    if service is None:
+        return {
+            "status": "stubbed",
+            "detail": google_drive.drive_service_error(),
+            "detail_source": google_drive.drive_service_error_source(),
+            "credentials_available": google_drive.drive_credentials_available(),
+            "projects": google_drive.list_project_folders(lookup_service=False),
+        }
+
     try:
-        service = get_drive_service()
         about = service.about().get(fields="user(emailAddress,displayName)").execute()
-        files = list_project_folders()
+        files = google_drive.list_project_folders(service=service, lookup_service=False)
         breakdown: Dict[str, int] = {}
         for drive_file in files:
             mime_type = drive_file.get("mimeType", "unknown")
@@ -22,6 +34,7 @@ def drive_diagnose() -> Dict[str, Any]:
             "total_files": len(files),
             "file_type_breakdown": breakdown,
             "sample_files": [drive_file.get("name") for drive_file in files[:10]],
+            "credentials_available": True,
         }
     except Exception as exc:  # pragma: no cover - defensive logging path
         return {"status": "error", "detail": str(exc)}

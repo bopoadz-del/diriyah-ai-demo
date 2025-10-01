@@ -1,11 +1,17 @@
+from collections.abc import Mapping
+
 from fastapi import APIRouter, Form
+
 from backend.services.vector_memory import get_active_project
 from backend.services.intent_router import IntentRouter
 router = APIRouter()
 intent_router = IntentRouter()
 @router.post("/chat")
 async def chat(message: str = Form(...)):
-    active = get_active_project()
+    active = get_active_project() or {}
+    if not isinstance(active, Mapping):
+        active = {}
+
     project_id = active.get("id")
     collection = active.get("collection")
     intent_result = intent_router.route(message, project_id=project_id)

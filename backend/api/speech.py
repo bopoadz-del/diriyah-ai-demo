@@ -1,1 +1,4 @@
-# Placeholder for backend/api/speech.py
+from fastapi import APIRouter
+
+
+router = APIRouter()

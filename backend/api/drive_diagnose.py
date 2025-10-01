@@ -1,1 +1,4 @@
-# Placeholder for backend/api/drive_diagnose.py
+from fastapi import APIRouter
+
+
+router = APIRouter()

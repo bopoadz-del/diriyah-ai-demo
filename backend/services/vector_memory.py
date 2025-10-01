@@ -1,3 +1,17 @@
+ codex/update-active-project-storage-structure
+from typing import Any, Dict, Optional
+
+
+_active_project: Optional[Dict[str, Any]] = None
+
+
+def set_active_project(project: Optional[Dict[str, Any]]):
+    """Persist the currently active project.
+
+    The active project is stored as a dictionary so that both the project
+    identifier and any associated collection-like object can be retrieved by
+    other services. Passing ``None`` clears the active project.
+
 """In-memory storage for the currently active project."""
 
 from __future__ import annotations
@@ -31,9 +45,33 @@ def set_active_project(
     The project can be supplied as a mapping containing arbitrary keys or as an
     identifier. Optional keyword arguments can override the ``id`` and
     ``collection`` entries to ensure callers receive a consistent structure.
+ main
     """
 
     global _active_project
+
+codex/update-active-project-storage-structure
+    if project is None:
+        _active_project = None
+        return
+
+    if isinstance(project, str):
+        _active_project = {"id": project, "collection": None}
+        return
+
+    if not isinstance(project, dict):
+        raise TypeError("project must be a mapping with 'id' and 'collection' keys")
+
+    _active_project = {
+        "id": project.get("id"),
+        "collection": project.get("collection"),
+    }
+
+
+def get_active_project() -> Optional[Dict[str, Any]]:
+    """Return the currently active project structure, if any."""
+
+    return _active_project
 
     normalized = _normalize_project(project)
 
@@ -145,3 +183,4 @@ def get_active_project() -> MutableMapping[str, Any]:
         return {}
 
     return _normalize_project(_active_project)
+ main

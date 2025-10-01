@@ -63,11 +63,14 @@ def _serialise_projects(projects: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 @router.get("/projects")
-def list_projects() -> list[Dict[str, Any]]:
+def list_projects() -> Dict[str, Any]:
     """Return either fixture projects or Drive-synchronised ones."""
 
     if USE_FIXTURE_PROJECTS:
-        return _serialise_projects(stub_state.list_projects())
+        return {
+            "status": "stubbed",
+            "projects": _serialise_projects(stub_state.list_projects()),
+        }
 
     service = google_drive.get_drive_service()
     if service is None:
@@ -78,7 +81,14 @@ def list_projects() -> list[Dict[str, Any]]:
         stub_state.sync_drive_project(drive_id=folder["id"], name=folder["name"])
         for folder in folders
     ]
-    return _serialise_projects(projects)
+    serialised = _serialise_projects(projects)
+    if service is None:
+        return {
+            "status": "stubbed",
+            "projects": serialised,
+            "detail": google_drive.drive_service_error(),
+        }
+    return {"status": "ok", "projects": serialised}
 
 
 @router.get("/projects/sync_drive")

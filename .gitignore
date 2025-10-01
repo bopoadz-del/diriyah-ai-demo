@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*.log
+.env
+*.env
+node_modules/
+frontend/node_modules/
+frontend/.vite/
+frontend/dist/
+backend/.mypy_cache/
+backend/.pytest_cache/
+backend/frontend_dist/
+.DS_Store

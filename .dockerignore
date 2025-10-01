@@ -1,0 +1,11 @@
+.git
+**/__pycache__
+**/*.py[cod]
+**/*.log
+frontend/node_modules
+frontend/.vite
+frontend/dist
+backend/.mypy_cache
+backend/.pytest_cache
+.env
+*.env

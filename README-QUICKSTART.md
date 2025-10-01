@@ -1,4 +1,3 @@
-
 # Masterise Brain AI — Quickstart
 
 ## Prereqs
@@ -36,3 +35,6 @@ Place YOLO weights into `backend/models/` (replace the `.pt.placeholder` files).
 ```bash
 API_BASE_URL=http://localhost:8000 python3 scripts/health_check.py
 ```
+## Render build
+If you need to run `render-build.sh` locally (for example to debug Render deployments), make sure the required system packages are installed via apt: `libboost-all-dev` and `python3-venv` (run `apt-get update` before installing if needed).
+

@@ -1,19 +1,10 @@
-        codex/cleanup-test-files-and-verify-execution
 """Stub speech-to-text endpoints used for local development and tests."""
 
-=======
-         main
 from __future__ import annotations
-
-"""Stub speech-to-text endpoints used for local development and tests."""
 
 import io
 import logging
- codex/cleanup-test-files-and-verify-execution
 from typing import Any, Callable, Optional
-
-from typing import Any, Callable, List, Optional
- main
 
 from fastapi import APIRouter, File, UploadFile
 
@@ -30,7 +21,9 @@ def speech_diagnostics() -> dict[str, str]:
 
 # Optional transcription backends -------------------------------------------------
 try:  # pragma: no cover - optional dependency path
-    from backend.services.speech_to_text import transcribe_audio as _service_transcribe
+    from backend.services.speech_to_text import (
+        transcribe_audio as _service_transcribe,
+    )
 except Exception:  # pragma: no cover - runtime optionality
     _service_transcribe: Optional[Callable[..., Any]] = None
 else:  # pragma: no cover - imported when available
@@ -44,19 +37,25 @@ else:  # pragma: no cover - imported when available
     _module_transcribe = getattr(_module_speech, "transcribe_audio", None)
 
 try:  # pragma: no cover - optional dependency path
-    from backend.services.rag_memory import retrieve_with_memory as _retrieve_with_memory
+    from backend.services.rag_memory import (
+        retrieve_with_memory as _retrieve_with_memory,
+    )
 except Exception:  # pragma: no cover - runtime optionality
     _retrieve_with_memory: Optional[Callable[[str], Any]] = None
 else:  # pragma: no cover - imported when available
     _retrieve_with_memory = _retrieve_with_memory
 
 
-async def _read_upload(file: UploadFile) -> bytes:
-    contents = await file.read()
+def _reset_upload_pointer(file: UploadFile) -> None:
     try:
         file.file.seek(0)
     except Exception:  # pragma: no cover - best effort reset
         pass
+
+
+async def _read_upload(file: UploadFile) -> bytes:
+    contents = await file.read()
+    _reset_upload_pointer(file)
     return contents
 
 
@@ -74,8 +73,10 @@ def _extract_transcript(result: Any) -> Optional[str]:
     if isinstance(result, dict):
         for key in ("transcript", "text", "message"):
             value = result.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
+            if isinstance(value, str):
+                cleaned = value.strip()
+                if cleaned:
+                    return cleaned
     return None
 
 
@@ -121,8 +122,10 @@ def _generate_answer(project_id: str, transcript: str) -> str:
             rag_result = _retrieve_with_memory(transcript)
             if isinstance(rag_result, dict):
                 answer = rag_result.get("answer")
-                if isinstance(answer, str) and answer.strip():
-                    return answer.strip()
+                if isinstance(answer, str):
+                    cleaned = answer.strip()
+                    if cleaned:
+                        return cleaned
         except Exception as exc:  # pragma: no cover - optional path
             logger.debug("RAG memory retrieval failed: %s", exc, exc_info=True)
 
@@ -146,7 +149,3 @@ async def speech_to_text(project_id: str, file: UploadFile = File(...)) -> dict[
     transcript = await _transcribe(file)
     answer = _generate_answer(project_id, transcript)
     return {"transcript": transcript, "answer": answer}
-        codex/cleanup-test-files-and-verify-execution
-
-
-         main

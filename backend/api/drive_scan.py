@@ -1,1 +1,4 @@
-# Placeholder for backend/api/drive_scan.py
+from fastapi import APIRouter
+
+
+router = APIRouter()

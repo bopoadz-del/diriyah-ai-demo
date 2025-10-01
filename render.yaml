@@ -5,7 +5,10 @@ services:
     plan: starter
     branch: main
     dockerfilePath: Dockerfile
-    dockerCommand: bash -c "alembic upgrade head && uvicorn backend.main:app --host 0.0.0.0 --port 8000"
+    dockerCommand: >-
+      bash -c "if [ \"$INSTALL_DEV_REQUIREMENTS\" = \"true\" ]; then
+        pip install --no-cache-dir -r requirements-dev.txt;
+      fi && alembic upgrade head && uvicorn backend.main:app --host 0.0.0.0 --port 8000 --log-level debug"
     envVars:
       - key: OPENAI_API_KEY
         sync: false
@@ -17,6 +20,10 @@ services:
         fromService:
           name: mba-redis
           property: connectionString
+      - key: INSTALL_DEV_REQUIREMENTS
+        value: "true"
+      - key: PYTHONUNBUFFERED
+        value: "1"
   - type: redis
     name: mba-redis
     plan: starter

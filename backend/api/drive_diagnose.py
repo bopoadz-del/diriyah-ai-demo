@@ -13,10 +13,13 @@ def drive_diagnose() -> Dict[str, Any]:
     """Return debugging details about the Google Drive connection."""
     service = google_drive.get_drive_service()
     if service is None:
+        diagnostics = google_drive.drive_stub_diagnostics()
         return {
             "status": "stubbed",
-            "detail": google_drive.drive_service_error(),
-            "credentials_available": google_drive.drive_credentials_available(),
+            "detail": diagnostics["service_error"],
+            "credentials_available": diagnostics["credentials_available"],
+            "credentials_hint": diagnostics["credentials_hint"],
+            "stubbed": diagnostics["stubbed"],
             "projects": google_drive.list_project_folders(lookup_service=False),
         }
 

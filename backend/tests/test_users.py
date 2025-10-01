@@ -1,12 +1,6 @@
 from __future__ import annotations
-from pathlib import Path
-import sys
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
 from backend.api import users  # noqa: E402
 
@@ -32,6 +26,8 @@ def test_update_user_returns_stub_acknowledgement() -> None:
     ).model_dump()
 
 def test_main_registers_users_router() -> None:
-    main_path = Path(__file__).resolve().parents[1] / "main.py"
-    source = main_path.read_text(encoding="utf-8")
-    assert "app.include_router(users.router" in source
+    from backend.main import app as main_app
+
+    paths = {route.path for route in main_app.router.routes}
+    assert "/api/users/me" in paths
+    assert "/api/users/update" in paths

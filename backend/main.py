@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from backend.api import (
     alerts,
     analytics,
+    debug,
     drive_diagnose,
     drive_scan,
     preferences,
@@ -35,6 +36,7 @@ app.include_router(drive_diagnose.router, prefix="/api")
 app.include_router(projects.router, prefix="/api")
 app.include_router(alerts.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
+app.include_router(debug.router, prefix="/api")
 app.include_router(preferences.router, prefix="/api")
 app.include_router(upload.router, prefix="/api")
 app.include_router(speech.router, prefix="/api")

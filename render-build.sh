@@ -2,8 +2,10 @@
 set -o errexit
 set -o nounset
 set -o pipefail
+set -o xtrace
 
 # Install system packages required by the backend and frontend builds
+echo "[render-build] Installing system dependencies"
 apt-get update \
   && apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -15,6 +17,7 @@ apt-get update \
 
 # Install Python dependencies inside a virtual environment for Render debugging
 VENV_PATH="/opt/render/project/.venv"
+echo "[render-build] Creating virtual environment at ${VENV_PATH}"
 python3 -m venv "$VENV_PATH"
 source "$VENV_PATH/bin/activate"
 pip install --upgrade pip
@@ -31,3 +34,5 @@ popd
 rm -rf backend/frontend_dist
 mkdir -p backend/frontend_dist
 cp -R frontend/dist/. backend/frontend_dist/
+
+echo "[render-build] Frontend bundle copied to backend/frontend_dist"

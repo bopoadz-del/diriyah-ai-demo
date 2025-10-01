@@ -31,6 +31,11 @@ def health() -> dict[str, object]:
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend_dist"
 
 if FRONTEND_DIST.exists():
+    index_file = FRONTEND_DIST / "index.html"
+    if not index_file.exists():
+        logger.warning("Frontend dist detected at '%s' but index.html is missing", FRONTEND_DIST)
+    else:
+        logger.info("Serving compiled frontend from '%s'", FRONTEND_DIST)
     app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
 else:
     logger.warning("Frontend build directory '%s' not found. Root requests will return the API JSON 404.", FRONTEND_DIST)

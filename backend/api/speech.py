@@ -1,10 +1,19 @@
+        codex/cleanup-test-files-and-verify-execution
 """Stub speech-to-text endpoints used for local development and tests."""
 
+=======
+         main
 from __future__ import annotations
+
+"""Stub speech-to-text endpoints used for local development and tests."""
 
 import io
 import logging
+ codex/cleanup-test-files-and-verify-execution
 from typing import Any, Callable, Optional
+
+from typing import Any, Callable, List, Optional
+ main
 
 from fastapi import APIRouter, File, UploadFile
 
@@ -137,3 +146,7 @@ async def speech_to_text(project_id: str, file: UploadFile = File(...)) -> dict[
     transcript = await _transcribe(file)
     answer = _generate_answer(project_id, transcript)
     return {"transcript": transcript, "answer": answer}
+        codex/cleanup-test-files-and-verify-execution
+
+
+         main

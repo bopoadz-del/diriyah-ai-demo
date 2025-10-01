@@ -1,6 +1,10 @@
 """Simple in-memory preferences API used for Render debugging."""
+
 from typing import Any, Dict
+
 from fastapi import APIRouter, Body
+
+from backend.services.vector_memory import set_active_project
 
 router = APIRouter()
 
@@ -18,4 +22,5 @@ def set_preferences(
 ) -> Dict[str, Any]:
     """Persist the submitted preferences for ``user_id`` in memory."""
     _preferences_store[user_id] = dict(prefs)
+    set_active_project(prefs.get("active_project"))
     return {"status": "saved", "preferences": dict(_preferences_store[user_id])}

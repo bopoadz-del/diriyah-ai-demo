@@ -12,8 +12,8 @@ RUN python -m venv "$VIRTUAL_ENV"
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # Install Python requirements
-COPY backend/requirements.txt backend/requirements.txt
-RUN pip install --no-cache-dir -r backend/requirements.txt
+COPY backend/requirements.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy project code
 COPY . .

@@ -4,8 +4,8 @@ services:
     env: docker
     plan: starter
     branch: main
-    buildCommand: docker build -t mba-backend .
-    startCommand: bash -c "alembic upgrade head && uvicorn backend.main:app --host 0.0.0.0 --port 8000"
+    dockerfilePath: Dockerfile
+    dockerCommand: bash -c "alembic upgrade head && uvicorn backend.main:app --host 0.0.0.0 --port 8000"
     envVars:
       - key: OPENAI_API_KEY
         sync: false
@@ -17,15 +17,13 @@ services:
         fromService:
           name: mba-redis
           property: connectionString
+  - type: redis
+    name: mba-redis
+    plan: starter
+    region: oregon
 
 databases:
   - name: mba-postgres-main
     databaseName: masterise_ai_main
-    plan: starter
-    region: oregon
-
-services:
-  - type: redis
-    name: mba-redis
     plan: starter
     region: oregon

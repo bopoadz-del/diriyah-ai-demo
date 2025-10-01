@@ -7,6 +7,4 @@ node_modules/
 frontend/node_modules/
 backend/.mypy_cache/
 backend/.pytest_cache/
-backend/frontend_dist/
-frontend/dist/
 .DS_Store

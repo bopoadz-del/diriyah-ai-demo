@@ -7,9 +7,9 @@ COPY frontend/vite.config.js frontend/tailwind.config.js frontend/postcss.config
 COPY frontend/src ./src
 COPY frontend/public ./public
 
-RUN npm ci \
-    && npm run build
-
+<<<<<<< HEAD
+RUN npm ci || npm install
+RUN npm run build
 
 FROM python:3.10-slim
 
@@ -29,23 +29,14 @@ RUN apt-get update \
         libboost-all-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Create and configure a dedicated virtual environment
-ENV VIRTUAL_ENV=/opt/venv
-RUN python -m venv "$VIRTUAL_ENV"
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-
-# Install Python requirements
-COPY backend/requirements.txt backend/requirements.txt
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
 # Copy project code and runtime assets
 COPY backend /app/backend
 RUN mkdir -p /app/uploads /app/images /app/storage
-
 # Include the compiled frontend bundle
 COPY --from=frontend-build /frontend/dist /app/frontend_dist
 
 EXPOSE 8000
-
-# Start backend with Uvicorn
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["gunicorn", "backend.main:app", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]

@@ -18,9 +18,7 @@ function App() {
             when iterating locally.
           </p>
           <div className="app__actions">
-            <a className="app__link" href="/health">
-              Backend health check
-            </a>
+            <a className="app__link" href="/health">Backend health check</a>
             <a className="app__link" href="https://render.com/docs" target="_blank" rel="noreferrer">
               Render documentation
             </a>

@@ -7,15 +7,13 @@ COPY frontend/vite.config.js frontend/tailwind.config.js frontend/postcss.config
 COPY frontend/src ./src
 COPY frontend/public ./public
 
-RUN npm ci \
-    && npm run build
-
+<<<<<<< HEAD
+RUN npm ci && npm run build
 
 FROM python:3.10-slim
 
 WORKDIR /app
 
-# System deps for textract, poppler, OCR, etc.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \

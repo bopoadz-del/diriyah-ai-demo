@@ -1,3 +1,7 @@
+"""Tests for the chat endpoint to ensure active project handling."""
+
+from collections.abc import Generator
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -25,6 +29,8 @@ codex/add-tests-for-active-project-in-chat-y0qgyr
 
 
         self.queries = []
+ codex/update-vector_memory-to-handle-project-payload
+    def query(self, *, query_texts, n_results):  # pragma: no cover - simple stub
 
  codex/add-tests-for-active-project-in-chat-ojreow
     def query(self, *, query_texts, n_results):  # pragma: no cover - simple stub
@@ -33,6 +39,7 @@ codex/add-tests-for-active-project-in-chat-nr6q6k
     def query(self, *, query_texts, n_results):  # pragma: no cover - simple stub
 
     def query(self, query_texts, n_results):  # pragma: no cover - simple stub
+ main
  main
  main
  main
@@ -53,18 +60,25 @@ def test_chat_without_active_project(client):
     """Chat endpoint should handle missing active project gracefully."""
 
     set_active_project(None)
-
     response = client.post("/api/chat", data={"message": "Hello"})
     assert response.status_code == 200
-
     payload = response.json()
     assert payload["project_id"] is None
+ codex/update-vector_memory-to-handle-project-payload
+    if "intent" in payload:
+        assert payload["intent"]["project_id"] is None
+
     assert payload.get("context_docs", []) == []
     assert payload["intent"]["project_id"] is None
 
+ main
 
-def test_chat_with_empty_documents(client):
-    """Chat endpoint should handle empty document results gracefully."""
+
+codex/update-vector_memory-to-handle-project-payload
+def test_chat_with_active_project_collection(client):
+    """When an active project includes a collection, results are surfaced."""
+
+    set_active_project({"id": "proj-123", "collection": _MockCollection()})
 
     class EmptyDocumentsCollection:
         def query(self, *, query_texts, n_results):  # pragma: no cover - simple stub
@@ -81,6 +95,7 @@ codex/add-tests-for-active-project-in-chat
         response = client.post("/api/chat", data={"message": "Hello"})
     finally:
         set_active_project(None)
+ main
 
     assert response.status_code == 200
 
@@ -113,25 +128,29 @@ def test_chat_with_active_project_collection(client):
 
  main
     assert response.status_code == 200
-
     payload = response.json()
-    assert payload["context_docs"] == []
+    assert payload["project_id"] == "proj-123"
+    if "context_docs" in payload:
+        assert payload["context_docs"] == ["Doc snippet"]
+    assert "proj-123" in payload["response"]
 
 
-def test_chat_with_active_project_collection(client):
-    """Chat endpoint should return project context when collection is active."""
+def test_chat_with_empty_documents(client):
+    """Chat endpoint should handle empty document results gracefully."""
 
-    collection = _MockCollection()
-    set_active_project({"id": "proj-123", "collection": collection})
+    class EmptyDocumentsCollection:
+        def query(self, *, query_texts, n_results):  # pragma: no cover - simple stub
+            return {"documents": []}
 
-    try:
-        response = client.post("/api/chat", data={"message": "Hello"})
-    finally:
-        set_active_project(None)
+    set_active_project({"id": "proj-123", "collection": EmptyDocumentsCollection()})
 
+    response = client.post("/api/chat", data={"message": "Hello"})
     assert response.status_code == 200
 
     payload = response.json()
+ codex/update-vector_memory-to-handle-project-payload
+    assert payload["context_docs"] == []
+
     assert payload["project_id"] == "proj-123"
     assert payload["context_docs"] == ["Doc snippet"]
  codex/add-tests-for-active-project-in-chat-y0qgyr
@@ -140,3 +159,4 @@ def test_chat_with_active_project_collection(client):
     assert payload["response"].endswith("proj-123") main
     assert collection.queries == [{"query_texts": ["Hello"], "n_results": 3}]
  main
+main

@@ -130,11 +130,25 @@ def drive_service_error() -> Optional[str]:
         return _last_service_error
 
 
+def drive_error_source() -> Optional[str]:
+    """Return the category of the last recorded Drive error, if any."""
+
+    with _STATE_LOCK:
+        return _last_error_source
+
+
 def drive_stubbed() -> bool:
     """Return ``True`` when the Drive integration is operating in stub mode."""
 
     with _STATE_LOCK:
         return not _service_ready or not _credentials_available
+
+
+def drive_service_ready() -> bool:
+    """Return ``True`` when the Drive client has been initialised."""
+
+    with _STATE_LOCK:
+        return _service_ready
 
 
 def _initialise_service() -> Any:

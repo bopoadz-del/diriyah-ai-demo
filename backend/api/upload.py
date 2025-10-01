@@ -18,6 +18,8 @@ async def upload_file(file: UploadFile = File(...)) -> dict[str, object]:
 
     drive_file_id = google_drive.upload_to_drive(file)
     stubbed = google_drive.drive_stubbed()
+    service_ready = google_drive.drive_service_ready()
+    error_source = google_drive.drive_error_source()
 
     return {
         "filename": file.filename,
@@ -26,4 +28,6 @@ async def upload_file(file: UploadFile = File(...)) -> dict[str, object]:
         "drive_file_id": drive_file_id,
         "stubbed": stubbed,
         "error": google_drive.drive_service_error(),
+        "service_ready": service_ready,
+        "error_source": error_source,
     }

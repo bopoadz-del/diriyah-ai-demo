@@ -17,7 +17,9 @@ def test_upload_endpoint_returns_debug_metadata(monkeypatch: Any) -> None:
 
     monkeypatch.setattr(google_drive, "upload_to_drive", fake_upload)
     monkeypatch.setattr(google_drive, "drive_stubbed", lambda: True)
+    monkeypatch.setattr(google_drive, "drive_service_ready", lambda: False)
     monkeypatch.setattr(google_drive, "drive_service_error", lambda: "boom")
+    monkeypatch.setattr(google_drive, "drive_error_source", lambda: "upload")
 
     with TestClient(app) as client:
         response = client.post(
@@ -34,6 +36,8 @@ def test_upload_endpoint_returns_debug_metadata(monkeypatch: Any) -> None:
         "drive_file_id": "stubbed-upload-id",
         "stubbed": True,
         "error": "boom",
+        "service_ready": False,
+        "error_source": "upload",
     }
 
 
@@ -42,7 +46,9 @@ def test_upload_endpoint_marks_uploaded_when_drive_ready(monkeypatch: Any) -> No
 
     monkeypatch.setattr(google_drive, "upload_to_drive", lambda file_obj: "real-id")
     monkeypatch.setattr(google_drive, "drive_stubbed", lambda: False)
+    monkeypatch.setattr(google_drive, "drive_service_ready", lambda: True)
     monkeypatch.setattr(google_drive, "drive_service_error", lambda: None)
+    monkeypatch.setattr(google_drive, "drive_error_source", lambda: None)
 
     with TestClient(app) as client:
         response = client.post(
@@ -59,4 +65,6 @@ def test_upload_endpoint_marks_uploaded_when_drive_ready(monkeypatch: Any) -> No
         "drive_file_id": "real-id",
         "stubbed": False,
         "error": None,
+        "service_ready": True,
+        "error_source": None,
     }

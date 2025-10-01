@@ -18,7 +18,9 @@ from backend.api import (
 )
 from backend.services.google_drive import (
     drive_credentials_available,
+    drive_error_source,
     drive_service_error,
+    drive_service_ready,
     drive_stubbed,
 )
 
@@ -49,7 +51,9 @@ def health_check():
         "version": "v1.24",
         "drive": {
             "credentials_available": drive_credentials_available(),
+            "service_ready": drive_service_ready(),
             "stubbed": drive_stubbed(),
             "error": error,
+            "error_source": drive_error_source(),
         },
     }

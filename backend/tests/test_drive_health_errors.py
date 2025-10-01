@@ -104,8 +104,10 @@ def test_health_reports_non_credential_drive_error(monkeypatch, tmp_path):
             response = client.get("/health")
         payload = response.json()
         assert payload["drive"]["credentials_available"] is True
+        assert payload["drive"]["service_ready"] is False
         assert payload["drive"]["stubbed"] is True
         assert "build exploded" in (payload["drive"].get("error") or "")
+        assert payload["drive"].get("error_source") == "initialise"
     finally:
         _restore_modules(previous_modules)
         importlib.reload(google_drive_module)

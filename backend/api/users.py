@@ -20,7 +20,7 @@ _USER_STUB = UserStub(
     id=1,
     name="Test User",
     role="Engineer",
-    projects=[101, 202, 303],
+    projects=[101, 102, 103],
 )
 _UPDATE_ACK = UpdateAck(status="ok", message="Updated (stub)")
 

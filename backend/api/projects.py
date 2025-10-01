@@ -16,15 +16,8 @@ class ProjectStub(BaseModel):
     status: str
 
 
-_PROJECTS: List[ProjectStub] = [
-    ProjectStub(id=1, name="Gateway Villas", status="active"),
-    ProjectStub(id=2, name="Downtown Towers", status="planning"),
-    ProjectStub(id=3, name="Cultural District", status="on-hold"),
-]
-
-
 @router.get("/projects", response_model=List[ProjectStub])
 def list_projects() -> List[ProjectStub]:
-    """Return a deterministic set of stubbed projects for the UI."""
+    """Return an empty list until real project data is wired up."""
 
-    return _PROJECTS
+    return []

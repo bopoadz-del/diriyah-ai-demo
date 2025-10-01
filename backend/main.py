@@ -17,6 +17,16 @@ from backend.services import google_drive
 
 app = FastAPI(title="Diriyah Brain AI")
 
+
+@app.get("/")
+def root() -> dict[str, str]:
+    """Return a friendly message for Render's default health probe."""
+
+    return {
+        "status": "ok",
+        "message": "Diriyah Brain AI backend is running. Visit /docs for the API schema.",
+    }
+
 # Routers
 app.include_router(users.router, prefix="/api")
 app.include_router(drive_scan.router, prefix="/api")

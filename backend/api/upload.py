@@ -11,12 +11,24 @@ from backend.services import google_drive, stub_state
 router = APIRouter()
 
 
-@router.post("/upload/{project_id}")
-async def upload_file(
+def _resolve_project_id(project_id: Optional[str]) -> str:
+    if project_id:
+        return str(project_id)
+    projects = stub_state.list_projects()
+    if projects:
+        first_project = projects[0]
+        resolved = first_project.get("id")
+        if resolved is not None:
+            return str(resolved)
+    return "default"
+
+
+def _perform_upload(
     project_id: str,
-    file: UploadFile = File(...),
-    chat_id: Optional[int] = None,
-    drive_folder_id: Optional[str] = None,
+    file: UploadFile,
+    *,
+    chat_id: Optional[int],
+    drive_folder_id: Optional[str],
 ) -> Dict[str, Any]:
     """Upload a file to Drive or return a stubbed identifier."""
 
@@ -49,3 +61,34 @@ async def upload_file(
         "summary": summary,
         "detail": detail,
     }
+
+
+@router.post("/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    project_id: Optional[str] = None,
+    chat_id: Optional[int] = None,
+    drive_folder_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    resolved_project_id = _resolve_project_id(project_id)
+    return _perform_upload(
+        resolved_project_id,
+        file,
+        chat_id=chat_id,
+        drive_folder_id=drive_folder_id,
+    )
+
+
+@router.post("/upload/{project_id}")
+async def upload_file_for_project(
+    project_id: str,
+    file: UploadFile = File(...),
+    chat_id: Optional[int] = None,
+    drive_folder_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    return _perform_upload(
+        project_id,
+        file,
+        chat_id=chat_id,
+        drive_folder_id=drive_folder_id,
+    )

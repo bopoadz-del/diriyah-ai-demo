@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+ codex/add-test-body-for-upload_attempts_to_initialise_drive_servic
+from pytest import MonkeyPatch
+
 import importlib
 import io
 import sys
@@ -7,8 +10,25 @@ import sys
 from contextlib import contextmanager
 from types import ModuleType
 from typing import Any, Dict, Iterator
+ main
 
 from backend.services import google_drive
+
+
+ codex/add-test-body-for-upload_attempts_to_initialise_drive_servic
+def test_upload_attempts_to_initialise_drive_service(monkeypatch: MonkeyPatch) -> None:
+    attempts: list[str] = []
+
+    def fake_get_drive_service() -> None:
+        attempts.append("called")
+        raise RuntimeError("service unavailable")
+
+    monkeypatch.setattr(google_drive, "get_drive_service", fake_get_drive_service)
+
+    result = google_drive.upload_to_drive(object())
+
+    assert result == "stubbed-upload-id"
+    assert attempts, "expected upload_to_drive to attempt to initialise the Drive service"
 
 
 _FAKE_GOOGLE_MODULES = (
@@ -273,3 +293,4 @@ def test_upload_attempts_to_initialise_drive_service(monkeypatch):
     assert result == "stubbed-upload-id"
     assert call_count == 1
  main
+main

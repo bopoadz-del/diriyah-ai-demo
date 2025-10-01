@@ -1,8 +1,8 @@
-codex/update-active-project-storage-structure
+"""Stub speech-to-text endpoints used for local development and tests."""
+
 from __future__ import annotations
 
-from fastapi import APIRouter
-
+from fastapi import APIRouter, File, UploadFile
 
 router = APIRouter()
 
@@ -13,14 +13,10 @@ def speech_diagnostics() -> dict[str, str]:
 
     return {"status": "stubbed", "detail": "Speech pipeline not available in tests"}
 
-"""Stub speech-to-text endpoint used for local development and tests."""
-
-from fastapi import APIRouter, File, UploadFile
-
-router = APIRouter()
 
 @router.post("/speech/{project_id}")
 async def speech_to_text(project_id: str, file: UploadFile = File(...)) -> dict[str, str]:
     """Echo the uploaded filename to confirm the speech route is wired up."""
+
     return {"project_id": project_id, "filename": file.filename or ""}
- main
+

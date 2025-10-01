@@ -1,16 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import MessageActions from "./MessageActions";
 import UploadButton from "./UploadButton";
 import MicButton from "./MicButton";
 import CamButton from "./CamButton";
 
-function makeMessage(role, content, offsetMs = 0) {
+function makeMessage(role, content, offsetMs = 0, extra = {}) {
   return {
     id: `${role}-${Math.random().toString(36).slice(2, 10)}-${Date.now()}`,
     role,
     content,
     created_at: new Date(Date.now() - offsetMs).toISOString(),
     read: role !== "user",
+    ...extra,
   };
 }
 
@@ -44,7 +45,7 @@ function buildFixtureMessages(project, chat) {
       "No critical blockers logged this week. Two RFIs pending consultant feedback.",
       1000 * 15,
     ),
-  ].map((message) => ({ ...message, chat_id: chat }));
+  ].map((message) => ({ ...message, chat_id: chat, fixture: true }));
 }
 
 function craftAssistantReply(prompt, project) {
@@ -69,14 +70,29 @@ export default function Chat({ project, chat }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [status, setStatus] = useState("");
+  const bootstrapRef = useRef({ projectId: null, chatId: null });
 
   useEffect(() => {
     if (!chat) {
       setMessages([]);
       setStatus("Select a chat from the sidebar to start a conversation.");
+      bootstrapRef.current = { projectId: null, chatId: null };
       return;
     }
-    setMessages(buildFixtureMessages(project, chat));
+    const projectId = project?.id ?? null;
+    setMessages((prev) => {
+      const alreadyBootstrapped =
+        bootstrapRef.current.chatId === chat && bootstrapRef.current.projectId === projectId;
+      const userInteracted = prev.some((message) => !message.fixture);
+
+      if (alreadyBootstrapped && userInteracted) {
+        return prev;
+      }
+
+      const nextMessages = buildFixtureMessages(project, chat);
+      bootstrapRef.current = { projectId, chatId: chat };
+      return nextMessages;
+    });
     setStatus("Showing fixture conversation – ready for Render debugging.");
   }, [chat, project]);
 

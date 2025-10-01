@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
@@ -15,7 +16,37 @@ from backend.api import (
 )
 from backend.services import google_drive
 
-app = FastAPI(title="Diriyah Brain AI")
+
+def _log_startup_state() -> None:
+    """Emit startup diagnostics that help with Render debugging."""
+
+    raw_mode = os.getenv("USE_FIXTURE_PROJECTS", "true").lower()
+    mode = "FIXTURE" if raw_mode == "true" else "GOOGLE DRIVE"
+    print(f"📂 Project API running in {mode} mode")
+
+    credentials_available = google_drive.drive_credentials_available()
+    service_error = google_drive.drive_service_error()
+    stubbed = (not credentials_available) or (service_error is not None)
+
+    drive_mode = "STUBBED" if stubbed else "LIVE"
+    print(
+        "📁 Google Drive integration: %s (credentials_available=%s)"
+        % (drive_mode, credentials_available)
+    )
+
+    if service_error:
+        print(f"   ↳ Drive service error: {service_error}")
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """FastAPI lifespan hook that preserves startup diagnostics without warnings."""
+
+    _log_startup_state()
+    yield
+
+
+app = FastAPI(title="Diriyah Brain AI", lifespan=lifespan)
 
 
 @app.get("/")
@@ -52,26 +83,6 @@ def health():
             "stubbed": (not credentials_available) or (service_error is not None),
         },
     }
-
-@app.on_event("startup")
-async def log_startup_state() -> None:
-    """Emit startup diagnostics that help with Render debugging."""
-
-    mode = "FIXTURE" if os.getenv("USE_FIXTURE_PROJECTS", "true").lower() == "true" else "GOOGLE DRIVE"
-    print(f"📂 Project API running in {mode} mode")
-
-    credentials_available = google_drive.drive_credentials_available()
-    service_error = google_drive.drive_service_error()
-    stubbed = (not credentials_available) or (service_error is not None)
-
-    drive_mode = "STUBBED" if stubbed else "LIVE"
-    print(
-        "📁 Google Drive integration: %s (credentials_available=%s)"
-        % (drive_mode, credentials_available)
-    )
-
-    if service_error:
-        print(f"   ↳ Drive service error: {service_error}")
 
 # Keep this literal for tests:
 # app.include_router(users.router ...

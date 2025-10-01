@@ -1,14 +1,10 @@
-codex/update-/speech-endpoint-for-transcription
 from __future__ import annotations
+
+"""Stub speech-to-text endpoints used for local development and tests."""
 
 import io
 import logging
 from typing import Any, Callable, List, Optional
-
-"""Stub speech-to-text endpoints used for local development and tests."""
-
-from __future__ import annotations
- main
 
 from fastapi import APIRouter, File, UploadFile
 
@@ -22,7 +18,6 @@ def speech_diagnostics() -> dict[str, str]:
 
     return {"status": "stubbed", "detail": "Speech pipeline not available in tests"}
 
-       codex/update-/speech-endpoint-for-transcription
 
 # Optional transcription backends -------------------------------------------------
 try:  # pragma: no cover - optional dependency path
@@ -155,11 +150,3 @@ async def speech_to_text(project_id: str, file: UploadFile = File(...)) -> dict[
     answer = _generate_answer(project_id, transcript)
     return {"transcript": transcript, "answer": answer}
 
-
-@router.post("/speech/{project_id}")
-async def speech_to_text(project_id: str, file: UploadFile = File(...)) -> dict[str, str]:
-    """Echo the uploaded filename to confirm the speech route is wired up."""
-
-    return {"project_id": project_id, "filename": file.filename or ""}
-
-      main

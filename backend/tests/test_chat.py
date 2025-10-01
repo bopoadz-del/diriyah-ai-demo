@@ -9,11 +9,35 @@ from backend.services.vector_memory import set_active_project
 class _MockCollection:
     """Predictable collection used to validate chat integration."""
 
+ codex/add-tests-for-active-project-in-chat
     def __init__(self) -> None:
         self.calls = []
 
     def query(self, *, query_texts, n_results):  # pragma: no cover - simple stub
         self.calls.append({"query_texts": query_texts, "n_results": n_results})
+
+    def __init__(self):
+codex/add-tests-for-active-project-in-chat-y0qgyr
+        self.queries: list[dict[str, object]] = []
+
+    def query(self, *, query_texts, n_results):  # pragma: no cover - simple stub
+        """Record the provided arguments and emit deterministic documents."""
+
+
+        self.queries = []
+
+ codex/add-tests-for-active-project-in-chat-ojreow
+    def query(self, *, query_texts, n_results):  # pragma: no cover - simple stub
+
+codex/add-tests-for-active-project-in-chat-nr6q6k
+    def query(self, *, query_texts, n_results):  # pragma: no cover - simple stub
+
+    def query(self, query_texts, n_results):  # pragma: no cover - simple stub
+ main
+ main
+ main
+        self.queries.append({"query_texts": query_texts, "n_results": n_results})
+main
         return {"documents": [["Doc snippet"]]}
 
 
@@ -47,7 +71,12 @@ def test_chat_with_empty_documents(client):
             return {"documents": []}
 
     set_active_project({"id": "proj-123", "collection": EmptyDocumentsCollection()})
+    try:
+        response = client.post("/api/chat", data={"message": "Hello"})
+    finally:
+        set_active_project(None)
 
+codex/add-tests-for-active-project-in-chat
     try:
         response = client.post("/api/chat", data={"message": "Hello"})
     finally:
@@ -57,6 +86,36 @@ def test_chat_with_empty_documents(client):
 
     payload = response.json()
     assert payload.get("context_docs", []) == []
+
+
+def test_chat_with_active_project_collection(client):
+    """Chat endpoint should return project context when collection is active."""
+
+    collection = _MockCollection()
+    set_active_project({"id": "proj-123", "collection": collection})
+
+ codex/add-tests-for-active-project-in-chat-ojreow
+ main
+
+    try:
+        response = client.post("/api/chat", data={"message": "Hello"})
+    finally:
+        set_active_project(None)
+
+ codex/add-tests-for-active-project-in-chat
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["project_id"] == "proj-123"
+    assert payload["context_docs"] == ["Doc snippet"]
+    assert "proj-123" in payload["response"]
+    assert collection.calls == [{"query_texts": ["Hello"], "n_results": 3}]
+
+ main
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["context_docs"] == []
 
 
 def test_chat_with_active_project_collection(client):
@@ -75,5 +134,9 @@ def test_chat_with_active_project_collection(client):
     payload = response.json()
     assert payload["project_id"] == "proj-123"
     assert payload["context_docs"] == ["Doc snippet"]
+ codex/add-tests-for-active-project-in-chat-y0qgyr
     assert "proj-123" in payload["response"]
-    assert collection.calls == [{"query_texts": ["Hello"], "n_results": 3}]
+
+    assert payload["response"].endswith("proj-123") main
+    assert collection.queries == [{"query_texts": ["Hello"], "n_results": 3}]
+ main

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-export default function Sidebar({ project, setProject, setSelectedChat, setView }) {
+export default function Sidebar({ project, setProject, setSelectedChat, setView, refreshChatsToken = 0 }) {
   const [projects, setProjects] = useState([]);
   const [chats, setChats] = useState([]);
   const [q, setQ] = useState("");
@@ -24,7 +24,7 @@ export default function Sidebar({ project, setProject, setSelectedChat, setView 
     } else {
       setChats([]);
     }
-  }, [project]);
+  }, [project, refreshChatsToken]);
 
   const filtered = useMemo(() => {
     const term = q.toLowerCase();

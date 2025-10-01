@@ -14,6 +14,7 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
+
 # Install system dependencies required by the Python stack
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -28,7 +29,8 @@ RUN apt-get update \
         libboost-all-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY backend/requirements.txt .
+# Copy requirements file first for better layer caching
+COPY backend/requirements.txt ./backend/requirements.txt
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
 # Copy project code and runtime assets

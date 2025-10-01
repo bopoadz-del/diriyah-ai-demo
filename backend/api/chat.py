@@ -13,8 +13,11 @@ intent_router = IntentRouter()
 
 @router.post("/chat")
 async def chat(message: str = Form(...)):
+ codex/add-mock-collection-and-new-test-for-chat
     """Respond to chat messages while respecting the active project context."""
 
+
+main
     active = get_active_project() or {}
     if not isinstance(active, Mapping):
         active = {}
@@ -24,7 +27,11 @@ async def chat(message: str = Form(...)):
 
     intent_result = intent_router.route(message, project_id=project_id)
 
+codex/add-mock-collection-and-new-test-for-chat
     context_docs: list[str] = []
+
+    context_docs = []
+ main
     if collection and hasattr(collection, "query"):
         try:
             result = collection.query(query_texts=[message], n_results=3)
@@ -47,3 +54,4 @@ async def chat(message: str = Form(...)):
         "context_docs": context_docs,
         "response": f"AI response for project {project_id or 'none'}",
     }
+

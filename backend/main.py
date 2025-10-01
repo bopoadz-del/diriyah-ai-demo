@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import logging
+from pathlib import Path
+
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from backend.api import users
 from backend.services import google_drive
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Diriyah Brain Stub Backend")
 
@@ -20,3 +26,11 @@ def health() -> dict[str, object]:
     drive_payload = {**drive_details, "error": drive_details.get("detail")}
 
     return {"status": "ok", "drive": drive_payload}
+
+
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend_dist"
+
+if FRONTEND_DIST.exists():
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
+else:
+    logger.warning("Frontend build directory '%s' not found. Root requests will return the API JSON 404.", FRONTEND_DIST)

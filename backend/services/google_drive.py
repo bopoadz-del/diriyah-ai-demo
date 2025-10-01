@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 __all__ = (
     "drive_credentials_available",
     "drive_service_error",
+    "drive_stub_diagnostics",
     "get_drive_service",
     "get_project",
     "list_project_folders",
@@ -41,6 +42,27 @@ STUB_FOLDERS: List[Dict[str, str]] = [
 
 _last_service_error: Optional[str] = None
 _last_service_error_source: Optional[str] = None
+_last_credentials_hint: Optional[Dict[str, Any]] = None
+
+
+def _record_credentials_hint(
+    *,
+    env_var_set: bool,
+    expected_path: Optional[Path],
+    path_exists: bool,
+    is_file: bool,
+    readable: bool,
+) -> None:
+    """Persist contextual details about the credentials lookup."""
+
+    global _last_credentials_hint
+    _last_credentials_hint = {
+        "env_var_set": env_var_set,
+        "expected_path": str(expected_path) if expected_path is not None else None,
+        "path_exists": path_exists,
+        "is_file": is_file,
+        "readable": readable,
+    }
 
 
 def _credentials_path(*, record_errors: bool = False) -> Optional[Path]:
@@ -49,22 +71,41 @@ def _credentials_path(*, record_errors: bool = False) -> Optional[Path]:
     env_value = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
     if not env_value:
         if record_errors:
+            _record_credentials_hint(
+                env_var_set=False,
+                expected_path=None,
+                path_exists=False,
+                is_file=False,
+                readable=False,
+            )
             _record_service_error("GOOGLE_APPLICATION_CREDENTIALS is not set", source="credentials")
         return None
 
     candidate = Path(env_value).expanduser()
+    exists = candidate.exists()
+    is_file = candidate.is_file() if exists else False
+    readable = os.access(candidate, os.R_OK) if exists else False
 
-    if not candidate.exists():
+    if record_errors:
+        _record_credentials_hint(
+            env_var_set=True,
+            expected_path=candidate,
+            path_exists=exists,
+            is_file=is_file,
+            readable=readable,
+        )
+
+    if not exists:
         if record_errors:
             _record_service_error(f"Credentials file not found: {candidate}", source="credentials")
         return None
 
-    if not candidate.is_file():
+    if not is_file:
         if record_errors:
             _record_service_error(f"Credentials path is not a file: {candidate}", source="credentials")
         return None
 
-    if not os.access(candidate, os.R_OK):
+    if not readable:
         if record_errors:
             _record_service_error(f"Credentials file is not readable: {candidate}", source="credentials")
         return None
@@ -91,6 +132,20 @@ def _record_service_error(reason: Optional[str], *, source: str = "service") -> 
     global _last_service_error, _last_service_error_source
     _last_service_error = reason
     _last_service_error_source = source if reason is not None else None
+
+
+def drive_stub_diagnostics() -> Dict[str, Any]:
+    """Return contextual diagnostics for the Drive stub state."""
+
+    credentials_available = drive_credentials_available()
+    service_error = drive_service_error()
+    diagnostics: Dict[str, Any] = {
+        "credentials_available": credentials_available,
+        "service_error": service_error,
+        "stubbed": (not credentials_available) or (service_error is not None),
+        "credentials_hint": dict(_last_credentials_hint or {}),
+    }
+    return diagnostics
 
 
 def get_drive_service() -> Any | None:

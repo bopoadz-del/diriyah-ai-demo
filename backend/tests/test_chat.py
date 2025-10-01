@@ -25,3 +25,19 @@ def test_chat_without_active_project(client):
     payload = response.json()
     assert payload["project_id"] is None
     assert payload["intent"]["project_id"] is None
+
+
+def test_chat_with_empty_documents(client):
+    """Chat endpoint should handle empty document results gracefully."""
+
+    class EmptyDocumentsCollection:
+        def query(self, query_texts, n_results):  # pragma: no cover - simple stub
+            return {"documents": []}
+
+    set_active_project({"id": "proj-123", "collection": EmptyDocumentsCollection()})
+
+    response = client.post("/api/chat", data={"message": "Hello"})
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["context_docs"] == []

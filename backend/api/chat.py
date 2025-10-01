@@ -2,24 +2,22 @@ from collections.abc import Mapping
 
 from fastapi import APIRouter, Form
 
-from backend.services.vector_memory import get_active_project
 from backend.services.intent_router import IntentRouter
+from backend.services.vector_memory import get_active_project
+
 router = APIRouter()
 intent_router = IntentRouter()
+
+
 @router.post("/chat")
 async def chat(message: str = Form(...)):
     active = get_active_project() or {}
- codex/update-active-project-storage-structure
-
-    project_id = active.get("id") if isinstance(active, dict) else getattr(active, "id", None)
-    collection = active.get("collection") if isinstance(active, dict) else getattr(active, "collection", None)
-
     if not isinstance(active, Mapping):
         active = {}
 
     project_id = active.get("id")
     collection = active.get("collection")
- main
+
     intent_result = intent_router.route(message, project_id=project_id)
     context_docs = []
     if collection and hasattr(collection, "query"):

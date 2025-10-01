@@ -1,14 +1,10 @@
-codex/update-/speech-endpoint-for-transcription
+"""Stub speech-to-text endpoints used for local development and tests."""
+
 from __future__ import annotations
 
 import io
 import logging
-from typing import Any, Callable, List, Optional
-
-"""Stub speech-to-text endpoints used for local development and tests."""
-
-from __future__ import annotations
- main
+from typing import Any, Callable, Optional
 
 from fastapi import APIRouter, File, UploadFile
 
@@ -22,32 +18,24 @@ def speech_diagnostics() -> dict[str, str]:
 
     return {"status": "stubbed", "detail": "Speech pipeline not available in tests"}
 
-       codex/update-/speech-endpoint-for-transcription
 
 # Optional transcription backends -------------------------------------------------
 try:  # pragma: no cover - optional dependency path
-    from ..backend.services.speech_service import transcribe_audio as _advanced_transcribe
-except Exception:  # pragma: no cover - runtime optionality
-    _advanced_transcribe: Optional[Callable[..., Any]] = None
-else:  # pragma: no cover - imported when available
-    _advanced_transcribe = _advanced_transcribe
-
-try:  # pragma: no cover - optional dependency path
-    from ..services.speech_to_text import transcribe_audio as _service_transcribe
+    from backend.services.speech_to_text import transcribe_audio as _service_transcribe
 except Exception:  # pragma: no cover - runtime optionality
     _service_transcribe: Optional[Callable[..., Any]] = None
 else:  # pragma: no cover - imported when available
     _service_transcribe = _service_transcribe
 
 try:  # pragma: no cover - optional dependency path
-    from .. import speech_to_text as _module_speech
+    from backend import speech_to_text as _module_speech
 except Exception:  # pragma: no cover - runtime optionality
     _module_transcribe: Optional[Callable[..., Any]] = None
 else:  # pragma: no cover - imported when available
     _module_transcribe = getattr(_module_speech, "transcribe_audio", None)
 
 try:  # pragma: no cover - optional dependency path
-    from ..services.rag_memory import retrieve_with_memory as _retrieve_with_memory
+    from backend.services.rag_memory import retrieve_with_memory as _retrieve_with_memory
 except Exception:  # pragma: no cover - runtime optionality
     _retrieve_with_memory: Optional[Callable[[str], Any]] = None
 else:  # pragma: no cover - imported when available
@@ -88,7 +76,7 @@ async def _transcribe(file: UploadFile) -> str:
         return "No audio content received."
 
     filename = file.filename or "uploaded-audio"
-    attempts: List[tuple[str, Callable[[], Any]]] = []
+    attempts: list[tuple[str, Callable[[], Any]]] = []
 
     def add_attempt(name: str, func: Optional[Callable[..., Any]], *args: Any, **kwargs: Any) -> None:
         if func is None:
@@ -96,14 +84,9 @@ async def _transcribe(file: UploadFile) -> str:
         attempts.append((name, lambda f=func, a=args, k=kwargs: f(*a, **k)))
 
     add_attempt(
-        "backend.backend.services.speech_service",
-        _advanced_transcribe,
-        _make_buffer(contents, filename),
-    )
-    add_attempt(
         "backend.services.speech_to_text",
         _service_transcribe,
-        filename,
+        _make_buffer(contents, filename),
     )
     add_attempt(
         "backend.speech_to_text",
@@ -154,12 +137,3 @@ async def speech_to_text(project_id: str, file: UploadFile = File(...)) -> dict[
     transcript = await _transcribe(file)
     answer = _generate_answer(project_id, transcript)
     return {"transcript": transcript, "answer": answer}
-
-
-@router.post("/speech/{project_id}")
-async def speech_to_text(project_id: str, file: UploadFile = File(...)) -> dict[str, str]:
-    """Echo the uploaded filename to confirm the speech route is wired up."""
-
-    return {"project_id": project_id, "filename": file.filename or ""}
-
-      main

@@ -133,8 +133,9 @@ def drive_service_error() -> Optional[str]:
 def drive_stubbed() -> bool:
     """Return ``True`` when the Drive integration is operating in stub mode."""
 
+    _credentials_path()
     with _STATE_LOCK:
-        return not _service_ready
+        return not _service_ready or not _credentials_available
 
 
 def _initialise_service() -> Any:

@@ -1,8 +1,6 @@
-codex/update-active-project-storage-structure
 from __future__ import annotations
 
 from fastapi import APIRouter
-
 
 router = APIRouter()
 
@@ -13,8 +11,3 @@ def drive_scan_status() -> dict[str, str]:
 
     return {"status": "idle", "detail": "Drive scanning is not available in tests"}
 
-from fastapi import APIRouter
-
-
-router = APIRouter()
- main

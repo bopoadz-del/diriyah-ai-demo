@@ -1,8 +1,4 @@
-     codex/add-mock-collection-and-new-test-for-chat
-"""In-memory storage for the currently active project."""
-
 """Utilities for tracking the project currently targeted by chat sessions."""
- main
 
 from __future__ import annotations
 
@@ -21,40 +17,6 @@ def _normalize_project(project: Any) -> MutableMapping[str, Any]:
         return dict(project)
 
     return {"id": project}
-       codex/add-mock-collection-and-new-test-for-chat
-
-
-def set_active_project(
-    project: Optional[Mapping[str, Any]] | Any = None,
-    *,
-    project_id: Optional[str] = None,
-    collection: Any = None,
-) -> None:
-    """Persist information about the active project."""
-
-    global _active_project
-
-    normalized = _normalize_project(project)
-
-    if project_id is not None:
-        normalized["id"] = project_id
-
-    if collection is not None:
-        normalized["collection"] = collection
-    elif "collection" not in normalized:
-        normalized["collection"] = None
-
-    _active_project = normalized
-
-
-def get_active_project() -> MutableMapping[str, Any]:
-    """Return information about the active project as a mapping."""
-
-    if _active_project is None:
-        return {}
-
-    return _normalize_project(_active_project)
-=======
 
 
 def set_active_project(
@@ -91,5 +53,3 @@ def get_active_project() -> MutableMapping[str, Any]:
         return {}
 
     return _normalize_project(_active_project)
-
-        main

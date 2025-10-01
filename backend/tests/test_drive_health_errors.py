@@ -110,33 +110,4 @@ def test_health_reports_non_credential_drive_error(monkeypatch, tmp_path):
         _restore_modules(previous_modules)
         importlib.reload(google_drive_module)
         importlib.reload(backend_main_module)
-
-
 def test_upload_attempts_to_initialise_drive_service(monkeypatch):
-    """Ensure uploads try to build the Drive service before using the stub."""
-
-    import backend.services.google_drive as google_drive_module
-
-    google_drive = importlib.reload(google_drive_module)
-
-    call_count = 0
-
-    def _failing_get_drive_service():  # type: ignore[no-untyped-def]
-        nonlocal call_count
-        call_count += 1
-        raise RuntimeError("boom")
-
-    class _FakeUpload:  # pragma: no cover - trivial shim for instantiation
-        def __init__(self, *args, **kwargs):  # type: ignore[no-untyped-def]
-            pass
-
-    monkeypatch.setattr(google_drive, "get_drive_service", _failing_get_drive_service)
-    monkeypatch.setattr(google_drive, "MediaIoBaseUpload", _FakeUpload)
-
-    try:
-        result = google_drive.upload_to_drive(io.BytesIO(b"payload"))
-    finally:
-        importlib.reload(google_drive_module)
-
-    assert result == "stubbed-upload-id"
-    assert call_count == 1

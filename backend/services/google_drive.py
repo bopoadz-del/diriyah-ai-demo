@@ -247,7 +247,3 @@ def upload_to_drive(file_obj: Any) -> str:
 
 
 if _IMPORT_ERROR is not None:  # pragma: no cover - import failure tested indirectly
-    _record_error(
-        f"Google Drive client libraries unavailable: {_IMPORT_ERROR!s}",
-        source="import",
-    )

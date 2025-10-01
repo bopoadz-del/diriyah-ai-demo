@@ -1,1 +1,50 @@
-# Placeholder for frontend/src/App.css
+
+:root {
+  color-scheme: light dark;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background-color: #0f172a;
+  color: #e2e8f0;
+body { margin: 0; }
+.app {
+  min-height: 100vh;
+  padding: 3rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.2), transparent 55%),
+    radial-gradient(circle at bottom right, rgba(217, 70, 239, 0.18), transparent 50%),
+    #0f172a;
+}
+.app__header { text-align: center; }
+.app__title { font-size: clamp(2rem, 5vw, 3rem); margin-bottom: 0.25rem; }
+.app__subtitle { margin: 0; font-size: 1.1rem; color: #94a3b8; }
+.app__content { display: grid; gap: 1.5rem; max-width: 960px; margin: 0 auto; }
+.app__panel {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 1rem;
+  padding: 1.75rem;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.65);
+}
+.app__panel h2 { margin-top: 0; margin-bottom: 0.75rem; }
+.app__panel p { line-height: 1.6; margin-bottom: 1rem; }
+.app__panel ol { margin: 0; padding-left: 1.25rem; line-height: 1.6; }
+.app__actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.app__link {
+  color: inherit;
+  background: rgba(148, 163, 184, 0.1);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 999px;
+  padding: 0.5rem 1.25rem;
+  text-decoration: none;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+.app__link:hover,
+.app__link:focus {
+  background: rgba(148, 163, 184, 0.25);
+  transform: translateY(-1px);
+}
+@media (min-width: 768px) {
+  .app__content { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+}

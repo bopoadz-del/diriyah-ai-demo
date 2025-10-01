@@ -7,7 +7,6 @@ COPY frontend/vite.config.js frontend/tailwind.config.js frontend/postcss.config
 COPY frontend/src ./src
 COPY frontend/public ./public
 
-<<<<<<< HEAD
 RUN npm ci || npm install
 RUN npm run build
 

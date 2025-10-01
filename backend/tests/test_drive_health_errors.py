@@ -113,6 +113,5 @@ def test_health_reports_non_credential_drive_error(monkeypatch, tmp_path):
         _restore_modules(previous_modules)
         importlib.reload(google_drive_module)
         importlib.reload(backend_main_module)
-        pass
 
 def test_upload_attempts_to_initialise_drive_service(monkeypatch):

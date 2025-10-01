@@ -245,5 +245,3 @@ def upload_to_drive(file_obj: Any) -> str:
 
     return str(response.get("id", "stubbed-upload-id"))
 
-
-if _IMPORT_ERROR is not None:  # pragma: no cover - import failure tested indirectly

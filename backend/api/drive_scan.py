@@ -1,17 +1,30 @@
 """Endpoints that surface Google Drive project folders to the UI."""
-from typing import Dict, List
+
+from typing import Any, Dict, List
+
 from fastapi import APIRouter
-from backend.services.google_drive import list_project_folders
+
+from backend.services import google_drive
 
 router = APIRouter()
 
 _KEYWORDS = ("villa", "tower", "phase", "building")
 
 @router.get("/projects/scan-drive")
-def scan_projects() -> Dict[str, List[str]]:
+def scan_projects() -> Dict[str, Any]:
     """Return a de-duplicated list of Drive folders that resemble projects."""
+    service = google_drive.get_drive_service()
+    if service is None:
+        return {
+            "status": "stubbed",
+            "projects": [],
+            **google_drive.drive_stub_details(),
+        }
+
     projects: List[str] = []
-    for drive_file in list_project_folders():
+    for drive_file in google_drive.list_project_folders(
+        service=service, lookup_service=False
+    ):
         name = drive_file.get("name", "")
         if any(keyword in name.lower() for keyword in _KEYWORDS):
             projects.append(name)
@@ -22,4 +35,4 @@ def scan_projects() -> Dict[str, List[str]]:
         if project not in seen:
             deduped.append(project)
             seen.add(project)
-    return {"projects": deduped}
+    return {"status": "ok", "projects": deduped}

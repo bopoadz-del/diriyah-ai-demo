@@ -22,13 +22,17 @@ def test_fixture_mode_enabled() -> None:
 def test_list_projects_returns_fixture_order() -> None:
     response = client.get("/api/projects")
     assert response.status_code == 200
-    assert response.json() == list(projects.PROJECT_FIXTURES.values())
+    payload = response.json()
+    assert payload["status"] == "stubbed"
+    assert payload["projects"] == list(projects.PROJECT_FIXTURES.values())
 
 def test_get_project_returns_expected_stub() -> None:
     project_id, project_stub = next(iter(projects.PROJECT_FIXTURES.items()))
     response = client.get(f"/api/projects/{project_id}")
     assert response.status_code == 200
-    assert response.json() == project_stub
+    payload = response.json()
+    assert payload["status"] == "stubbed"
+    assert payload["project"] == project_stub
 
 def test_get_project_unknown_id_returns_404() -> None:
     response = client.get("/api/projects/unknown")

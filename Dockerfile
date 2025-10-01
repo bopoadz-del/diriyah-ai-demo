@@ -7,7 +7,7 @@ COPY frontend/vite.config.js frontend/tailwind.config.js frontend/postcss.config
 COPY frontend/src ./src
 COPY frontend/public ./public
 
-# Use npm ci (faster, reproducible) – fallback is npm install if package-lock.json is missing
+<<<<<<< HEAD
 RUN npm ci || npm install
 RUN npm run build
 
@@ -32,7 +32,11 @@ RUN apt-get update \
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
-COPY . .
+# Copy project code and runtime assets
+COPY backend /app/backend
+RUN mkdir -p /app/uploads /app/images /app/storage
+# Include the compiled frontend bundle
+COPY --from=frontend-build /frontend/dist /app/frontend_dist
 
 EXPOSE 8000
 CMD ["gunicorn", "backend.main:app", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]

@@ -6,7 +6,34 @@ export default function Sidebar({ project, setProject, setSelectedChat, setView 
   const [q, setQ] = useState("");
 
   useEffect(() => {
-    fetch("/api/projects/sync_drive").then(r => r.json()).then(setProjects);
+    let cancelled = false;
+
+    const loadProjects = async () => {
+      try {
+        const response = await fetch("/api/projects");
+        if (!response.ok) {
+          throw new Error(`Failed to load projects: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        if (!cancelled) {
+          const rawProjects = data?.projects ?? [];
+          const nextProjects = Array.isArray(rawProjects) ? rawProjects : [];
+          setProjects(nextProjects);
+        }
+      } catch (error) {
+        console.error("Error fetching projects", error);
+        if (!cancelled) {
+          setProjects([]);
+        }
+      }
+    };
+
+    loadProjects();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {

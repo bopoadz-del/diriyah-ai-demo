@@ -10,6 +10,13 @@ class _MockCollection:
     """Predictable collection used to validate chat integration."""
 
     def __init__(self):
+codex/add-tests-for-active-project-in-chat-y0qgyr
+        self.queries: list[dict[str, object]] = []
+
+    def query(self, *, query_texts, n_results):  # pragma: no cover - simple stub
+        """Record the provided arguments and emit deterministic documents."""
+
+=======
         self.queries = []
 
  codex/add-tests-for-active-project-in-chat-ojreow
@@ -19,6 +26,7 @@ codex/add-tests-for-active-project-in-chat-nr6q6k
     def query(self, *, query_texts, n_results):  # pragma: no cover - simple stub
 
     def query(self, query_texts, n_results):  # pragma: no cover - simple stub
+ main
  main
  main
         self.queries.append({"query_texts": query_texts, "n_results": n_results})
@@ -60,7 +68,7 @@ def test_chat_with_empty_documents(client):
         set_active_project(None)
 
  codex/add-tests-for-active-project-in-chat-ojreow
-=======
+
     try:
         response = client.post("/api/chat", data={"message": "Hello"})
     finally:
@@ -89,5 +97,8 @@ def test_chat_with_active_project_collection(client):
     payload = response.json()
     assert payload["project_id"] == "proj-123"
     assert payload["context_docs"] == ["Doc snippet"]
-    assert payload["response"].endswith("proj-123")
+ codex/add-tests-for-active-project-in-chat-y0qgyr
+    assert "proj-123" in payload["response"]
+
+    assert payload["response"].endswith("proj-123") main
     assert collection.queries == [{"query_texts": ["Hello"], "n_results": 3}]

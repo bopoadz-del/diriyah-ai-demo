@@ -4,9 +4,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from backend.api import (
+    ai,
     alerts,
+    analytics,
+    chats,
     drive_diagnose,
     drive_scan,
+    messages,
     preferences,
     projects,
     speech,
@@ -60,6 +64,10 @@ def root() -> dict[str, str]:
 
 # Routers
 app.include_router(users.router, prefix="/api")
+app.include_router(analytics.router, prefix="/api")
+app.include_router(ai.router, prefix="/api")
+app.include_router(chats.router, prefix="/api")
+app.include_router(messages.router, prefix="/api")
 app.include_router(drive_scan.router, prefix="/api")
 app.include_router(drive_diagnose.router, prefix="/api")
 app.include_router(projects.router, prefix="/api")

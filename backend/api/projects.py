@@ -1,11 +1,17 @@
+"""Project endpoints with stubbed data for Render deployments."""
+
+from __future__ import annotations
+
 import os
+from typing import Any, Dict
+
 from fastapi import APIRouter, HTTPException
 
-from backend.services import google_drive
+from backend.services import google_drive, stub_state, vector_memory
 
 USE_FIXTURE_PROJECTS = os.getenv("USE_FIXTURE_PROJECTS", "true").lower() == "true"
 
-PROJECT_FIXTURES = {
+PROJECT_FIXTURES: Dict[str, Dict[str, Any]] = {
     "dg-001": {
         "id": "dg-001",
         "name": "Diriyah Gate Cultural District",
@@ -47,49 +53,74 @@ PROJECT_FIXTURES = {
     },
 }
 
+stub_state.seed_projects(PROJECT_FIXTURES)
+
 router = APIRouter()
 
+
+def _serialise_projects(projects: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [dict(project) for project in projects]
+
+
 @router.get("/projects")
-def list_projects():
+def list_projects() -> list[Dict[str, Any]]:
+    """Return either fixture projects or Drive-synchronised ones."""
+
     if USE_FIXTURE_PROJECTS:
-        return {"status": "stubbed", "projects": list(PROJECT_FIXTURES.values())}
+        return _serialise_projects(stub_state.list_projects())
 
     service = google_drive.get_drive_service()
     if service is None:
-        return {
-            "status": "stubbed",
-            "projects": google_drive.list_project_folders(lookup_service=False),
-            "detail": google_drive.drive_service_error(),
-        }
+        folders = google_drive.list_project_folders(lookup_service=False)
+    else:
+        folders = google_drive.list_project_folders(service=service, lookup_service=False)
+    projects = [
+        stub_state.sync_drive_project(drive_id=folder["id"], name=folder["name"])
+        for folder in folders
+    ]
+    return _serialise_projects(projects)
 
-    return {
-        "status": "ok",
-        "projects": google_drive.list_project_folders(
-            service=service, lookup_service=False
-        ),
-    }
+
+@router.get("/projects/sync_drive")
+def sync_projects_from_drive() -> list[Dict[str, Any]]:
+    """Explicitly trigger a Drive sync and return the latest metadata."""
+
+    service = google_drive.get_drive_service()
+    if service is None:
+        folders = google_drive.list_project_folders(lookup_service=False)
+    else:
+        folders = google_drive.list_project_folders(service=service, lookup_service=False)
+    projects = [
+        stub_state.sync_drive_project(drive_id=folder["id"], name=folder["name"])
+        for folder in folders
+    ]
+    return _serialise_projects(projects)
 
 
 @router.get("/projects/{project_id}")
-def get_project(project_id: str):
+def get_project(project_id: str) -> Dict[str, Any]:
+    project = stub_state.get_project(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
     if USE_FIXTURE_PROJECTS:
-        project = PROJECT_FIXTURES.get(project_id)
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found")
-        return {"status": "stubbed", "project": project}
+        return {"status": "stubbed", "project": dict(project)}
 
     service = google_drive.get_drive_service()
     if service is None:
         return {
             "status": "stubbed",
-            "project": google_drive.get_project(project_id),
+            "project": dict(project),
             "detail": google_drive.drive_service_error(),
         }
 
-    return {"status": "ok", "project": google_drive.get_project(project_id)}
+    return {"status": "ok", "project": dict(project)}
+
 
 @router.post("/projects/{project_id}/context")
-def set_project_context(project_id: str):
-    from backend.services import vector_memory
+def set_project_context(project_id: str) -> Dict[str, Any]:
+    project = stub_state.get_project(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
     vector_memory.set_active_project(project_id)
     return {"status": "context_set", "project_id": project_id}

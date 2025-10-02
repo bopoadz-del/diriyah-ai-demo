@@ -1,0 +1,22 @@
+:root {
+  --sidebar-bg: #f5f0e6;
+  --accent: #a67c52;
+  --accent-hover: #8f6843;
+  --surface: rgba(255, 255, 255, 0.9);
+  --text-primary: #1f2933;
+  --text-secondary: #52606d;
+}
+
+body {
+  color: var(--text-primary);
+  background-color: #faf8f5;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}

@@ -1,151 +1,68 @@
-import { useEffect, useMemo, useState } from "react";
+import React from "react";
 
-export default function Sidebar({ project, setProject, setSelectedChat, setView }) {
-  const [projects, setProjects] = useState([]);
-  const [chats, setChats] = useState([]);
-  const [q, setQ] = useState("");
+const projects = ["Villa 100", "Tower 20", "Gateway Villas", "Cultural District"];
 
-  useEffect(() => {
-    let cancelled = false;
+const navigationItems = [
+  { id: "home", label: "Home" },
+  { id: "chat", label: "Chat" },
+  { id: "help", label: "Help" },
+  { id: "settings", label: "Settings" },
+];
 
-    const loadProjects = async () => {
-      try {
-        const response = await fetch("/api/projects");
-        if (!response.ok) {
-          throw new Error(`Failed to load projects: ${response.status} ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        if (!cancelled) {
-          const rawProjects = data?.projects ?? [];
-          const nextProjects = Array.isArray(rawProjects) ? rawProjects : [];
-          setProjects(nextProjects);
-        }
-      } catch (error) {
-        console.error("Error fetching projects", error);
-        if (!cancelled) {
-          setProjects([]);
-        }
-      }
-    };
-
-    loadProjects();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    const sticky = localStorage.getItem("selectedProjectId");
-    if (sticky) {
-      const p = projects.find(x => String(x.id) === String(sticky));
-      if (p) setProject(p);
-    }
-  }, [projects]);
-
-  useEffect(() => {
-    if (project?.id) {
-      localStorage.setItem("selectedProjectId", project.id);
-      fetch(`/api/projects/${project.id}/chats`).then(r => r.json()).then(setChats);
-    } else {
-      setChats([]);
-    }
-  }, [project]);
-
-  const filtered = useMemo(() => {
-    const term = q.toLowerCase();
-    return chats
-      .filter(c => !term || (c.title || "").toLowerCase().includes(term))
-      .sort((a, b) => (a.pinned === b.pinned ? new Date(b.created_at) - new Date(a.created_at) : (a.pinned ? -1 : 1)));
-  }, [chats, q]);
-
-  const groups = useMemo(() => {
-    const by = { Pinned: [], Today: [], "This week": [], Older: [] };
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const startOfWeek = new Date(startOfToday); startOfWeek.setDate(startOfWeek.getDate() - startOfToday.getDay());
-    filtered.forEach(c => {
-      const d = new Date(c.created_at || 0);
-      const bucket = c.pinned ? "Pinned" : (d >= startOfToday ? "Today" : d >= startOfWeek ? "This week" : "Older");
-      by[bucket].push(c);
-    });
-    return by;
-  }, [filtered]);
-
-  const Section = ({ title, items }) => !items.length ? null : (
-    <>
-      <div className="mt-3 mb-1 text-xs uppercase text-gray-500">{title}</div>
-      <ul>
-        {items.map(c => (
-          <li key={c.id} className="p-1 rounded hover:bg-gray-200 flex items-center justify-between">
-            <span
-              className="cursor-pointer"
-              onClick={() => { setSelectedChat(c.id); setView("chat"); }}
-              title={new Date(c.created_at).toLocaleString()}
-            >
-              {c.title} {c.pinned ? "📌" : ""}
-            </span>
-            <div className="flex gap-1 text-xs">
-              <button title="Rename" onClick={async () => {
-                const t = prompt("Rename chat", c.title || "");
-                if (!t) return;
-                await fetch(`/api/chats/${c.id}/rename?title=${encodeURIComponent(t)}`, { method: "PUT" });
-                setChats(prev => prev.map(x => x.id === c.id ? { ...x, title: t } : x));
-              }}>✏️</button>
-              {c.pinned ? (
-                <button title="Unpin" onClick={async () => {
-                  await fetch(`/api/chats/${c.id}/unpin`, { method: "PUT" });
-                  setChats(prev => prev.map(x => x.id === c.id ? { ...x, pinned: false } : x));
-                }}>📌❌</button>
-              ) : (
-                <button title="Pin" onClick={async () => {
-                  await fetch(`/api/chats/${c.id}/pin`, { method: "PUT" });
-                  setChats(prev => prev.map(x => x.id === c.id ? { ...x, pinned: true } : x));
-                }}>📌</button>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
-    </>
-  );
-
+export default function Sidebar({ activePage, onNavigate, activeProject, onSelect }) {
   return (
-    <div className="w-72 bg-gray-100 p-4 flex flex-col">
-      <img src="/masterise-logo.png" alt="Masterise Logo" className="h-12 mb-4" />
-
-      <select
-        value={project?.id || ""}
-        onChange={e => {
-          const p = projects.find(x => String(x.id) === e.target.value);
-          setProject(p || null);
-        }}
-        className="w-full mb-2 border p-2"
-      >
-        <option value="">Select Project</option>
-        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-      </select>
-
-      <input
-        className="w-full mb-3 border p-2"
-        placeholder="Search chats…"
-        value={q}
-        onChange={e => setQ(e.target.value)}
-      />
-
-      <div className="flex-1 overflow-auto">
-        <Section title="Pinned" items={groups.Pinned} />
-        <Section title="Today" items={groups.Today} />
-        <Section title="This week" items={groups["This week"]} />
-        <Section title="Older" items={groups.Older} />
+    <aside className="w-64 bg-[#f5f0e6] border-r border-gray-300 flex flex-col p-6 gap-6">
+      <div className="flex flex-col items-center gap-4">
+        <img src="/logo.png" alt="Diriyah Logo" className="w-16 h-16" />
+        <button
+          type="button"
+          className="bg-[#a67c52] hover:bg-[#8f6843] transition-colors text-white px-4 py-2 rounded-md w-full text-sm font-semibold"
+          onClick={() => onNavigate("chat")}
+        >
+          + New Chat
+        </button>
       </div>
 
-      <div className="mt-3 flex flex-col gap-2">
-        <button onClick={() => setView("admin")} className="border p-1">Admin</button>
-        <button onClick={() => setView("metrics")} className="border p-1">Metrics</button>
-        <button onClick={() => setView("settings")} className="border p-1">Project Settings</button>
+      <div>
+        <h4 className="font-bold text-sm uppercase tracking-wide text-gray-700 mb-3">Projects</h4>
+        <div className="flex flex-col gap-2">
+          {projects.map((project) => (
+            <button
+              key={project}
+              type="button"
+              onClick={() => onSelect(project)}
+              className={`text-left px-3 py-2 rounded-md transition-colors ${
+                activeProject === project ? "bg-white font-semibold shadow-sm" : "hover:bg-white/60"
+              }`}
+            >
+              {project}
+            </button>
+          ))}
+        </div>
       </div>
-    </div>
+
+      <nav className="flex flex-col gap-2 mt-auto">
+        {navigationItems.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onNavigate(item.id)}
+            className={`text-left px-3 py-2 rounded-md transition-colors ${
+              activePage === item.id ? "bg-white font-semibold shadow-sm" : "hover:bg-white/60"
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
+
+      <div className="pt-4 border-t border-gray-300 flex items-center gap-3">
+        <div className="bg-gray-500 text-white w-10 h-10 rounded-full flex items-center justify-center font-semibold">K</div>
+        <div className="leading-tight">
+          <p className="font-semibold text-gray-900">Khalid</p>
+          <p className="text-xs text-gray-600">Engineer</p>
+        </div>
+      </div>
+    </aside>
   );
 }

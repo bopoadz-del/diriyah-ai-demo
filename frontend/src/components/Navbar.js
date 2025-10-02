@@ -1,1 +1,1 @@
-# Placeholder for frontend/src/components/Navbar.js
+// Placeholder for frontend/src/components/Navbar.js

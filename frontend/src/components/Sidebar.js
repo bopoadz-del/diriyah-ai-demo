@@ -1,1 +1,1 @@
-# Placeholder for frontend/src/components/Sidebar.js
+export { default } from "./Sidebar.jsx";

@@ -5,9 +5,12 @@ from fastapi import APIRouter
 router = APIRouter()
 
 
-@router.get("/drive/diagnostics")
-def drive_diagnostics() -> dict[str, str]:
+@router.get("/drive/diagnose")
+def drive_diagnose() -> dict[str, str]:
     """Return a stubbed response representing drive diagnostics."""
 
-    return {"status": "ok", "detail": "Drive diagnostics not implemented in tests"}
+    return {
+        "status": "error",
+        "detail": "Drive diagnostics is not available in tests",
+    }
 

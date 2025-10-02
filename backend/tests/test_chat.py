@@ -37,7 +37,7 @@ class _MockCollection:
 def test_chat_without_active_project(client: TestClient) -> None:
     """Chat endpoint should respond gracefully when no project is selected."""
 
-    set_active_project(None)
+    set_active_project()
 
     response = client.post("/api/chat", data={"message": "Hello"})
 
@@ -47,6 +47,7 @@ def test_chat_without_active_project(client: TestClient) -> None:
     assert payload["project_id"] is None
     assert payload["context_docs"] == []
     assert payload["intent"]["project_id"] is None
+    assert "AI response" in payload["response"]
 
 
 def test_chat_with_active_project_collection(client: TestClient) -> None:

@@ -27,9 +27,9 @@ RUN pip install --no-cache-dir -r /app/backend/requirements.txt \
     gunicorn==21.2.0
 
 COPY backend /app/backend
-COPY frontend/public /app/frontend/public
 RUN mkdir -p /app/uploads /app/images /app/storage
 COPY --from=frontend-build /frontend/dist /app/frontend_dist
+COPY --from=frontend-build /frontend/public /app/frontend/public
 
 EXPOSE 8000
 

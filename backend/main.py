@@ -1,6 +1,7 @@
+import logging
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -27,6 +28,9 @@ from backend.services.google_drive import (
     drive_stubbed,
 )
 
+logger = logging.getLogger(__name__)
+
+
 app = FastAPI(title="Diriyah Brain AI", version="v1.24")
 app.add_middleware(
     CORSMiddleware,
@@ -41,11 +45,10 @@ _PROJECT_ROOT = _BASE_DIR.parent
 _FRONTEND_DIST_DIR = _PROJECT_ROOT / "frontend_dist"
 _FRONTEND_PUBLIC_DIR = _PROJECT_ROOT / "frontend" / "public"
 
-app.mount(
-    "/static",
-    StaticFiles(directory=_FRONTEND_PUBLIC_DIR, check_dir=_FRONTEND_PUBLIC_DIR.exists()),
-    name="static",
-)
+if _FRONTEND_PUBLIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=_FRONTEND_PUBLIC_DIR), name="static")
+else:
+    logger.warning("frontend public assets directory %s is missing", _FRONTEND_PUBLIC_DIR)
 
 if _FRONTEND_DIST_DIR.exists():
     app.mount(
@@ -56,6 +59,10 @@ if _FRONTEND_DIST_DIR.exists():
     _INDEX_HTML = _FRONTEND_DIST_DIR / "index.html"
 else:
     _INDEX_HTML = _FRONTEND_PUBLIC_DIR / "index.html"
+
+if not _INDEX_HTML.exists():
+    logger.warning("frontend index file %s is missing", _INDEX_HTML)
+    _INDEX_HTML = None
 
 
 def _include_router_if_available(module, tag: str) -> None:
@@ -88,7 +95,9 @@ for module, tag in (
 
 @app.get("/", include_in_schema=False)
 async def serve_frontend() -> FileResponse:
-    return FileResponse(_INDEX_HTML)
+    if _INDEX_HTML is None:
+        raise HTTPException(status_code=404, detail="Frontend assets are not available")
+    return FileResponse(_INDEX_HTML, media_type="text/html")
 
 
 @app.get("/health")

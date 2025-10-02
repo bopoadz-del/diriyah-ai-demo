@@ -1,5 +1,9 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from backend.api import (
     alerts,
     cache,
@@ -23,7 +27,34 @@ from backend.services.google_drive import (
 )
 
 app = FastAPI(title="Diriyah Brain AI", version="v1.24")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+_BASE_DIR = Path(__file__).resolve().parent
+_PROJECT_ROOT = _BASE_DIR.parent
+_FRONTEND_DIST_DIR = _PROJECT_ROOT / "frontend_dist"
+_FRONTEND_PUBLIC_DIR = _PROJECT_ROOT / "frontend" / "public"
+
+app.mount(
+    "/static",
+    StaticFiles(directory=_FRONTEND_PUBLIC_DIR, check_dir=_FRONTEND_PUBLIC_DIR.exists()),
+    name="static",
+)
+
+if _FRONTEND_DIST_DIR.exists():
+    app.mount(
+        "/assets",
+        StaticFiles(directory=_FRONTEND_DIST_DIR / "assets", check_dir=False),
+        name="assets",
+    )
+    _INDEX_HTML = _FRONTEND_DIST_DIR / "index.html"
+else:
+    _INDEX_HTML = _FRONTEND_PUBLIC_DIR / "index.html"
 
 
 def _include_router_if_available(module, tag: str) -> None:
@@ -51,6 +82,11 @@ for module, tag in (
     (users, "Users"),
 ):
     _include_router_if_available(module, tag)
+
+
+@app.get("/", include_in_schema=False)
+async def serve_frontend() -> FileResponse:
+    return FileResponse(_INDEX_HTML)
 
 
 @app.get("/health")

@@ -8,6 +8,7 @@ from backend.api import (
     alerts,
     cache,
     chat,
+    connectors,
     drive,
     drive_diagnose,
     drive_scan,
@@ -67,6 +68,7 @@ def _include_router_if_available(module, tag: str) -> None:
 
 for module, tag in (
     (chat, "Chat"),
+    (connectors, "Connectors"),
     (project, "Intel"),
     (cache, "Cache"),
     (alerts, "Alerts"),

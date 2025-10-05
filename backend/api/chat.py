@@ -14,8 +14,13 @@ intent_router = IntentRouter()
 async def chat(message: str = Form(...)) -> dict[str, Any]:
     """Respond to chat messages while respecting the active project context."""
 
-    active = get_active_project() or {}
-    if not isinstance(active, Mapping):
+    active_project = get_active_project()
+
+    if isinstance(active_project, Mapping):
+        active: Mapping[str, Any] = active_project
+    elif isinstance(active_project, str):
+        active = {"id": active_project}
+    else:
         active = {}
 
     project_id = active.get("id")

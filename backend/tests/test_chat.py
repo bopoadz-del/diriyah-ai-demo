@@ -47,6 +47,7 @@ def test_chat_without_active_project(client: TestClient) -> None:
     assert payload["project_id"] is None
     assert payload["context_docs"] == []
     assert payload["intent"]["project_id"] is None
+    assert payload["response"].endswith("none")
 
 
 def test_chat_with_active_project_collection(client: TestClient) -> None:

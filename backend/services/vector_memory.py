@@ -10,13 +10,17 @@ _active_project: MutableMapping[str, Any] | None = None
 def _normalize_project(project: Any) -> MutableMapping[str, Any]:
     """Normalize different project representations into a mutable mapping."""
 
-    if project is None:
-        return {}
-
     if isinstance(project, Mapping):
-        return dict(project)
+        normalized: MutableMapping[str, Any] = dict(project)
+    elif project is None:
+        normalized = {}
+    else:
+        normalized = {"id": project}
 
-    return {"id": project}
+    normalized.setdefault("id", None)
+    normalized.setdefault("collection", None)
+
+    return normalized
 
 
 def set_active_project(
@@ -40,8 +44,6 @@ def set_active_project(
 
     if collection is not None:
         normalized["collection"] = collection
-    elif "collection" not in normalized:
-        normalized["collection"] = None
 
     _active_project = normalized
 
@@ -50,6 +52,6 @@ def get_active_project() -> MutableMapping[str, Any]:
     """Return information about the active project as a mapping."""
 
     if _active_project is None:
-        return {}
+        return _normalize_project(None)
 
     return _normalize_project(_active_project)

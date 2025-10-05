@@ -5,6 +5,7 @@ const projects = ["Villa 100", "Tower 20", "Gateway Villas", "Cultural District"
 const navigationItems = [
   { id: "home", label: "Home" },
   { id: "chat", label: "Chat" },
+  { id: "intelligence", label: "Advanced Intelligence" },
   { id: "help", label: "Help" },
   { id: "settings", label: "Settings" },
 ];

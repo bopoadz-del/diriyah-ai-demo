@@ -3,6 +3,7 @@ import React from "react";
 const pageTitles = {
   home: "Home",
   chat: "Chat",
+  intelligence: "Advanced Intelligence",
   help: "Help & FAQ",
   settings: "Settings",
 };

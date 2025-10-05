@@ -5,6 +5,7 @@ import Chat from "./components/Chat";
 import Home from "./components/Home";
 import Help from "./components/Help";
 import Settings from "./components/Settings";
+import AdvancedIntelligence from "./pages/AdvancedIntelligence";
 import "./styles/theme.css";
 import "./styles/background.css";
 
@@ -24,6 +25,9 @@ function App() {
     }
     if (activePage === "settings") {
       return <Settings />;
+    }
+    if (activePage === "intelligence") {
+      return <AdvancedIntelligence />;
     }
     return null;
   };

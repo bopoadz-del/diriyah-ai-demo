@@ -6,7 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from backend.api import (
+    advanced_intelligence,
     alerts,
+    analytics,
     cache,
     chat,
     connectors,
@@ -74,11 +76,13 @@ def _include_router_if_available(module, tag: str) -> None:
 
 
 for module, tag in (
+    (advanced_intelligence, "Advanced Intelligence"),
     (chat, "Chat"),
     (connectors, "Connectors"),
     (project, "Intel"),
     (cache, "Cache"),
     (alerts, "Alerts"),
+    (analytics, "Analytics"),
     (drive, "Drive"),
     (openai_test, "OpenAI"),
     (upload, "Upload"),

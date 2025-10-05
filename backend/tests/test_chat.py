@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend.api.chat import router as chat_router
-from backend.services.vector_memory import set_active_project
+from backend.services.vector_memory import ActiveProject, set_active_project
 
 
 @pytest.fixture()
@@ -37,7 +37,7 @@ class _MockCollection:
 def test_chat_without_active_project(client: TestClient) -> None:
     """Chat endpoint should respond gracefully when no project is selected."""
 
-    set_active_project(None)
+    set_active_project()
 
     response = client.post("/api/chat", data={"message": "Hello"})
 
@@ -47,13 +47,14 @@ def test_chat_without_active_project(client: TestClient) -> None:
     assert payload["project_id"] is None
     assert payload["context_docs"] == []
     assert payload["intent"]["project_id"] is None
+    assert "AI response" in payload["response"]
 
 
 def test_chat_with_active_project_collection(client: TestClient) -> None:
     """When an active project includes a collection, results are surfaced."""
 
     collection = _MockCollection()
-    set_active_project({"id": "proj-123", "collection": collection})
+    set_active_project(ActiveProject(id="proj-123", collection=collection))
 
     try:
         response = client.post("/api/chat", data={"message": "Hello"})

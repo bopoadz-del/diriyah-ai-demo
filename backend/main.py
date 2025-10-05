@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from backend.api import (
     alerts,
+    analytics,
     cache,
     chat,
     connectors,
@@ -79,6 +80,7 @@ for module, tag in (
     (project, "Intel"),
     (cache, "Cache"),
     (alerts, "Alerts"),
+    (analytics, "Analytics"),
     (drive, "Drive"),
     (openai_test, "OpenAI"),
     (upload, "Upload"),

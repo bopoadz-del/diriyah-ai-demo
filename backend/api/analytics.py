@@ -46,6 +46,44 @@ _SAMPLE_STREAM: List[Dict[str, Any]] = [
     },
 ]
 
+_SAMPLE_ACTIVITY_LOG: List[Dict[str, Any]] = [
+    {
+        "id": "evt-001",
+        "action": "message.sent",
+        "user_id": "user-123",
+        "message_id": "msg-001",
+        "timestamp": "2024-04-10T09:15:00Z",
+    },
+    {
+        "id": "evt-002",
+        "action": "message.read",
+        "user_id": "user-456",
+        "message_id": "msg-002",
+        "timestamp": "2024-04-10T09:45:00Z",
+    },
+    {
+        "id": "evt-003",
+        "action": "message.sent",
+        "user_id": "user-123",
+        "message_id": "msg-003",
+        "timestamp": "2024-04-10T10:05:00Z",
+    },
+    {
+        "id": "evt-004",
+        "action": "message.flagged",
+        "user_id": "user-789",
+        "message_id": "msg-004",
+        "timestamp": "2024-04-10T11:20:00Z",
+    },
+]
+
+
+@router.get("/analytics")
+def analytics_log() -> List[Dict[str, Any]]:
+    """Return a deterministic activity log stream for the metrics UI."""
+
+    return [dict(entry) for entry in _SAMPLE_ACTIVITY_LOG]
+
 _SAMPLE_COMPLIANCE_TEXT = (
     "Updated construction safety plan covers PPE requirements and emergency response. "
     "Weekly inspections recorded in the log. Hot work permits pending signature from fire marshal."

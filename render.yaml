@@ -5,8 +5,11 @@ services:
     env: docker
     plan: starter
     branch: main
-    buildCommand: docker build -f backend/Dockerfile -t mba-backend .
-    startCommand: bash -c "gunicorn -k uvicorn.workers.UvicornWorker -w 4 -b 0.0.0.0:8000 backend.main:app"
+    buildCommand: >-
+      docker build -f backend/Dockerfile -t mba-backend .
+    startCommand: >-
+      bash -c "gunicorn -k uvicorn.workers.UvicornWorker -w 4 -b
+      0.0.0.0:8000 backend.main:app"
     envVars:
       - key: OPENAI_API_KEY
         sync: false

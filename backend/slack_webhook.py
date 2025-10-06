@@ -1,4 +1,3 @@
-
 import os, hmac, hashlib, json, requests
 from fastapi import FastAPI, Request, Header, HTTPException
 from pathlib import Path
@@ -13,13 +12,16 @@ GITHUB_REPO = os.getenv("GITHUB_REPO")
 APPROVAL_FILE = Path("/tmp/approvals.json")
 REQUIRED_APPROVALS = int(os.getenv("REQUIRED_APPROVALS", "2"))
 
+
 def load_approvals():
     if APPROVAL_FILE.exists():
         return json.loads(APPROVAL_FILE.read_text())
     return {}
 
+
 def save_approvals(data):
     APPROVAL_FILE.write_text(json.dumps(data))
+
 
 def post_thread_update(channel: str, thread_ts: str, text: str):
     requests.post(
@@ -28,14 +30,15 @@ def post_thread_update(channel: str, thread_ts: str, text: str):
         json={"channel": channel, "thread_ts": thread_ts, "text": text},
     )
 
+
 def trigger_github_workflow(commit_sha: str, approved: bool, approvers: list[str]):
-    """Dispatch deploy-prod.yml when quorum reached or rejection finalized."""
     url = f"https://api.github.com/repos/{GITHUB_REPO}/actions/workflows/deploy-prod.yml/dispatches"
     headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
     data = {"ref": "main", "inputs": {"commit_sha": commit_sha}}
     if approved:
-        r = requests.post(url, headers=headers, json=data)
-        r.raise_for_status()
+        response = requests.post(url, headers=headers, json=data)
+        response.raise_for_status()
+
 
 @app.post("/slack/interactivity")
 async def slack_interactivity(request: Request, x_slack_signature: str = Header(None), x_slack_request_timestamp: str = Header(None)):
@@ -73,11 +76,9 @@ async def slack_interactivity(request: Request, x_slack_signature: str = Header(
 
     save_approvals(approvals)
 
-    # Finalize
     if len(approvals[commit_sha]["approved"]) >= REQUIRED_APPROVALS:
         final_text = f"✅ Deployment APPROVED ({REQUIRED_APPROVALS}/{REQUIRED_APPROVALS}) by {', '.join(approvals[commit_sha]['approved'])}"
         requests.post(response_url, json={"replace_original": True, "text": final_text})
-        # Trigger GitHub workflow for prod deploy
         trigger_github_workflow(commit_sha, approved=True, approvers=approvals[commit_sha]["approved"])
     elif approvals[commit_sha]["rejected"]:
         final_text = f"❌ Deployment REJECTED by {', '.join(approvals[commit_sha]['rejected'])}"

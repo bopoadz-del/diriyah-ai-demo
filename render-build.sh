@@ -36,3 +36,4 @@ popd
 rm -rf backend/frontend_dist
 mkdir -p backend/frontend_dist
 cp -R frontend/dist/. backend/frontend_dist/
+rm -rf frontend/dist

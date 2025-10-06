@@ -3,15 +3,20 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-# Install system packages required by the backend and frontend builds
-apt-get update \
-  && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    curl \
-    libboost-all-dev \
-  && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-  && apt-get install -y --no-install-recommends nodejs \
-  && rm -rf /var/lib/apt/lists/*
+# Install system packages required for building and running the app on Render
+apt-get update
+apt-get install -y --no-install-recommends \
+  build-essential \
+  ca-certificates \
+  curl \
+  libreoffice \
+  libmagic1 \
+  poppler-utils \
+  python3-venv \
+  tesseract-ocr
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt-get install -y --no-install-recommends nodejs
+rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies inside a virtual environment for Render debugging
 VENV_PATH="/opt/render/project/.venv"

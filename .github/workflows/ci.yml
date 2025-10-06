@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run pytest
+        run: pytest
+
+  helm-lint-and-package:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.4
+      - name: Helm lint
+        run: helm lint helm/diriyah-brain-ai
+      - name: Helm template
+        run: helm template test-release helm/diriyah-brain-ai
+
+  request-prod-approval:
+    needs: [build-and-test, helm-lint-and-package]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Post Slack Approval Message
+        env:
+          CHANNEL: ${{ secrets.SLACK_APPROVAL_CHANNEL }}
+          TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        run: |
+          COMMIT_SHA=${GITHUB_SHA}
+          curl -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-type: application/json' \
+          --data "{\n            \"channel\": \"$CHANNEL\",\n            \"text\": \"⏳ Prod deployment awaiting approval for commit $COMMIT_SHA\",\n            \"attachments\": [{\n              \"text\": \"Approve deployment?\",\n              \"callback_id\": \"prod_approval\",\n              \"color\": \"#3AA3E3\",\n              \"actions\": [\n                {\"name\": \"approve\", \"text\": \"Approve ✅\", \"type\": \"button\", \"value\": \"approve_${GITHUB_SHA}\"},\n                {\"name\": \"reject\",  \"text\": \"Reject ❌\",  \"type\": \"button\", \"value\": \"reject_${GITHUB_SHA}\"}\n              ]\n            }]\n          }" https://slack.com/api/chat.postMessage

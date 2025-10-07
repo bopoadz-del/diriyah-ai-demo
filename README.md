@@ -17,6 +17,20 @@ cp .env.example .env
 docker compose up --build
 ```
 
+## Deploy to Render.com
+- Render automatically runs `render-build.sh` to install system dependencies, build the
+  frontend, and prepare the FastAPI app for production.
+- The backend service defined in `render.yaml` uses the generated virtual environment at
+  `/opt/render/project/.venv` and exposes the health check at `/health` for monitoring.
+- Frontend bundles are generated during the Render build and copied into
+  `backend/frontend_dist/`, so no compiled assets need to be checked into git.
+- Builds install only the runtime dependencies by default; set the Render environment
+  variable `INSTALL_DEV_REQUIREMENTS=true` before triggering a deploy when you need
+  linting or test tools in the Render Shell for debugging.
+- After opening a Render Shell, activate the environment with
+  `source /opt/render/project/.venv/bin/activate` before running management or
+  debugging commands.
+
 ### Project Mode
 - Default **Fixture Mode** (no Google Drive): `USE_FIXTURE_PROJECTS=true`
 - Live Google Drive Mode: set `USE_FIXTURE_PROJECTS=false` (requires Drive creds)

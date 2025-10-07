@@ -9,6 +9,7 @@ from backend.api import (
     advanced_intelligence,
     alerts,
     analytics,
+    autocad,
     cache,
     chat,
     connectors,
@@ -16,13 +17,16 @@ from backend.api import (
     drive_diagnose,
     drive_scan,
     openai_test,
+    parsing,
     preferences,
     project,
     projects,
+    qto,
     speech,
     upload,
     users,
     vision,
+    workspace,
 )
 from backend.services.google_drive import (
     drive_credentials_available,
@@ -77,6 +81,7 @@ def _include_router_if_available(module, tag: str) -> None:
 
 for module, tag in (
     (advanced_intelligence, "Advanced Intelligence"),
+    (autocad, "AutoCAD"),
     (chat, "Chat"),
     (connectors, "Connectors"),
     (project, "Intel"),
@@ -85,7 +90,9 @@ for module, tag in (
     (analytics, "Analytics"),
     (drive, "Drive"),
     (openai_test, "OpenAI"),
+    (parsing, "Parsing"),
     (upload, "Upload"),
+    (qto, "QTO"),
     (vision, "Vision"),
     (speech, "Speech"),
     (projects, "Projects"),
@@ -93,6 +100,7 @@ for module, tag in (
     (drive_scan, "Drive"),
     (drive_diagnose, "Drive"),
     (users, "Users"),
+    (workspace, "Workspace"),
 ):
     _include_router_if_available(module, tag)
 

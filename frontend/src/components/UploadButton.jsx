@@ -17,7 +17,7 @@ export default function UploadButton({ projectId, driveFolderId, chatId }) {
 
   return (
     <label className="px-3 py-1 border rounded cursor-pointer">
-      📎 Upload
+      Upload document
       <input type="file" className="hidden" onChange={onPickDoc} />
     </label>
   );

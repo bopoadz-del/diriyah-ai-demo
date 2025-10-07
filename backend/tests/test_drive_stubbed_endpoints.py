@@ -5,14 +5,13 @@ from fastapi.testclient import TestClient
 from backend.main import app
 
 
-def test_drive_scan_returns_stubbed_projects() -> None:
+def test_drive_scan_returns_projects_from_drive_wrapper() -> None:
     with TestClient(app) as client:
         response = client.get("/api/projects/scan-drive")
         assert response.status_code == 200
         payload = response.json()
-    assert "projects" in payload
-    assert isinstance(payload["projects"], list)
-    assert payload["projects"], "expected stubbed projects to be returned"
+    assert payload.get("projects"), "expected drive projects to be returned"
+    assert payload.get("status") in {"ok", "stubbed"}
 
 
 def test_drive_scan_projects_include_debug_metadata() -> None:
@@ -21,14 +20,13 @@ def test_drive_scan_projects_include_debug_metadata() -> None:
         assert response.status_code == 200
         payload = response.json()
 
-    assert payload.get("status") == "stubbed"
     assert payload.get("detail")
 
     for project in payload.get("projects", []):
         assert isinstance(project["name"], str) and project["name"], "missing name"
         assert isinstance(project["path"], str) and project["path"], "missing path"
         assert "last_modified" in project and project["last_modified"], "missing last_modified"
-        assert project.get("source") == "stubbed"
+        assert project.get("source") in {"google_drive", "stubbed"}
 
 
 def test_drive_diagnose_reports_error_when_stubbed() -> None:

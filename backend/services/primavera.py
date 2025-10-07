@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional
 import httpx
 
 from .intent_router import router
+from .drive_payloads import load_json_resource
 
 _DEFAULT_TIMEOUT = 10.0
 
@@ -66,12 +67,22 @@ def check_connection(client: Optional[PrimaveraClient] = None) -> Dict[str, Any]
     try:
         client = client or PrimaveraClient()
     except PrimaveraConfigurationError as exc:
-        return {"service": "p6", "status": "unconfigured", "error": str(exc)}
+        return {
+            "service": "p6",
+            "status": "stubbed",
+            "details": _drive_backed_schedule(),
+            "error": str(exc),
+        }
 
     try:
         payload = client.ping()
     except PrimaveraError as exc:
-        return {"service": "p6", "status": "error", "error": str(exc)}
+        return {
+            "service": "p6",
+            "status": "stubbed",
+            "details": _drive_backed_schedule(),
+            "error": str(exc),
+        }
     return {"service": "p6", "status": "connected", "details": payload}
 
 
@@ -79,16 +90,57 @@ def handle_primavera(message: Any, context: Optional[Dict[str, Any]] = None) -> 
     try:
         client = PrimaveraClient()
         health = client.ping()
+        status = "connected"
+        schedule = health
     except (PrimaveraConfigurationError, PrimaveraError) as exc:
-        return {"service": "primavera", "status": "error", "error": str(exc)}
+        status = "stubbed"
+        schedule = _drive_backed_schedule()
+        schedule["error"] = str(exc)
 
     summary = {
         "input": message,
         "context": context or {},
-        "health": health,
+        "schedule": schedule,
     }
-    return {"service": "primavera", "status": "connected", "result": summary}
+    return {"service": "primavera", "status": status, "result": summary}
 
 
 # Register service on import
 router.register("primavera", ['\\bprimavera\\b', '\\.xer\\b'], handle_primavera)
+_STUB_SCHEDULE = {
+    "activities": [
+        {
+            "id": "ACT-100",
+            "name": "Mobilisation",
+            "planned_start": "2024-04-01",
+            "planned_finish": "2024-04-05",
+            "status": "complete",
+        },
+        {
+            "id": "ACT-140",
+            "name": "Podium slab pour",
+            "planned_start": "2024-04-08",
+            "planned_finish": "2024-04-15",
+            "status": "in-progress",
+            "percent_complete": 65,
+        },
+        {
+            "id": "ACT-200",
+            "name": "Façade bracket installation",
+            "planned_start": "2024-04-16",
+            "planned_finish": "2024-04-25",
+            "status": "not-started",
+        },
+    ],
+    "milestones": [
+        {"id": "MS-01", "name": "Podium complete", "status": "at-risk"},
+        {"id": "MS-02", "name": "Tower topping", "status": "on-track"},
+    ],
+}
+
+
+def _drive_backed_schedule(file_id: str | None = None) -> Dict[str, Any]:
+    payload = load_json_resource(file_id, env_var="PRIMAVERA_DRIVE_FILE_ID", default=_STUB_SCHEDULE)
+    if isinstance(payload, dict):
+        return payload
+    return dict(_STUB_SCHEDULE)

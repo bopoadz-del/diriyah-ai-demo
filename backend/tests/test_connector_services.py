@@ -45,8 +45,9 @@ def test_aconex_check_connection_failure(monkeypatch: pytest.MonkeyPatch) -> Non
 
     monkeypatch.setattr(aconex.httpx, "get", fake_get)
     status = aconex.check_connection()
-    assert status["status"] == "error"
+    assert status["status"] == "stubbed"
     assert "boom" in status["error"]
+    assert "transmittals" in status["details"]
 
 
 def test_primavera_check_connection_success(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -74,7 +75,8 @@ def test_primavera_check_connection_failure(monkeypatch: pytest.MonkeyPatch) -> 
 
     monkeypatch.setattr(primavera.httpx, "get", fake_get)
     status = primavera.check_connection()
-    assert status["status"] == "error"
+    assert status["status"] == "stubbed"
+    assert "activities" in status["details"]
 
 
 def test_bim_check_connection_success(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -4,14 +4,25 @@ services:
     name: mba-backend-main
     env: python
  codex/prepare-repo-for-final-render
+    pythonVersion: 3.11.9
+
+ codex/prepare-repo-for-final-render
     pythonVersion: 3.11.>>>>>>> main
+ main
     plan: starter
     region: oregon
     branch: main
     buildCommand: ./render-build.sh
     startCommand: >-
+ codex/prepare-repo-for-final-render
+      bash -c "if [ -f /opt/render/project/.venv/bin/activate ]; then
+        source /opt/render/project/.venv/bin/activate
+      fi
+      exec gunicorn -k uvicorn.workers.UvicornWorker -w 4 -b 0.0.0.0:8000 backend.main:app"
+
       bash -c "source /opt/render/project/.venv/bin/activate &&
       gunicorn -k uvicorn.workers.UvicornWorker -w 4 -b 0.0.0.0:8000 backend.main:app"
+ main
     envVars:
       - key: OPENAI_API_KEY
         sync: false
@@ -23,6 +34,11 @@ services:
         fromService:
           name: mba-redis
           property: connectionString
+  codex/prepare-repo-for-final-render
+      - key: INSTALL_DEV_REQUIREMENTS
+        value: "false"
+
+  main
     healthCheckPath: /health
   - type: redis
     name: mba-redis

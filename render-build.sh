@@ -20,12 +20,17 @@ rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies inside a virtual environment for Render debugging
 VENV_PATH="/opt/render/project/.venv"
-python3 -m venv "$VENV_PATH"
+if [[ ! -d "$VENV_PATH" ]]; then
+  python3 -m venv "$VENV_PATH"
+fi
 source "$VENV_PATH/bin/activate"
 pip install --upgrade pip
 pip install --no-cache-dir \
-  -r backend/requirements.txt \
-  -r backend/requirements-dev.txt
+  -r backend/requirements.txt
+
+if [[ "${INSTALL_DEV_REQUIREMENTS:-false}" == "true" ]]; then
+  pip install --no-cache-dir -r backend/requirements-dev.txt
+fi
 
 # Build the frontend bundle that FastAPI serves in production
 pushd frontend

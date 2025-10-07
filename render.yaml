@@ -2,14 +2,17 @@
 services:
   - type: web
     name: mba-backend-main
-    env: docker
+    env: python
+    pythonVersion: 3.11.9
     plan: starter
+    region: oregon
     branch: main
-    buildCommand: >-
-      docker build -f backend/Dockerfile -t mba-backend .
+    buildCommand: ./render-build.sh
     startCommand: >-
-      bash -c "gunicorn -k uvicorn.workers.UvicornWorker -w 4 -b
-      0.0.0.0:8000 backend.main:app"
+      bash -c "if [ -f /opt/render/project/.venv/bin/activate ]; then
+        source /opt/render/project/.venv/bin/activate
+      fi
+      exec gunicorn -k uvicorn.workers.UvicornWorker -w 4 -b 0.0.0.0:8000 backend.main:app"
     envVars:
       - key: OPENAI_API_KEY
         sync: false
@@ -21,6 +24,9 @@ services:
         fromService:
           name: mba-redis
           property: connectionString
+      - key: INSTALL_DEV_REQUIREMENTS
+        value: "false"
+    healthCheckPath: /health
   - type: redis
     name: mba-redis
     plan: starter

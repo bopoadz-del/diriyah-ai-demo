@@ -1,12 +1,15 @@
+"""Analytics endpoints backed by Google Drive payloads with safe fallbacks."""
+
 from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Dict, List
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 from backend.services.anomaly_detector import detect_anomalies
 from backend.services.compliance_monitor import check_compliance
+from backend.services.drive_payloads import load_json_resource, load_text_resource
 
 router = APIRouter()
 
@@ -77,13 +80,6 @@ _SAMPLE_ACTIVITY_LOG: List[Dict[str, Any]] = [
     },
 ]
 
-
-@router.get("/analytics")
-def analytics_log() -> List[Dict[str, Any]]:
-    """Return a deterministic activity log stream for the metrics UI."""
-
-    return [dict(entry) for entry in _SAMPLE_ACTIVITY_LOG]
-
 _SAMPLE_COMPLIANCE_TEXT = (
     "Updated construction safety plan covers PPE requirements and emergency response. "
     "Weekly inspections recorded in the log. Hot work permits pending signature from fire marshal."
@@ -112,22 +108,84 @@ _SAMPLE_RULES = [
 ]
 
 
-@router.get("/analytics/summary")
-def analytics_summary() -> Dict[str, Any]:
-    """Provide a deterministic analytics snapshot for local development."""
+def _drive_backed_stream(file_id: str | None) -> List[Dict[str, Any]]:
+    payload = load_json_resource(file_id, env_var="ANALYTICS_DRIVE_FILE_ID", default={})
+    stream = payload.get("stream") if isinstance(payload, dict) else None
+    if isinstance(stream, list):
+        return [dict(entry) for entry in stream]
+    return [dict(entry) for entry in _SAMPLE_STREAM]
 
-    anomalies = detect_anomalies(_SAMPLE_STREAM)
-    compliance_findings = check_compliance(_SAMPLE_COMPLIANCE_TEXT, _SAMPLE_RULES)
+
+def _drive_backed_activity(file_id: str | None) -> List[Dict[str, Any]]:
+    payload = load_json_resource(file_id, env_var="ANALYTICS_ACTIVITY_FILE_ID", default={})
+    activity = payload.get("activity") if isinstance(payload, dict) else None
+    if isinstance(activity, list):
+        return [dict(entry) for entry in activity]
+    return [dict(entry) for entry in _SAMPLE_ACTIVITY_LOG]
+
+
+def _drive_backed_rules(file_id: str | None) -> List[Dict[str, Any]]:
+    payload = load_json_resource(file_id, env_var="ANALYTICS_RULES_FILE_ID", default={})
+    rules = payload.get("rules") if isinstance(payload, dict) else None
+    if isinstance(rules, list):
+        return [dict(rule) for rule in rules]
+    return [dict(rule) for rule in _SAMPLE_RULES]
+
+
+def _drive_backed_text(file_id: str | None) -> str:
+    return load_text_resource(file_id, env_var="ANALYTICS_TEXT_FILE_ID", default=_SAMPLE_COMPLIANCE_TEXT)
+
+
+@router.get("/analytics")
+def analytics_log(
+    activity_file_id: str | None = Query(
+        default=None,
+        description="Optional Drive file id containing analytics activity logs",
+    ),
+) -> List[Dict[str, Any]]:
+    """Return activity logs sourced from Drive or fallback data."""
+
+    return _drive_backed_activity(activity_file_id)
+
+
+@router.get("/analytics/summary")
+def analytics_summary(
+    stream_file_id: str | None = Query(
+        default=None,
+        description="Optional Drive file id with analytics stream data",
+    ),
+    rules_file_id: str | None = Query(
+        default=None,
+        description="Optional Drive file id with compliance rules",
+    ),
+    text_file_id: str | None = Query(
+        default=None,
+        description="Optional Drive file id with compliance text",
+    ),
+) -> Dict[str, Any]:
+    """Provide an analytics snapshot driven by Drive-backed payloads."""
+
+    stream = _drive_backed_stream(stream_file_id)
+    rules = _drive_backed_rules(rules_file_id)
+    compliance_text = _drive_backed_text(text_file_id)
+
+    anomalies = detect_anomalies(stream)
+    compliance_findings = check_compliance(compliance_text, rules)
 
     risk_alerts = [finding for finding in anomalies if finding["type"] == "risk"]
     schedule_alerts = [finding for finding in anomalies if finding["type"] == "schedule"]
     safety_alerts = [finding for finding in anomalies if finding["type"] == "safety"]
     cost_alerts = [finding for finding in anomalies if finding["type"] == "cost"]
 
-    latest_progress = _latest_progress(_SAMPLE_STREAM)
+    latest_progress = _latest_progress(stream)
     compliance_breaches = [finding for finding in compliance_findings if finding["status"] != "compliant"]
 
-    overall_health = _determine_overall_health(risk_alerts, schedule_alerts, safety_alerts, compliance_breaches)
+    overall_health = _determine_overall_health(
+        risk_alerts,
+        schedule_alerts,
+        safety_alerts,
+        compliance_breaches,
+    )
 
     return {
         "status": "ok",
@@ -167,8 +225,6 @@ def _aggregate_schedule_variance(schedule_alerts: List[Dict[str, Any]]) -> int:
         if "delay_days" in alert["context"]:
             total += float(alert["context"].get("delay_days", 0.0))
         elif "variance_percent" in alert["context"]:
-            # Convert percentage variance into rough day equivalent assuming a
-            # five-day working week; this keeps the stub realistic for dashboards.
             total += float(alert["context"].get("variance_percent", 0.0)) / 100 * 5
     return int(round(total))
 
@@ -186,3 +242,6 @@ def _determine_overall_health(
     if risk_alerts or schedule_alerts or safety_alerts:
         return "watch"
     return "on-track"
+
+
+__all__ = ["router"]

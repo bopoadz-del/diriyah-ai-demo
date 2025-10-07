@@ -11,7 +11,7 @@ export default function MicButton({ projectId }) {
 
   return (
     <label className="px-3 py-1 border rounded cursor-pointer">
-      🎤 Mic
+      Microphone input
       <input type="file" accept="audio/*" className="hidden" onChange={onPickAudio} />
     </label>
   );

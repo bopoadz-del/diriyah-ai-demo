@@ -1,4 +1,4 @@
-"""Integration helpers for working with Oracle Aconex."""
+"""Aconex connector that falls back to Google Drive-backed datasets."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional
 
 import httpx
 
+from .drive_payloads import load_json_resource
 from .intent_router import router
 
 _DEFAULT_TIMEOUT = 10.0
@@ -19,6 +20,39 @@ class AconexError(RuntimeError):
 
 class AconexConfigurationError(ValueError):
     """Raised when the Aconex client is missing mandatory configuration."""
+
+
+_STUB_TRANSMITTALS = {
+    "transmittals": [
+        {
+            "id": "TR-501",
+            "subject": "Facade shop drawings",
+            "status": "pending-ack",
+            "sent_at": "2024-04-04T10:00:00Z",
+        },
+        {
+            "id": "TR-514",
+            "subject": "RFI response - podium",
+            "status": "acknowledged",
+            "sent_at": "2024-04-06T15:30:00Z",
+        },
+    ],
+    "documents": [
+        {
+            "id": "DOC-221",
+            "title": "Gateway Villas concrete pour checklist",
+            "revision": "C",
+            "status": "approved",
+        }
+    ],
+}
+
+
+def _drive_backed_transmittals(file_id: str | None = None) -> Dict[str, Any]:
+    payload = load_json_resource(file_id, env_var="ACONEX_DRIVE_FILE_ID", default=_STUB_TRANSMITTALS)
+    if isinstance(payload, dict):
+        return payload
+    return dict(_STUB_TRANSMITTALS)
 
 
 def _load_json(response: httpx.Response) -> Dict[str, Any]:
@@ -69,12 +103,22 @@ def check_connection(client: Optional[AconexClient] = None) -> Dict[str, Any]:
     try:
         client = client or AconexClient()
     except AconexConfigurationError as exc:
-        return {"service": "aconex", "status": "unconfigured", "error": str(exc)}
+        return {
+            "service": "aconex",
+            "status": "stubbed",
+            "details": _drive_backed_transmittals(),
+            "error": str(exc),
+        }
 
     try:
         payload = client.ping()
     except AconexError as exc:
-        return {"service": "aconex", "status": "error", "error": str(exc)}
+        return {
+            "service": "aconex",
+            "status": "stubbed",
+            "details": _drive_backed_transmittals(),
+            "error": str(exc),
+        }
     return {"service": "aconex", "status": "connected", "details": payload}
 
 
@@ -84,16 +128,29 @@ def handle_aconex(message: Any, context: Optional[Dict[str, Any]] = None) -> Dic
     try:
         client = AconexClient()
         health = client.ping()
+        status = "connected"
+        dataset = health
     except (AconexConfigurationError, AconexError) as exc:
-        return {"service": "aconex", "status": "error", "error": str(exc)}
+        status = "stubbed"
+        dataset = _drive_backed_transmittals()
+        dataset["error"] = str(exc)
 
     summary = {
         "input": message,
         "context": context or {},
-        "health": health,
+        "dataset": dataset,
     }
-    return {"service": "aconex", "status": "connected", "result": summary}
+    return {"service": "aconex", "status": status, "result": summary}
 
 
 # Register service on import
 router.register("aconex", ["\\baconex\\b"], handle_aconex)
+
+
+__all__ = [
+    "AconexClient",
+    "AconexError",
+    "AconexConfigurationError",
+    "check_connection",
+    "handle_aconex",
+]

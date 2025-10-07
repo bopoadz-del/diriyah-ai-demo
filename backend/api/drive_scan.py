@@ -6,6 +6,8 @@ from typing import List
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
+from backend.services.drive_service import list_files
+
 router = APIRouter()
 
 
@@ -13,12 +15,12 @@ class DriveScanProject(BaseModel):
     """Represents a single project discovered during a drive scan."""
 
     name: str = Field(..., description="Display name of the project folder")
-    path: str = Field(..., description="Absolute path to the project folder on disk")
+    path: str = Field(..., description="Drive URI pointing at the folder")
     last_modified: datetime = Field(
         ..., description="Timestamp representing the most recent modification time"
     )
     source: str = Field(
-        "stubbed", description="Identifier for the provider that surfaced the project"
+        "google_drive", description="Identifier for the provider that surfaced the project"
     )
 
 
@@ -26,11 +28,11 @@ class DriveScanResponse(BaseModel):
     """Response schema returned when scanning the drive for project folders."""
 
     status: str = Field(
-        "stubbed", description="Drive scan status indicating no real scan was performed"
+        "ok", description="Drive scan status indicating the response was generated"
     )
     detail: str = Field(
-        "Drive scanning is currently stubbed for development and tests.",
-        description="Additional information about the stubbed response",
+        "Projects pulled from Google Drive using the shared demo credentials.",
+        description="Additional information about the scan response",
     )
     projects: List[DriveScanProject] = Field(
         default_factory=list,
@@ -38,30 +40,37 @@ class DriveScanResponse(BaseModel):
     )
 
 
-_STUBBED_PROJECTS: list[DriveScanProject] = [
-    DriveScanProject(
-        name="Gateway Villas",
-        path="/Volumes/Diriyah/Projects/Gateway Villas",
-        last_modified=datetime(2024, 1, 15, 9, 30, tzinfo=timezone.utc),
-    ),
-    DriveScanProject(
-        name="Downtown Towers",
-        path="/Volumes/Diriyah/Projects/Downtown Towers",
-        last_modified=datetime(2024, 3, 8, 17, 5, tzinfo=timezone.utc),
-    ),
-    DriveScanProject(
-        name="Cultural District",
-        path="/Volumes/Diriyah/Projects/Cultural District",
-        last_modified=datetime(2023, 11, 21, 13, 42, tzinfo=timezone.utc),
-    ),
-]
+def _normalise_project(payload: dict[str, object]) -> DriveScanProject:
+    name = str(payload.get("name", "Untitled Project"))
+    file_id = str(payload.get("id", "unknown"))
+    modified = payload.get("modifiedTime")
+    if isinstance(modified, str):
+        try:
+            last_modified = datetime.fromisoformat(modified.replace("Z", "+00:00"))
+        except ValueError:
+            last_modified = datetime.now(timezone.utc)
+    else:
+        last_modified = datetime.now(timezone.utc)
+    source = "stubbed" if file_id.startswith("stub-") else payload.get("source", "google_drive")
+    return DriveScanProject(
+        name=name,
+        path=f"drive://{file_id}",
+        last_modified=last_modified,
+        source=str(source),
+    )
 
 
 @router.get("/projects/scan-drive")
 def scan_drive_for_projects() -> DriveScanResponse:
-    """Return a deterministic stubbed list of project folders."""
+    """Return Drive folders surfaced by the Google Drive wrapper."""
 
-    return DriveScanResponse(projects=_STUBBED_PROJECTS)
+    files = list_files()
+    projects = [_normalise_project(item) for item in files]
+    detail = "Returned stubbed Google Drive folders" if any(
+        project.source == "stubbed" for project in projects
+    ) else "Projects pulled from Google Drive"
+    status = "stubbed" if any(project.source == "stubbed" for project in projects) else "ok"
+    return DriveScanResponse(status=status, detail=detail, projects=projects)
 
 
 @router.get("/drive/scan/status")

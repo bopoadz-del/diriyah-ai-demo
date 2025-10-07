@@ -1,17 +1,24 @@
 export default function MessageActions({ msg, index, onRefresh }) {
   const action = async (type) => {
     if (type === "refresh" && onRefresh) return onRefresh();
-    await fetch(`/api/messages/${msg.id}/action?action=${type}`, { method: "PUT" });
+    const response = await fetch(`/api/workspace/messages/${msg.id}/action`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: type }),
+    });
+    if (!response.ok) {
+      throw new Error("Failed to record message action");
+    }
   };
 
   return (
     <div className="flex gap-1 text-sm items-center">
-      <button title="Copy" onClick={() => action("copy")}>📋</button>
-      <button title="Like" onClick={() => action("like")}>👍</button>
-      <button title="Dislike" onClick={() => action("dislike")}>👎</button>
-      <button title="Read" onClick={() => action("read")}>👁️</button>
-      <button title="Refresh" onClick={() => action("refresh")}>🔄</button>
-      <button title="Share" onClick={() => action("share")}>🔗</button>
+      <button title="Copy" onClick={() => action("copy")}>Copy</button>
+      <button title="Like" onClick={() => action("like")}>Like</button>
+      <button title="Dislike" onClick={() => action("dislike")}>Dislike</button>
+      <button title="Mark as read" onClick={() => action("read")}>Read</button>
+      <button title="Refresh" onClick={() => action("refresh")}>Refresh</button>
+      <button title="Share" onClick={() => action("share")}>Share</button>
     </div>
   );
 }

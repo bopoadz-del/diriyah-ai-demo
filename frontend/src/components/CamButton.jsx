@@ -11,7 +11,7 @@ export default function CamButton({ projectId }) {
 
   return (
     <label className="px-3 py-1 border rounded cursor-pointer">
-      📷 Cam
+      Camera capture
       <input type="file" accept="image/*" capture="environment" className="hidden" onChange={onPickImage} />
     </label>
   );

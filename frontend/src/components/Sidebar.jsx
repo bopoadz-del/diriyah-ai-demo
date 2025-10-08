@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 function SidebarIcon({ type }) {
   let paths;
@@ -60,6 +62,7 @@ export default function Sidebar({
   onChatSelect,
   onCreateChat,
 }) {
+  const { t } = useTranslation();
   const [collapsedGroups, setCollapsedGroups] = useState(() => formatGroupState(chatGroups));
 
   const activeProject = useMemo(
@@ -79,18 +82,19 @@ export default function Sidebar({
   };
 
   return (
-    <aside className="sidebar" aria-label="Conversation navigator">
-      <section className="sidebar__section" aria-label="Create chat">
+    <aside className="sidebar" aria-label={t("sidebar.navigator")}>
+      <section className="sidebar__section" aria-label={t("sidebar.createChat")}>
         <div className="sidebar__logo">Diriyah Brain</div>
-        <p className="sidebar__tagline">Project delivery assistant</p>
+        <p className="sidebar__tagline">{t("sidebar.tagline")}</p>
         <button type="button" className="sidebar__new-chat" onClick={onCreateChat}>
-          + New chat
+          {t("sidebar.newChat")}
         </button>
+        <LanguageSwitcher />
       </section>
 
-      <section className="sidebar__section" aria-label="Project switcher">
+      <section className="sidebar__section" aria-label={t("sidebar.activeProject")}>
         <label htmlFor="project-select" className="sidebar__label">
-          Active project
+          {t("sidebar.activeProject")}
         </label>
         <select
           id="project-select"
@@ -106,12 +110,12 @@ export default function Sidebar({
         </select>
         {activeProject ? (
           <p className="sidebar__project-meta">
-            {activeProject.location} • {activeProject.phase} phase
+            {activeProject.location} • {activeProject.phase}
           </p>
         ) : null}
       </section>
 
-      <nav className="sidebar__chats" aria-label="Conversation history">
+      <nav className="sidebar__chats" aria-label={t("sidebar.history")}>
         {chatGroups.map((group) => {
           const collapsed = collapsedGroups[group.id];
           return (
@@ -150,7 +154,7 @@ export default function Sidebar({
                             {chat.unread}
                           </span>
                         ) : null}
-                        {chat.isDraft ? <span className="sidebar__chat-draft">Draft</span> : null}
+                        {chat.isDraft ? <span className="sidebar__chat-draft">{t("sidebar.draft")}</span> : null}
                       </button>
                     </li>
                   );
@@ -162,20 +166,20 @@ export default function Sidebar({
       </nav>
 
       <footer className="sidebar__bottom">
-        <div className="sidebar__profile" aria-label="Signed in user">
+        <div className="sidebar__profile" aria-label={t("sidebar.profile.role")}>
           <div className="sidebar__avatar" aria-hidden>
             KM
           </div>
           <div>
-            <p className="sidebar__profile-name">Khalid Al-Mutairi</p>
-            <p className="sidebar__profile-role">Delivery Lead</p>
+            <p className="sidebar__profile-name">{t("sidebar.profile.name")}</p>
+            <p className="sidebar__profile-role">{t("sidebar.profile.role")}</p>
           </div>
         </div>
         <div className="sidebar__actions" aria-label="Sidebar quick actions">
-          <button type="button" className="sidebar__icon" title="Notifications">
+          <button type="button" className="sidebar__icon" title={t("sidebar.notifications")}>
             <SidebarIcon type="notifications" />
           </button>
-          <button type="button" className="sidebar__icon" title="Settings">
+          <button type="button" className="sidebar__icon" title={t("sidebar.settings")}>
             <SidebarIcon type="settings" />
           </button>
         </div>

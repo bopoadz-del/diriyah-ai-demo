@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  template:
+    spec:
+      containers:
+        - name: backend
+          env:
+            - name: SUPPORTED_LANGUAGES
+              value: "en,ar"
+            - name: DEFAULT_LANGUAGE
+              value: "ar"
+            - name: TRANSLATION_CACHE_TTL
+              value: "86400"

@@ -1,0 +1,45 @@
+{
+  "app": {
+    "loading": "Loading workspace…",
+    "unavailable": "Workspace data is unavailable. Please try reloading the page."
+  },
+  "sidebar": {
+    "navigator": "Conversation navigator",
+    "history": "Conversation history",
+    "tagline": "Project delivery assistant",
+    "newChat": "+ New chat",
+    "activeProject": "Active project",
+    "draft": "Draft",
+    "notifications": "Notifications",
+    "settings": "Settings",
+    "createChat": "Create chat",
+    "switchToArabic": "Switch to Arabic",
+    "switchToEnglish": "Switch to English",
+    "profile": {
+      "name": "Khalid Al-Mutairi",
+      "role": "Delivery Lead"
+    }
+  },
+  "chat": {
+    "actionsLabel": "Message actions",
+    "hideContext": "Hide context",
+    "showContext": "Show context",
+    "messagePlaceholder": "Share updates, requests, or questions for the site team",
+    "composerLabel": "Message composer",
+    "uploadFile": "Upload file",
+    "capturePhoto": "Capture photo",
+    "muteMic": "Mute microphone",
+    "enableMic": "Enable microphone",
+    "send": "Send",
+    "micWarning": "Enable your microphone to capture a quick voice note.",
+    "status": {
+      "connected": "Connected",
+      "offline": "Offline"
+    },
+    "actions": {
+      "pin": "Pin",
+      "copy": "Copy",
+      "followUp": "Follow up"
+    }
+  }
+}

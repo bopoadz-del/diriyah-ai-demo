@@ -11,6 +11,8 @@ ifcopenshell==0.7.0.240627
 ezdxf==1.2.0
 spacy==3.7.5
 en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
+sentence-transformers==2.2.2
+faiss-cpu==1.7.4
 requests==2.32.3
 httpx
 aiofiles==24.1.0
@@ -30,3 +32,8 @@ python-pptx==0.6.23
 rarfile==4.1
 scikit-learn==1.5.2
 pytest==8.2.0
+langdetect==1.0.9
+deep-translator==1.11.4
+camel-tools==1.5.0
+transformers==4.44.2
+torch==2.4.1

@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 function ContextIcon({ type, isActive }) {
   let paths;
@@ -125,6 +126,7 @@ export default function ChatUI({
   const [composerValue, setComposerValue] = useState("");
   const [activeTab, setActiveTab] = useState("summary");
   const fileInputRef = useRef(null);
+  const { t } = useTranslation();
 
   const contextTabs = useMemo(
     () => [
@@ -186,7 +188,7 @@ export default function ChatUI({
           <div className="chat__header-actions">
             <span
               className={`chat__status ${conversation.isLive ? "chat__status--connected" : ""}`}
-              aria-label={conversation.isLive ? "Connected" : "Offline"}
+              aria-label={conversation.isLive ? t("chat.status.connected") : t("chat.status.offline")}
             />
             <button
               type="button"
@@ -194,7 +196,7 @@ export default function ChatUI({
               onClick={onToggleContextPanel}
               aria-pressed={isContextPanelOpen}
             >
-              {isContextPanelOpen ? "Hide context" : "Show context"}
+              {isContextPanelOpen ? t("chat.hideContext") : t("chat.showContext")}
             </button>
           </div>
         </header>
@@ -215,15 +217,15 @@ export default function ChatUI({
                     <span>{message.author}</span>
                     <span>{message.timestamp}</span>
                     {message.summary ? <span>{message.summary}</span> : null}
-                    <div className="chat__actions" aria-label="Message actions">
+                    <div className="chat__actions" aria-label={t("chat.actionsLabel")}>
                       <button type="button" onClick={() => onMessageAction?.(conversation.id, message.id, "pin")}>
-                        Pin
+                        {t("chat.actions.pin")}
                       </button>
                       <button type="button" onClick={() => onMessageAction?.(conversation.id, message.id, "copy")}>
-                        Copy
+                        {t("chat.actions.copy")}
                       </button>
                       <button type="button" onClick={() => onMessageAction?.(conversation.id, message.id, "follow-up")}>
-                        Follow up
+                        {t("chat.actions.followUp")}
                       </button>
                     </div>
                   </footer>
@@ -236,18 +238,18 @@ export default function ChatUI({
         <form className="chat__composer" onSubmit={handleComposerSubmit}>
           <div className="chat__composer-inner">
             <div className="chat__attachments" aria-label="Attachment controls">
-              <button type="button" onClick={handleAttachmentClick} title="Upload file">
+              <button type="button" onClick={handleAttachmentClick} title={t("chat.uploadFile")}>
                 <ComposerIcon name="paperclip" />
               </button>
-              <button type="button" title="Capture photo">
+              <button type="button" title={t("chat.capturePhoto")}>
                 <ComposerIcon name="camera" />
               </button>
             </div>
             <textarea
               value={composerValue}
               onChange={handleComposerChange}
-              placeholder="Share updates, requests, or questions for the site team"
-              aria-label="Message composer"
+              placeholder={t("chat.messagePlaceholder")}
+              aria-label={t("chat.composerLabel")}
             />
             <div className="chat__controls">
               <input
@@ -261,17 +263,17 @@ export default function ChatUI({
                 className={`chat__mic ${microphoneEnabled ? "" : "chat__mic--disabled"}`}
                 onClick={handleMicToggle}
                 aria-pressed={microphoneEnabled}
-                title={microphoneEnabled ? "Mute microphone" : "Enable microphone"}
+                title={microphoneEnabled ? t("chat.muteMic") : t("chat.enableMic")}
               >
                 <ComposerIcon name="microphone" isActive={microphoneEnabled} />
               </button>
               <button type="submit" className="chat__send" disabled={!composerValue.trim()}>
-                Send
+                {t("chat.send")}
               </button>
             </div>
           </div>
           {!microphoneEnabled ? (
-            <p className="chat__mic-warning">Enable your microphone to capture a quick voice note.</p>
+            <p className="chat__mic-warning">{t("chat.micWarning")}</p>
           ) : null}
         </form>
       </div>

@@ -37,3 +37,6 @@ deep-translator==1.11.4
 camel-tools==1.5.0
 transformers==4.44.2
 torch==2.4.1
+boto3==1.35.28
+PyJWT==2.9.0
+passlib[bcrypt]==1.7.4

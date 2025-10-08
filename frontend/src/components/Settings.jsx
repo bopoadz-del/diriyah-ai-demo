@@ -72,6 +72,44 @@ const STATUS_STYLES = {
   },
 };
 
+const securityControls = [
+  {
+    title: "RBAC Enhancements",
+    description: "Assign granular permissions down to individual drawings, documents, and even specific data fields to keep teams focused on the work that matters to them.",
+  },
+  {
+    title: "Audit Trail",
+    description: "Capture every view, download, and update with immutable timestamps to satisfy contractual and regulatory compliance reviews.",
+  },
+  {
+    title: "Data Encryption",
+    description: "Protect sensitive submissions with end-to-end encryption covering data in transit between job sites and at rest in the workspace vault.",
+  },
+  {
+    title: "SOC 2 / ISO 27001",
+    description: "Operate against enterprise-grade controls, backed by third-party certifications and continuous monitoring of policy adherence.",
+  },
+  {
+    title: "Watermarking",
+    description: "Automatically watermark high-risk drawings and exports so downstream sharing remains traceable across contractors and consultants.",
+  },
+];
+
+const privacyFeatures = [
+  {
+    title: "PII Detection",
+    description: "Locate personal data inside uploaded photos, RFIs, and reports, then mask or redact it before it reaches broader project channels.",
+  },
+  {
+    title: "Data Retention Policies",
+    description: "Automate archival schedules and defensible deletion workflows aligned to client and regulatory obligations.",
+  },
+  {
+    title: "GDPR Compliance",
+    description: "Deliver right-to-be-forgotten, consent management, and data portability tooling for European partners and residents.",
+  },
+];
+
 export default function Settings() {
   const [backendStatus, setBackendStatus] = useState({
     state: "checking",
@@ -231,6 +269,7 @@ export default function Settings() {
           ))}
         </div>
       </section>
+      codex/enhance-rbac-with-granular-permissions
 
       <section className="space-y-4">
         <header>
@@ -248,7 +287,6 @@ export default function Settings() {
             </article>
           ))}
         </div>
-      </section>
+      </section>  main
     </section>
-  );
-}
+  )

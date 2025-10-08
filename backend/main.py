@@ -18,6 +18,7 @@ from backend.api import (
     drive_scan,
     openai_test,
     parsing,
+    progress_tracking,
     preferences,
     project,
     projects,
@@ -27,6 +28,7 @@ from backend.api import (
     users,
     vision,
     workspace,
+    translation,
 )
 from backend.services.google_drive import (
     drive_credentials_available,
@@ -91,6 +93,7 @@ for module, tag in (
     (drive, "Drive"),
     (openai_test, "OpenAI"),
     (parsing, "Parsing"),
+    (progress_tracking, "Progress Tracking"),
     (upload, "Upload"),
     (qto, "QTO"),
     (vision, "Vision"),
@@ -101,6 +104,7 @@ for module, tag in (
     (drive_diagnose, "Drive"),
     (users, "Users"),
     (workspace, "Workspace"),
+    (translation, "Translation"),
 ):
     _include_router_if_available(module, tag)
 

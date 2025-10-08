@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import Sidebar from "./components/Sidebar";
 import ChatUI from "./components/ChatUI";
 import "./App.css";
 
 function App() {
+  const { t } = useTranslation();
   const [workspace, setWorkspace] = useState({ projects: [], chatGroups: [], conversations: {} });
   const [activeProjectId, setActiveProjectId] = useState(null);
   const [activeChatId, setActiveChatId] = useState(null);
@@ -198,7 +200,7 @@ function App() {
   };
 
   if (loading) {
-    return <div className="app-shell app-shell--loading">Loading workspace…</div>;
+    return <div className="app-shell app-shell--loading">{t("app.loading")}</div>;
   }
 
   if (error) {
@@ -212,7 +214,7 @@ function App() {
   if (!activeProject || !activeConversation) {
     return (
       <div className="app-shell app-shell--error" role="alert">
-        Workspace data is unavailable. Please try reloading the page.
+        {t("app.unavailable")}
       </div>
     );
   }

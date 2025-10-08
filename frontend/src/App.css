@@ -77,6 +77,22 @@ input {
   gap: 0.5rem;
 }
 
+.language-switcher {
+  margin-top: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: #0054a6;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.language-switcher:hover {
+  background: #003d7a;
+}
+
 .sidebar__tagline {
   font-size: 0.85rem;
   color: #7a6a57;

@@ -1,0 +1,45 @@
+{
+  "app": {
+    "loading": "جاري تحميل مساحة العمل…",
+    "unavailable": "بيانات مساحة العمل غير متوفرة. يرجى إعادة تحميل الصفحة."
+  },
+  "sidebar": {
+    "navigator": "مستكشف المحادثات",
+    "history": "سجل المحادثات",
+    "tagline": "مساعد تسليم المشاريع",
+    "newChat": "محادثة جديدة",
+    "activeProject": "المشروع النشط",
+    "draft": "مسودة",
+    "notifications": "الإشعارات",
+    "settings": "الإعدادات",
+    "createChat": "إنشاء محادثة",
+    "switchToArabic": "التبديل إلى العربية",
+    "switchToEnglish": "التبديل إلى الإنجليزية",
+    "profile": {
+      "name": "خالد المطيري",
+      "role": "قائد التسليم"
+    }
+  },
+  "chat": {
+    "actionsLabel": "إجراءات الرسالة",
+    "hideContext": "إخفاء السياق",
+    "showContext": "إظهار السياق",
+    "messagePlaceholder": "شارك التحديثات أو الطلبات أو الأسئلة مع فريق الموقع",
+    "composerLabel": "محرر الرسائل",
+    "uploadFile": "تحميل ملف",
+    "capturePhoto": "التقاط صورة",
+    "muteMic": "كتم الميكروفون",
+    "enableMic": "تفعيل الميكروفون",
+    "send": "إرسال",
+    "micWarning": "فعّل الميكروفون لتسجيل مذكرة صوتية سريعة.",
+    "status": {
+      "connected": "متصل",
+      "offline": "غير متصل"
+    },
+    "actions": {
+      "pin": "تثبيت",
+      "copy": "نسخ",
+      "followUp": "متابعة"
+    }
+  }
+}

@@ -18,7 +18,7 @@ class CreateAlertRequest(BaseModel):
 
 @router.post("/alerts", response_model=AlertMessage)
 def create_alert(payload: CreateAlertRequest = Body(...)) -> AlertMessage:
-    """Forward alert payloads to the Slack webhook integration."""
+    """Forward alert payloads to any configured webhook integrations."""
     result = send_alert(payload.message)
     level = result.get("level", "info")
     status = result.get("status", "ok")

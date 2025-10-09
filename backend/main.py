@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from backend.api import (
     advanced_intelligence,
+    intelligence,
     alerts,
     analytics,
     analytics_reports_system,
@@ -110,6 +111,7 @@ def _include_router_if_available(module, tag: str) -> None:
 
 for module, tag in (
     (advanced_intelligence, "Advanced Intelligence"),
+    (intelligence, "Intelligence"),
     (autocad, "AutoCAD"),
     (chat, "Chat"),
     (connectors, "Connectors"),

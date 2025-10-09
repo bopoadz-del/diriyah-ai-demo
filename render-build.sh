@@ -13,6 +13,11 @@ apt-get install -y --no-install-recommends \
   libmagic1 \
   poppler-utils \
   python3-venv \
+  python3-dev \
+  libffi-dev \
+  libssl-dev \
+  sqlite3 \
+  libboost-all-dev \
   tesseract-ocr
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt-get install -y --no-install-recommends nodejs

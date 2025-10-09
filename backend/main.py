@@ -1,45 +1,25 @@
+"""FastAPI application entry-point with Render-friendly router loading."""
+
+from __future__ import annotations
+
+from importlib import import_module
 import logging
 import os
 import sys
 from pathlib import Path
+from types import ModuleType
+from typing import Iterable, Tuple
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from backend.api import (
-    advanced_intelligence,
-    intelligence,
-    alerts,
-    analytics,
-    analytics_reports_system,
-    autocad,
-    cache,
-    chat,
-    connectors,
-    drive,
-    drive_diagnose,
-    drive_scan,
-    openai_test,
-    parsing,
-    progress_tracking,
-    preferences,
-    project,
-    projects,
-    qto,
-    speech,
-    upload,
-    users,
-    vision,
-    workspace,
-    translation,
-)
+
 from backend.services.google_drive import (
     drive_credentials_available,
     drive_service_error,
     drive_stubbed,
 )
-
 
 
 def _configure_logging() -> logging.Logger:
@@ -48,9 +28,6 @@ def _configure_logging() -> logging.Logger:
     log_level_name = os.getenv("LOG_LEVEL", "INFO").upper()
     log_level = getattr(logging, log_level_name, logging.INFO)
 
-    # ``basicConfig`` is a no-op if the root logger already has handlers, which is
-    # the case when running under ``uvicorn`` or ``gunicorn`` locally. Rendering a
-    # consistent logging format keeps debugging output predictable in Render.
     logging.basicConfig(
         level=log_level,
         format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
@@ -101,42 +78,60 @@ if not _INDEX_HTML.exists():
     _INDEX_HTML = None
 
 
-def _include_router_if_available(module, tag: str) -> None:
+def _load_module(path: str) -> ModuleType | None:
+    """Import ``path`` safely, logging but tolerating missing dependencies."""
+
+    try:
+        return import_module(path)
+    except Exception as exc:  # pragma: no cover - defensive guard for optional deps
+        logger.warning("Skipping router %s due to import error: %s", path, exc)
+        return None
+
+
+def _iter_router_specs() -> Iterable[Tuple[str, str]]:
+    """Yield module import paths with their associated API tags."""
+
+    return (
+        ("backend.api.advanced_intelligence", "Advanced Intelligence"),
+        ("backend.api.intelligence", "Intelligence"),
+        ("backend.api.autocad", "AutoCAD"),
+        ("backend.api.chat", "Chat"),
+        ("backend.api.connectors", "Connectors"),
+        ("backend.api.project", "Intel"),
+        ("backend.api.cache", "Cache"),
+        ("backend.api.alerts", "Alerts"),
+        ("backend.api.analytics", "Analytics"),
+        ("backend.api.analytics_reports_system", "Analytics Reports"),
+        ("backend.api.drive", "Drive"),
+        ("backend.api.drive_diagnose", "Drive"),
+        ("backend.api.drive_scan", "Drive"),
+        ("backend.api.openai_test", "OpenAI"),
+        ("backend.api.parsing", "Parsing"),
+        ("backend.api.progress_tracking", "Progress Tracking"),
+        ("backend.api.upload", "Upload"),
+        ("backend.api.qto", "QTO"),
+        ("backend.api.vision", "Vision"),
+        ("backend.api.speech", "Speech"),
+        ("backend.api.projects", "Projects"),
+        ("backend.api.preferences", "Preferences"),
+        ("backend.api.users", "Users"),
+        ("backend.api.workspace", "Workspace"),
+        ("backend.api.translation", "Translation"),
+    )
+
+
+def _include_router_if_available(module: ModuleType | None, tag: str) -> None:
     """Register the router exposed by ``module`` when present."""
 
+    if module is None:
+        return
     router = getattr(module, "router", None)
     if router is not None:
         app.include_router(router, prefix="/api", tags=[tag])
 
 
-for module, tag in (
-    (advanced_intelligence, "Advanced Intelligence"),
-    (intelligence, "Intelligence"),
-    (autocad, "AutoCAD"),
-    (chat, "Chat"),
-    (connectors, "Connectors"),
-    (project, "Intel"),
-    (cache, "Cache"),
-    (alerts, "Alerts"),
-    (analytics, "Analytics"),
-    (analytics_reports_system, "Analytics Reports"),
-    (drive, "Drive"),
-    (openai_test, "OpenAI"),
-    (parsing, "Parsing"),
-    (progress_tracking, "Progress Tracking"),
-    (upload, "Upload"),
-    (qto, "QTO"),
-    (vision, "Vision"),
-    (speech, "Speech"),
-    (projects, "Projects"),
-    (preferences, "Preferences"),
-    (drive_scan, "Drive"),
-    (drive_diagnose, "Drive"),
-    (users, "Users"),
-    (workspace, "Workspace"),
-    (translation, "Translation"),
-):
-    _include_router_if_available(module, tag)
+for module_path, tag in _iter_router_specs():
+    _include_router_if_available(_load_module(module_path), tag)
 
 
 @app.get("/", include_in_schema=False)

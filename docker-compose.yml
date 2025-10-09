@@ -9,6 +9,8 @@ services:
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - CORS_ORIGINS=*
+      - UNCERTAINTY_THRESHOLD=${UNCERTAINTY_THRESHOLD:-0.3}
+      - CAUSAL_CONFIDENCE_LEVEL=${CAUSAL_CONFIDENCE_LEVEL:-0.9}
     volumes:
       - ./:/app
   frontend:

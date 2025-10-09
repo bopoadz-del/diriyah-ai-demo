@@ -1,4 +1,6 @@
 import logging
+import os
+import sys
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -37,10 +39,34 @@ from backend.services.google_drive import (
     drive_stubbed,
 )
 
-logger = logging.getLogger(__name__)
+
+
+def _configure_logging() -> logging.Logger:
+    """Configure structured logging for Render deployments."""
+
+    log_level_name = os.getenv("LOG_LEVEL", "INFO").upper()
+    log_level = getattr(logging, log_level_name, logging.INFO)
+
+    # ``basicConfig`` is a no-op if the root logger already has handlers, which is
+    # the case when running under ``uvicorn`` or ``gunicorn`` locally. Rendering a
+    # consistent logging format keeps debugging output predictable in Render.
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+        force=True,
+    )
+
+    logger = logging.getLogger(__name__)
+    logger.debug("Logging configured", extra={"level": log_level_name})
+    return logger
+
+
+logger = _configure_logging()
 
 
 app = FastAPI(title="Diriyah Brain AI", version="v1.24")
+logger.info("FastAPI application initialised", extra={"version": app.version})
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

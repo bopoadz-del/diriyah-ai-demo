@@ -35,10 +35,29 @@ pytest==8.2.0
 langdetect==1.0.9
 # Enable contextual translation support
 deep-translator==1.11.4
+        codex/fix-pip-installation-error-in-dockerfile
 # First release publishing Python 3.11 wheels
 camel-tools==1.5.7
 # Pin transformers below 4.44 to satisfy camel-tools' upper bound while staying compatible with sentence-transformers.
 transformers==4.43.4
+
+        codex/fix-pip-installation-error-in-dockerfile
+
+        codex/fix-dependency-installation-error-in-dockerfile-4ddnlz
+# camel-tools first release publishing Python 3.11 wheels
+camel-tools==1.5.7
+transformers==4.44.2
+   
+        main
+# First release publishing Python 3.11 wheels
+camel-tools==1.5.7
+# Pin transformers below 4.44 to satisfy camel-tools' upper bound while staying compatible with sentence-transformers.
+transformers==4.43.4   
+       codex/fix-pip-installation-error-in-dockerfile
+
+       main
+          main
+             main
 torch==2.4.1
 boto3==1.35.28
 PyJWT==2.9.0
@@ -46,7 +65,11 @@ passlib[bcrypt]==1.7.4
 # Last release providing universal wheels
 mapie==0.9.2
 dowhy==0.11.1
+        codex/fix-dependency-installation-error-in-dockerfile-4ddnlz
+# causalml first release publishing Python 3.11 wheels
+      
 # First release publishing Python 3.11 wheels
+   
 causalml==0.15.5
 networkx==3.3
 statsmodels==0.14.2

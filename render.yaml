@@ -12,7 +12,13 @@ services:
       bash -c "if [ -f /opt/render/project/.venv/bin/activate ]; then
         source /opt/render/project/.venv/bin/activate
       fi
-      exec gunicorn -k uvicorn.workers.UvicornWorker -w 4 -b 0.0.0.0:8000 backend.main:app"
+      PORT_VALUE="${PORT:-8000}" && \
+      echo "Starting gunicorn on port ${PORT_VALUE}" && \
+      exec gunicorn \
+        -k uvicorn.workers.UvicornWorker \
+        -w 4 \
+        -b 0.0.0.0:"${PORT_VALUE}" \
+        backend.main:app"
     envVars:
       - key: OPENAI_API_KEY
         sync: false

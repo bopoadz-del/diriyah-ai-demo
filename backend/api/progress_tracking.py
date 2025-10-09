@@ -3,14 +3,21 @@ FastAPI endpoints for Progress Tracking via Computer Vision
 Integrates with Diriyah Brain AI backend
 """
 
+from __future__ import annotations
+
 from datetime import datetime, timedelta
 import base64
 import json
+
 import logging
 from typing import Dict, List, Optional
 
-import numpy as np
-from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
+try:  # pragma: no cover - optional dependency for lightweight deployments
+    import numpy as np  # type: ignore
+except ImportError:  # pragma: no cover - handled gracefully
+    np = None  # type: ignore[assignment]
+
+from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -32,6 +39,17 @@ except Exception as exc:  # pragma: no cover - handled during runtime
     ProgressSnapshot = None  # type: ignore[assignment]
     _progress_service_import_error = exc
 
+try:  # pragma: no cover - optional multipart dependency
+    import multipart  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover - handled gracefully
+    multipart = None  # type: ignore[assignment]
+
+
+def _file_param(*args, **kwargs):
+    if multipart is None:
+        return Body(None)
+    return File(*args, **kwargs)
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/progress", tags=["Progress Tracking"])
@@ -39,7 +57,10 @@ router = APIRouter(prefix="/api/progress", tags=["Progress Tracking"])
 if cv2 is None:  # pragma: no cover - diagnostic log for Render deployments
     logger.warning("OpenCV import failed: %s", _cv2_import_error)
 
-if ProgressTrackingService is not None:
+if np is None:
+    logger.warning("NumPy import failed; progress tracking vision features disabled.")
+
+if ProgressTrackingService is not None and np is not None:
     progress_service: Optional[ProgressTrackingService] = ProgressTrackingService(
         model_path="backend/models/yolov8m.pt",
         custom_model_path="backend/models/construction_yolo.pt",
@@ -110,8 +131,13 @@ def _ensure_opencv() -> None:
         )
 
 
-def decode_image(file_data: bytes) -> np.ndarray:
+def decode_image(file_data: bytes) -> "np.ndarray":
     """Decode uploaded image to numpy array"""
+    if np is None:
+        raise HTTPException(
+            status_code=503,
+            detail="NumPy is not installed. Install numpy to decode images.",
+        )
     _ensure_opencv()
     nparr = np.frombuffer(file_data, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -137,7 +163,7 @@ def snapshot_to_dict(snapshot: ProgressSnapshot) -> Dict:
 
 @router.post("/analyze", response_model=Dict)
 async def analyze_site_progress(
-    file: UploadFile = File(..., description="Site photo for analysis"),
+    file: UploadFile | None = _file_param(..., description="Site photo for analysis"),
     location: str = "default",
     reference_schedule: Optional[str] = None,
     compare_with_previous: bool = True,
@@ -157,6 +183,12 @@ async def analyze_site_progress(
     - Anomalies/issues
     - Schedule comparison
     """
+    if multipart is None or file is None:
+        raise HTTPException(
+            status_code=503,
+            detail="python-multipart is not installed; file uploads are disabled.",
+        )
+
     try:
         service = _ensure_progress_service()
 
@@ -191,7 +223,7 @@ async def analyze_site_progress(
 
 @router.post("/batch-analyze")
 async def batch_analyze_progress(
-    files: List[UploadFile] = File(...),
+    files: List[UploadFile] | None = _file_param(...),
     location: str = "default",
     reference_schedule: Optional[str] = None,
 ):
@@ -244,6 +276,12 @@ async def generate_progress_report(request: ProgressReportRequest):
     - Anomaly summary
     - Schedule adherence
     """
+    if multipart is None or not files:
+        raise HTTPException(
+            status_code=503,
+            detail="python-multipart is not installed; batch uploads are disabled.",
+        )
+
     try:
         service = _ensure_progress_service()
 

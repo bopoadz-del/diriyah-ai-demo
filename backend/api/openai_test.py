@@ -1,9 +1,27 @@
+from __future__ import annotations
+
 import os
+from types import SimpleNamespace
 from typing import Iterable, List, Sequence
 
 from fastapi import APIRouter
 
-import openai
+try:  # pragma: no cover - optional dependency for local debugging
+    import openai as _openai
+except ModuleNotFoundError:  # pragma: no cover - handled gracefully in endpoint
+    _openai = None
+
+
+class _MissingModel:
+    """Fallback model shim used when the OpenAI client is unavailable."""
+
+    @staticmethod
+    def list(*_args, **_kwargs):  # pragma: no cover - simple defensive stub
+        raise RuntimeError("openai package not installed")
+
+
+OPENAI_AVAILABLE = _openai is not None
+openai = _openai or SimpleNamespace(api_key=None, Model=_MissingModel)
 
 
 router = APIRouter()
@@ -45,6 +63,8 @@ def openai_test():
         return {"status": "error", "message": "OPENAI_API_KEY not set"}
 
     try:
+        if not OPENAI_AVAILABLE:
+            raise RuntimeError("openai package not installed")
         openai.api_key = api_key
         response = openai.Model.list()
         ids = _collect_model_ids(response)

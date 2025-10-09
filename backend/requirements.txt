@@ -30,7 +30,8 @@ PyPDF2==3.0.1
 python-docx==1.1.0
 python-pptx==0.6.23
 rarfile==4.1
-scikit-learn==1.5.2
+# Align with causalml's lower bound (>=1.6.0) while remaining compatible with mapie >=1.1.0.
+scikit-learn==1.6.1
 pytest==8.2.0
 langdetect==1.0.9
 # Enable contextual translation support
@@ -43,8 +44,8 @@ torch==2.4.1
 boto3==1.35.28
 PyJWT==2.9.0
 passlib[bcrypt]==1.7.4
-# Last release providing universal wheels
-mapie==0.9.2
+# Maintain Python 3.11 wheel support and compatibility with scikit-learn 1.6.x
+mapie==1.1.0
 dowhy==0.11.1
 # First release publishing Python 3.11 wheels
 causalml==0.15.5

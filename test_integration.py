@@ -64,13 +64,13 @@ def test_slack_interactivity_triggers_workflow(slack_test_app):
         "channel": {"id": "C123"},
         "message": {"ts": "1699999999.000100"},
     }
-    body = urlencode({"payload": json.dumps(payload)})
+    body_str = urlencode({"payload": json.dumps(payload)})
     timestamp = "1700000000"
-    signature = _signature("signing-secret", timestamp, body)
+    signature = _signature("signing-secret", timestamp, body_str)
 
     response = client.post(
         "/slack/interactivity",
-        data=body,
+        content=body_str.encode(),
         headers={
             "Content-Type": "application/x-www-form-urlencoded",
             "X-Slack-Signature": signature,

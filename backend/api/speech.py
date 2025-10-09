@@ -6,10 +6,21 @@ import io
 import logging
 from typing import Any, Callable, Optional
 
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, Body, File, HTTPException, UploadFile
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+try:  # pragma: no cover - optional multipart dependency
+    import multipart  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover - handled gracefully
+    multipart = None  # type: ignore[assignment]
+
+
+def _upload_param(*args, **kwargs):
+    if multipart is None:
+        return Body(None)
+    return File(*args, **kwargs)
 
 
 @router.get("/speech/diagnostics")
@@ -143,8 +154,16 @@ def _generate_answer(project_id: str, transcript: str) -> str:
 
 
 @router.post("/speech/{project_id}")
-async def speech_to_text(project_id: str, file: UploadFile = File(...)) -> dict[str, str]:
+async def speech_to_text(
+    project_id: str, file: UploadFile | None = _upload_param(...)
+) -> dict[str, str]:
     """Transcribe uploaded audio and provide a stubbed answer for the project."""
+
+    if multipart is None or file is None:
+        raise HTTPException(
+            status_code=503,
+            detail="python-multipart is not installed; speech uploads are disabled.",
+        )
 
     transcript = await _transcribe(file)
     answer = _generate_answer(project_id, transcript)

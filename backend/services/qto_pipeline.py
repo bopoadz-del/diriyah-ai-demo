@@ -1,7 +1,20 @@
-import ezdxf, ifcopenshell, pandas as pd
+from __future__ import annotations
+
+try:  # pragma: no cover - optional CAD dependencies for Render builds
+    import ezdxf  # type: ignore
+except ImportError:  # pragma: no cover - handled at runtime
+    ezdxf = None  # type: ignore[assignment]
+
+try:  # pragma: no cover - optional BIM dependency
+    import ifcopenshell  # type: ignore
+except ImportError:  # pragma: no cover - handled at runtime
+    ifcopenshell = None  # type: ignore[assignment]
+
 from .drive_service import download_file
 
 def parse_dwg(file_path: str):
+    if ezdxf is None:
+        raise RuntimeError("ezdxf package is not installed; DWG parsing unavailable")
     doc = ezdxf.readfile(file_path)
     msp = doc.modelspace()
     entities = []
@@ -10,6 +23,8 @@ def parse_dwg(file_path: str):
     return entities
 
 def parse_ifc(file_path: str):
+    if ifcopenshell is None:
+        raise RuntimeError("ifcopenshell package is not installed; IFC parsing unavailable")
     model = ifcopenshell.open(file_path)
     entities = []
     for wall in model.by_type('IfcWall'):

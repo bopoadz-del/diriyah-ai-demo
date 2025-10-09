@@ -13,7 +13,15 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
-from jinja2 import Environment, FileSystemLoader
+
+try:  # pragma: no cover - optional templating dependency
+    from jinja2 import Environment, FileSystemLoader
+except Exception as exc:  # pragma: no cover - diagnostics only
+    Environment = None  # type: ignore[assignment]
+    FileSystemLoader = None  # type: ignore[assignment]
+    _jinja_import_error: Optional[Exception] = exc
+else:  # pragma: no cover
+    _jinja_import_error = None
 
 logger = logging.getLogger(__name__)
 
@@ -324,8 +332,14 @@ class AutomatedReportGenerator:
 
         self.template_dir = Path(template_dir)
         self.template_dir.mkdir(exist_ok=True, parents=True)
-        self.jinja_env = Environment(loader=FileSystemLoader(str(self.template_dir)))
-        self._create_default_templates()
+        self.jinja_env: Optional[Environment]
+        if Environment is not None and FileSystemLoader is not None:
+            self.jinja_env = Environment(loader=FileSystemLoader(str(self.template_dir)))
+            self._create_default_templates()
+        else:
+            self.jinja_env = None
+            if _jinja_import_error:
+                logger.warning("Jinja2 unavailable: %s", _jinja_import_error)
 
         self.output_dir = Path("./reports")
         self.output_dir.mkdir(exist_ok=True, parents=True)
@@ -663,19 +677,84 @@ class AutomatedReportGenerator:
 
     async def _generate_html_report(self, report_data: ReportData, report_type: ReportType) -> str:
         template_name = f"{report_type.value}_template.html"
-        try:
-            template = self.jinja_env.get_template(template_name)
-        except Exception:
-            template = self.jinja_env.get_template("default_template.html")
-        html_content = template.render(
-            report=report_data,
-            generated_date=datetime.now().strftime("%B %d, %Y at %H:%M"),
-            **report_data.metrics,
-        )
+        if self.jinja_env is None:
+            html_content = self._render_basic_html(report_data)
+        else:
+            try:
+                template = self.jinja_env.get_template(template_name)
+            except Exception:
+                template = self.jinja_env.get_template("default_template.html")
+            html_content = template.render(
+                report=report_data,
+                generated_date=datetime.now().strftime("%B %d, %Y at %H:%M"),
+                **report_data.metrics,
+            )
         html_filename = f"report_{report_type.value}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
         html_path = self.output_dir / html_filename
         html_path.write_text(html_content, encoding="utf-8")
         return str(html_path)
+
+    def _render_basic_html(self, report_data: ReportData) -> str:
+        """Render a lightweight HTML report when Jinja2 is unavailable."""
+
+        metrics_html = "".join(
+            f"<li><strong>{key.replace('_', ' ').title()}:</strong> {value}</li>"
+            for key, value in report_data.metrics.items()
+        )
+        insights_html = "".join(f"<li>{insight}</li>" for insight in report_data.insights) or "<li>No insights available.</li>"
+        recommendations_html = "".join(
+            f"<li>{recommendation}</li>" for recommendation in report_data.recommendations
+        ) or "<li>No recommendations available.</li>"
+
+        tables_sections: List[str] = []
+        for table_name, table in report_data.tables.items():
+            header_html = "".join(f"<th>{column}</th>" for column in table.headers)
+            rows_html = "".join(
+                "<tr>" + "".join(f"<td>{row.get(column, '')}</td>" for column in table.headers) + "</tr>"
+                for row in table.rows
+            )
+            tables_sections.append(
+                f"<section><h3>{table_name.title()} Details</h3><table><thead><tr>{header_html}</tr></thead><tbody>{rows_html}</tbody></table></section>"
+            )
+
+        tables_html = "".join(tables_sections) or "<p>No tabular data available.</p>"
+
+        return f"""
+<!DOCTYPE html>
+<html lang=\"en\">
+  <head>
+    <meta charset=\"utf-8\">
+    <title>{report_data.title}</title>
+    <style>
+      body {{ font-family: Arial, sans-serif; background: #F9FAFB; color: #1F2937; margin: 0; padding: 24px; }}
+      h1 {{ color: #92400E; }}
+      section {{ background: #FFFFFF; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }}
+      ul {{ padding-left: 20px; }}
+      table {{ width: 100%; border-collapse: collapse; }}
+      th, td {{ border: 1px solid #E5E7EB; padding: 8px; text-align: left; }}
+      th {{ background: #F3F4F6; }}
+    </style>
+  </head>
+  <body>
+    <h1>{report_data.title}</h1>
+    <p><strong>Period:</strong> {report_data.period}</p>
+    <p><strong>Generated:</strong> {datetime.now().strftime('%B %d, %Y at %H:%M')}</p>
+    <section>
+      <h2>Metrics</h2>
+      <ul>{metrics_html}</ul>
+    </section>
+    <section>
+      <h2>Key Insights</h2>
+      <ul>{insights_html}</ul>
+    </section>
+    <section>
+      <h2>Recommendations</h2>
+      <ul>{recommendations_html}</ul>
+    </section>
+    {tables_html}
+  </body>
+</html>
+"""
 
     async def _generate_excel_report(self, report_data: ReportData, report_type: ReportType) -> str:
         if Workbook is None:

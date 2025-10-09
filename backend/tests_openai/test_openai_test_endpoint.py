@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import List
 import sys
 
-import openai
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -53,6 +52,7 @@ def test_openai_test_with_api_key(monkeypatch):
             _DummyModel("model-4"),
         ]),
     )
+    monkeypatch.setattr(openai_module, "OPENAI_AVAILABLE", True)
 
     response = client.get("/api/openai/test")
 
@@ -61,4 +61,4 @@ def test_openai_test_with_api_key(monkeypatch):
         "status": "ok",
         "models_available": ["model-1", "model-2", "model-3"],
     }
-    assert openai.api_key == "test-key"
+    assert openai_module.openai.api_key == "test-key"

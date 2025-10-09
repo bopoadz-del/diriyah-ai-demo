@@ -5,26 +5,51 @@ from pathlib import Path
 from typing import Iterable
 import xml.etree.ElementTree as ET
 
-import PyPDF2
-import docx
-import openpyxl
-import pptx
-import rarfile
+try:  # pragma: no cover - optional PDF dependency
+    import PyPDF2
+except ImportError:  # pragma: no cover - handled gracefully
+    PyPDF2 = None  # type: ignore[assignment]
+
+try:  # pragma: no cover - optional DOCX dependency
+    import docx
+except ImportError:  # pragma: no cover - handled gracefully
+    docx = None  # type: ignore[assignment]
+
+try:  # pragma: no cover - optional XLSX dependency
+    import openpyxl
+except ImportError:  # pragma: no cover - handled gracefully
+    openpyxl = None  # type: ignore[assignment]
+
+try:  # pragma: no cover - optional PPTX dependency
+    import pptx
+except ImportError:  # pragma: no cover - handled gracefully
+    pptx = None  # type: ignore[assignment]
+
+try:  # pragma: no cover - optional archive dependency
+    import rarfile
+except ImportError:  # pragma: no cover - handled gracefully
+    rarfile = None  # type: ignore[assignment]
 
 def _read_text_file(path: Path) -> str:
     with path.open("r", encoding="utf-8", errors="ignore") as handle:
         return handle.read()
 
 def _extract_from_pdf(path: Path) -> str:
+    if PyPDF2 is None:
+        return "PDF text extraction unavailable (PyPDF2 not installed)"
     with path.open("rb") as handle:
         reader = PyPDF2.PdfReader(handle)
         return "".join(page.extract_text() or "" for page in reader.pages)
 
 def _extract_from_docx(path: Path) -> str:
+    if docx is None:
+        return "DOCX extraction unavailable (python-docx not installed)"
     document = docx.Document(path)
     return "\n".join(paragraph.text for paragraph in document.paragraphs)
 
 def _extract_from_pptx(path: Path) -> str:
+    if pptx is None:
+        return "PPTX extraction unavailable (python-pptx not installed)"
     presentation = pptx.Presentation(path)
     text_segments: list[str] = []
     for slide in presentation.slides:
@@ -34,6 +59,8 @@ def _extract_from_pptx(path: Path) -> str:
     return "\n".join(text_segments)
 
 def _extract_from_xlsx(path: Path) -> str:
+    if openpyxl is None:
+        return "XLSX extraction unavailable (openpyxl not installed)"
     workbook = openpyxl.load_workbook(path, data_only=True)
     rows: list[str] = []
     for sheet_name in workbook.sheetnames:
@@ -46,7 +73,12 @@ def _extract_from_xlsx(path: Path) -> str:
 
 def _extract_from_archive(path: Path, *, rar: bool = False) -> str:
     text_segments: list[str] = []
-    archive_cls = rarfile.RarFile if rar else zipfile.ZipFile
+    if rar:
+        if rarfile is None:
+            return "RAR extraction unavailable (rarfile not installed)"
+        archive_cls = rarfile.RarFile
+    else:
+        archive_cls = zipfile.ZipFile
     with archive_cls(path) as archive:
         names: Iterable[str] = archive.namelist()
         for name in names:

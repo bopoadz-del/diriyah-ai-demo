@@ -4,13 +4,32 @@ from __future__ import annotations
 import os
 from typing import Any, Dict
 
-import requests
+try:  # pragma: no cover - optional dependency for lightweight Render builds
+    import requests
+except ModuleNotFoundError:  # pragma: no cover - handled gracefully at runtime
+    class _RequestsStub:
+        class exceptions:  # pragma: no cover - simple namespace
+            class ConnectionError(Exception):
+                """Fallback connection error when requests is unavailable."""
+
+        def post(self, *_args, **_kwargs):  # pragma: no cover - tests monkeypatch
+            raise RuntimeError("requests package not installed")
+
+    requests = _RequestsStub()  # type: ignore[assignment]
+    _REQUESTS_AVAILABLE = False
+else:
+    _REQUESTS_AVAILABLE = True
 
 WebhookResult = Dict[str, str]
 
 
 def _post_webhook(url: str, payload: Dict[str, Any]) -> WebhookResult:
     """Send ``payload`` to ``url`` and normalise the response."""
+    if not hasattr(requests, "post"):
+        return {
+            "status": "error",
+            "reason": "requests package not installed",
+        }
     try:
         response = requests.post(url, json=payload, timeout=5)
     except requests.RequestException as exc:  # pragma: no cover - requests handles errors

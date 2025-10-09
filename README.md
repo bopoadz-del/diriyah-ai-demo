@@ -17,6 +17,18 @@ cp .env.example .env
 docker compose up --build
 ```
 
+## Local development
+
+Use the helper script to bootstrap a virtual environment that mirrors the Render deployment:
+
+```bash
+./scripts/setup-dev-env.sh
+source .venv/bin/activate
+pytest -q
+```
+
+Set `INSTALL_BACKEND_OPTIONALS=true` when you need the full machine-learning dependency stack (large downloads). See [Render Debugging Playbook](docs/RENDER_DEBUGGING.md) for end-to-end steps that reproduce the Render build locally.
+
 ## Deploy to Render.com
 - Render automatically runs `render-build.sh` to install system dependencies, build the frontend, and prepare the FastAPI app for production.
 - The backend service defined in `render.yaml` uses the virtual environment at `/opt/render/project/.venv` and exposes the health check at `/health` for monitoring.

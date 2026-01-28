@@ -1,1 +1,1 @@
-"""Learning feedback and dataset export helpers."""
+"""Learning feedback and dataset export package."""

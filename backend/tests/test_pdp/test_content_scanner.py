@@ -367,8 +367,8 @@ def test_severity_levels(scanner):
     pii_result = scanner.scan("SSN: 123-45-6789")
     assert pii_result.severity == Severity.MEDIUM
     
-    # SQL/XSS should be HIGH
-    sql_result = scanner.scan("SELECT * FROM users")
+    # SQL injection should be HIGH (using actual injection pattern)
+    sql_result = scanner.scan("SELECT * FROM users UNION SELECT password FROM admin")
     assert sql_result.severity == Severity.HIGH
     
     # Command injection should be CRITICAL
@@ -387,17 +387,17 @@ def test_patterns_loaded_from_constants(scanner):
 
 def test_case_insensitive_detection(scanner):
     """Test that pattern detection is case-insensitive."""
-    # Uppercase SQL
-    content1 = "SELECT * FROM users"
+    # Uppercase SQL injection
+    content1 = "UNION SELECT password FROM admin"
     result1 = scanner.scan(content1)
     assert result1.safe is False
     
-    # Lowercase SQL
-    content2 = "select * from users"
+    # Lowercase SQL injection
+    content2 = "union select password from admin"
     result2 = scanner.scan(content2)
     assert result2.safe is False
     
-    # Mixed case SQL
-    content3 = "SeLeCt * FrOm users"
+    # Mixed case SQL injection
+    content3 = "UnIoN SeLeCt password FrOm admin"
     result3 = scanner.scan(content3)
     assert result3.safe is False

@@ -2,6 +2,7 @@
 CREATE TABLE projects (
     id SERIAL PRIMARY KEY,
     name TEXT,
+    description TEXT,
     drive_id TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );

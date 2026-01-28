@@ -1,10 +1,45 @@
+# Default values for diriyah-brain-ai
+# This is a YAML-formatted file.
+
 replicaCount: 2
+
 image:
   repository: ghcr.io/your-org/diriyah-brain-ai
   tag: latest
+  pullPolicy: IfNotPresent
 
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 80
 
 persistence:
   enabled: true
   storageClass: standard
+  accessMode: ReadWriteOnce
   size: 1Gi
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+
+env: {}
+  # OPENAI_API_KEY: ""
+  # DATABASE_URL: ""
+  # REDIS_URL: ""
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+serviceAccount:
+  create: false
+  name: ""

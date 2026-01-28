@@ -21,6 +21,8 @@ from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, Uploa
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from backend.redisx.locks import DistributedLock
+
 try:  # pragma: no cover - optional dependency
     import cv2
     _cv2_import_error: Optional[Exception] = None
@@ -530,6 +532,7 @@ async def get_progress_velocity(location: str, days: int = 7):
 @router.post("/train-custom-model")
 async def train_custom_model(
     background_tasks: BackgroundTasks,
+    workspace_id: str,
     dataset_path: str,
     epochs: int = 100,
     model_name: str = "construction_custom",
@@ -541,22 +544,34 @@ async def train_custom_model(
     """
     service = _ensure_progress_service()
 
-    def train_model() -> None:
-        """Background task for model training"""
-        from ultralytics import YOLO
-
-        model = YOLO("yolov8m.pt")
-
-        model.train(
-            data=dataset_path,
-            epochs=epochs,
-            imgsz=640,
-            device="0",
-            project="backend/models",
-            name=model_name,
+    lock = DistributedLock()
+    lock_key = f"lock:workspace:{workspace_id}:learning"
+    token = lock.acquire(lock_key, ttl=60 * 60 * 2, wait_seconds=0)
+    if token is None:
+        return JSONResponse(
+            status_code=409,
+            content={"message": "Learning already running for workspace."},
         )
 
-        model.save(f"backend/models/{model_name}.pt")
+    def train_model() -> None:
+        """Background task for model training"""
+        try:
+            from ultralytics import YOLO
+
+            model = YOLO("yolov8m.pt")
+
+            model.train(
+                data=dataset_path,
+                epochs=epochs,
+                imgsz=640,
+                device="0",
+                project="backend/models",
+                name=model_name,
+            )
+
+            model.save(f"backend/models/{model_name}.pt")
+        finally:
+            lock.release(lock_key, token)
 
     background_tasks.add_task(train_model)
 

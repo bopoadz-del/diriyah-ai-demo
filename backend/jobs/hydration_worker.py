@@ -15,7 +15,6 @@ from backend.backend.pdp.audit_logger import AuditLogger
 from backend.backend.pdp.policy_engine import PolicyEngine
 from backend.backend.pdp.schemas import PolicyRequest
 from backend.hydration.alerts import AlertManager
-from backend.hydration.locks import LockManager
 from backend.hydration.models import (
     AlertCategory,
     AlertSeverity,
@@ -25,6 +24,7 @@ from backend.hydration.models import (
     WorkspaceSource,
 )
 from backend.hydration.pipeline import HydrationOptions, HydrationPipeline
+from backend.redisx.locks import DistributedLock
 
 logger = logging.getLogger(__name__)
 
@@ -110,11 +110,13 @@ def run_worker() -> None:
                 if state.next_run_at and state.next_run_at > now:
                     continue
 
-                lock_manager = LockManager(db)
-                with lock_manager.acquire(source.workspace_id) as acquired:
-                    if not acquired:
-                        continue
+                lock = DistributedLock()
+                lock_key = f"lock:workspace:{source.workspace_id}:hydration"
+                token = lock.acquire(lock_key, ttl=60 * 60 * 2, wait_seconds=0)
+                if token is None:
+                    continue
 
+                try:
                     allowed, reason = _evaluate_pdp(db, user_id, source.workspace_id)
                     if not allowed:
                         state.status = HydrationStatus.FAILED
@@ -141,6 +143,8 @@ def run_worker() -> None:
                     pipeline.hydrate_workspace(source.workspace_id, options)
                     state.next_run_at = _next_run_time(datetime.now(timezone.utc), tz, hour, minute)
                     db.commit()
+                finally:
+                    lock.release(lock_key, token)
         except Exception as exc:
             logger.exception("Hydration worker loop error: %s", exc)
         finally:

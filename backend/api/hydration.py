@@ -37,6 +37,7 @@ from backend.hydration.schemas import (
     WorkspaceSourceOut,
     WorkspaceSourceUpdate,
 )
+from backend.redisx.locks import DistributedLock
 
 router = APIRouter(prefix="/hydration", tags=["Hydration"])
 
@@ -145,7 +146,15 @@ def run_now(
         max_files=request.max_files,
         dry_run=request.dry_run,
     )
-    run = pipeline.hydrate_workspace(request.workspace_id, options)
+    lock = DistributedLock()
+    lock_key = f"lock:workspace:{request.workspace_id}:hydration"
+    token = lock.acquire(lock_key, ttl=60 * 60 * 2, wait_seconds=0)
+    if token is None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="already running")
+    try:
+        run = pipeline.hydrate_workspace(request.workspace_id, options)
+    finally:
+        lock.release(lock_key, token)
     return {"run_id": run.id}
 
 

@@ -1,0 +1,201 @@
+[
+  {
+    "test_name": "concrete_spec_link",
+    "input": {"text": "Concrete Grade C40, 500 cubic meters for foundation"},
+    "expected": {
+      "links": [
+        {"type": "SpecSection", "id": "03300", "text": "Cast-in-Place Concrete", "confidence_min": 0.85}
+      ]
+    },
+    "metadata": {"domain": "construction", "difficulty": "easy"}
+  },
+  {
+    "test_name": "steel_spec_link",
+    "input": {"text": "Structural steel ASTM A992 Grade 50"},
+    "expected": {
+      "links": [
+        {"type": "SpecSection", "id": "05120", "text": "Structural Steel", "confidence_min": 0.85}
+      ]
+    },
+    "metadata": {"domain": "construction", "difficulty": "medium"}
+  },
+  {
+    "test_name": "rebar_spec_link",
+    "input": {"text": "Reinforcing steel bars Grade 60, 12mm diameter"},
+    "expected": {
+      "links": [
+        {"type": "SpecSection", "id": "03200", "text": "Concrete Reinforcement", "confidence_min": 0.80}
+      ]
+    },
+    "metadata": {"domain": "construction", "difficulty": "easy"}
+  },
+  {
+    "test_name": "masonry_spec_link",
+    "input": {"text": "Clay brick masonry Type S mortar"},
+    "expected": {
+      "links": [
+        {"type": "SpecSection", "id": "04200", "text": "Unit Masonry", "confidence_min": 0.85}
+      ]
+    },
+    "metadata": {"domain": "construction", "difficulty": "easy"}
+  },
+  {
+    "test_name": "waterproofing_spec_link",
+    "input": {"text": "Bituminous membrane waterproofing for basement walls"},
+    "expected": {
+      "links": [
+        {"type": "SpecSection", "id": "07100", "text": "Dampproofing and Waterproofing", "confidence_min": 0.80}
+      ]
+    },
+    "metadata": {"domain": "construction", "difficulty": "medium"}
+  },
+  {
+    "test_name": "hvac_spec_link",
+    "input": {"text": "Air handling unit 10,000 CFM with VFD"},
+    "expected": {
+      "links": [
+        {"type": "SpecSection", "id": "23700", "text": "Air Handling Units", "confidence_min": 0.85}
+      ]
+    },
+    "metadata": {"domain": "mechanical", "difficulty": "medium"}
+  },
+  {
+    "test_name": "electrical_conduit_link",
+    "input": {"text": "EMT conduit 3/4 inch for branch circuits"},
+    "expected": {
+      "links": [
+        {"type": "SpecSection", "id": "26050", "text": "Basic Electrical Materials", "confidence_min": 0.80}
+      ]
+    },
+    "metadata": {"domain": "electrical", "difficulty": "easy"}
+  },
+  {
+    "test_name": "plumbing_pipe_link",
+    "input": {"text": "Copper water pipe Type L 2 inch"},
+    "expected": {
+      "links": [
+        {"type": "SpecSection", "id": "22110", "text": "Facility Water Distribution", "confidence_min": 0.85}
+      ]
+    },
+    "metadata": {"domain": "plumbing", "difficulty": "easy"}
+  },
+  {
+    "test_name": "door_hardware_link",
+    "input": {"text": "Commercial grade lever lockset ANSI Grade 1"},
+    "expected": {
+      "links": [
+        {"type": "SpecSection", "id": "08710", "text": "Door Hardware", "confidence_min": 0.85}
+      ]
+    },
+    "metadata": {"domain": "architecture", "difficulty": "medium"}
+  },
+  {
+    "test_name": "glazing_spec_link",
+    "input": {"text": "Insulated glass unit Low-E coating 1 inch thick"},
+    "expected": {
+      "links": [
+        {"type": "SpecSection", "id": "08810", "text": "Glass", "confidence_min": 0.85}
+      ]
+    },
+    "metadata": {"domain": "architecture", "difficulty": "medium"}
+  },
+  {
+    "test_name": "fire_protection_link",
+    "input": {"text": "Wet pipe fire sprinkler system K-factor 5.6"},
+    "expected": {
+      "links": [
+        {"type": "SpecSection", "id": "21130", "text": "Fire-Suppression Sprinkler Systems", "confidence_min": 0.90}
+      ]
+    },
+    "metadata": {"domain": "fire_protection", "difficulty": "medium"}
+  },
+  {
+    "test_name": "earthwork_link",
+    "input": {"text": "Structural fill compacted to 95% Proctor"},
+    "expected": {
+      "links": [
+        {"type": "SpecSection", "id": "31230", "text": "Earthwork", "confidence_min": 0.85}
+      ]
+    },
+    "metadata": {"domain": "sitework", "difficulty": "easy"}
+  },
+  {
+    "test_name": "roofing_membrane_link",
+    "input": {"text": "TPO roofing membrane 60 mil white"},
+    "expected": {
+      "links": [
+        {"type": "SpecSection", "id": "07540", "text": "Thermoplastic Membrane Roofing", "confidence_min": 0.90}
+      ]
+    },
+    "metadata": {"domain": "architecture", "difficulty": "easy"}
+  },
+  {
+    "test_name": "drywall_spec_link",
+    "input": {"text": "Gypsum board 5/8 inch Type X fire-rated"},
+    "expected": {
+      "links": [
+        {"type": "SpecSection", "id": "09290", "text": "Gypsum Board", "confidence_min": 0.90}
+      ]
+    },
+    "metadata": {"domain": "architecture", "difficulty": "easy"}
+  },
+  {
+    "test_name": "paint_spec_link",
+    "input": {"text": "Interior latex paint eggshell finish"},
+    "expected": {
+      "links": [
+        {"type": "SpecSection", "id": "09910", "text": "Painting", "confidence_min": 0.85}
+      ]
+    },
+    "metadata": {"domain": "architecture", "difficulty": "easy"}
+  },
+  {
+    "test_name": "elevator_spec_link",
+    "input": {"text": "Traction passenger elevator 3500 lb capacity"},
+    "expected": {
+      "links": [
+        {"type": "SpecSection", "id": "14210", "text": "Electric Traction Elevators", "confidence_min": 0.90}
+      ]
+    },
+    "metadata": {"domain": "conveying", "difficulty": "medium"}
+  },
+  {
+    "test_name": "flooring_tile_link",
+    "input": {"text": "Porcelain floor tile 24x24 inch"},
+    "expected": {
+      "links": [
+        {"type": "SpecSection", "id": "09310", "text": "Tile", "confidence_min": 0.85}
+      ]
+    },
+    "metadata": {"domain": "architecture", "difficulty": "easy"}
+  },
+  {
+    "test_name": "ceiling_grid_link",
+    "input": {"text": "Suspended acoustical ceiling 2x4 grid"},
+    "expected": {
+      "links": [
+        {"type": "SpecSection", "id": "09510", "text": "Acoustical Ceilings", "confidence_min": 0.85}
+      ]
+    },
+    "metadata": {"domain": "architecture", "difficulty": "easy"}
+  },
+  {
+    "test_name": "boq_quantity_extraction",
+    "input": {"text": "Item 5.2.1: Concrete C30/37 - 1,250 m³"},
+    "expected": {
+      "quantity": 1250,
+      "unit": "m³",
+      "material": "Concrete C30/37"
+    },
+    "metadata": {"domain": "boq", "difficulty": "easy"}
+  },
+  {
+    "test_name": "spec_reference_extraction",
+    "input": {"text": "Per specification section 03 30 00, concrete shall achieve 4000 psi"},
+    "expected": {
+      "spec_section": "03 30 00",
+      "requirement": "4000 psi"
+    },
+    "metadata": {"domain": "specification", "difficulty": "medium"}
+  }
+]

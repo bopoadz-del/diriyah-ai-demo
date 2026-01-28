@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import Sidebar from "./components/Sidebar";
 import ChatUI from "./components/ChatUI";
+import { PDPProvider } from "./contexts/PDPContext";
 import "./App.css";
 
 function App() {
@@ -220,28 +221,30 @@ function App() {
   }
 
   return (
-    <div className={`app-shell ${isContextPanelOpen ? "app-shell--panel-open" : ""}`}>
-      <Sidebar
-        projects={workspace.projects}
-        activeProjectId={activeProjectId}
-        onProjectChange={handleProjectChange}
-        chatGroups={workspace.chatGroups}
-        activeChatId={activeChatId}
-        onChatSelect={handleChatSelect}
-        onCreateChat={handleCreateChat}
-      />
-      <ChatUI
-        project={activeProject}
-        conversation={activeConversation}
-        isContextPanelOpen={isContextPanelOpen}
-        onToggleContextPanel={handleToggleContextPanel}
-        onSubmitMessage={handleMessageSubmit}
-        onUploadAttachment={handleAttachmentUpload}
-        onToggleMicrophone={handleMicrophoneToggle}
-        microphoneEnabled={microphoneEnabled}
-        onMessageAction={handleMessageAction}
-      />
-    </div>
+    <PDPProvider userId={1} projectId={activeProjectId}>
+      <div className={`app-shell ${isContextPanelOpen ? "app-shell--panel-open" : ""}`}>
+        <Sidebar
+          projects={workspace.projects}
+          activeProjectId={activeProjectId}
+          onProjectChange={handleProjectChange}
+          chatGroups={workspace.chatGroups}
+          activeChatId={activeChatId}
+          onChatSelect={handleChatSelect}
+          onCreateChat={handleCreateChat}
+        />
+        <ChatUI
+          project={activeProject}
+          conversation={activeConversation}
+          isContextPanelOpen={isContextPanelOpen}
+          onToggleContextPanel={handleToggleContextPanel}
+          onSubmitMessage={handleMessageSubmit}
+          onUploadAttachment={handleAttachmentUpload}
+          onToggleMicrophone={handleMicrophoneToggle}
+          microphoneEnabled={microphoneEnabled}
+          onMessageAction={handleMessageAction}
+        />
+      </div>
+    </PDPProvider>
   );
 }
 

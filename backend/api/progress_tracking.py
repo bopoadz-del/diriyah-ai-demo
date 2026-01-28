@@ -534,6 +534,7 @@ async def train_custom_model(
     background_tasks: BackgroundTasks,
     workspace_id: str,
     dataset_path: str,
+    workspace_id: str,
     epochs: int = 100,
     model_name: str = "construction_custom",
 ):
@@ -550,6 +551,7 @@ async def train_custom_model(
     if token is None:
         return JSONResponse(
             status_code=409,
+            content={"message": "already running", "status": "locked", "workspace_id": workspace_id},
             content={"message": "Learning already running for workspace."},
         )
 

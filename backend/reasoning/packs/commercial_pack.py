@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import numpy as np
 
-from backend.reasoning.models import (
+from backend.reasoning.schemas import (
     Entity,
     EntityType,
     Evidence,
@@ -797,8 +797,8 @@ class CommercialPack(BasePack):
     def _extract_date(self, text: str) -> Optional[str]:
         """Extract date from text."""
         date_patterns = [
-            r'(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})',  # DD/MM/YYYY or MM/DD/YYYY
-            r'(\d{4}[-/]\d{1,2}[-/]\d{1,2})',     # YYYY-MM-DD
+            r'(\d{4}[-/]\d{1,2}[-/]\d{1,2})',     # YYYY-MM-DD (must come first)
+            r'(\d{1,2}[-/]\d{1,2}[-/]\d{4})',     # DD/MM/YYYY or MM/DD/YYYY (4-digit year)
             r'(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{2,4})',  # DD Month YYYY
         ]
 

@@ -20,7 +20,11 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
-from backend.backend.db import Base
+try:
+    from backend.backend.db import Base
+except ImportError:
+    from sqlalchemy.orm import declarative_base
+    Base = declarative_base()
 
 
 # Use JSON type that falls back to TEXT for SQLite

@@ -10,12 +10,13 @@ from uuid import UUID
 
 import numpy as np
 
-from backend.reasoning.models import (
+from backend.reasoning.schemas import (
     DocumentInput,
     Entity,
     EntityType,
     Evidence,
     EvidenceResponse,
+    EvidenceType,
     Link,
     LinkResult,
     LinkType,
@@ -779,5 +780,3 @@ class ULEEngine:
         }
 
 
-# Import EvidenceType for explanation building
-from backend.reasoning.models import EvidenceType

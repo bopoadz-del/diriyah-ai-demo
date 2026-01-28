@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import numpy as np
 
-from backend.reasoning.models import (
+from backend.reasoning.schemas import (
     Entity,
     EntityType,
     Evidence,
@@ -284,7 +284,8 @@ class ConstructionPack(BasePack):
         lines = content.split('\n')
 
         # Pattern for BOQ items (item number, description, quantity, unit)
-        boq_pattern = r'^[\s]*([A-Z]?\d+(?:\.\d+)*)\s+(.+?)(?:\s+(\d+(?:,\d{3})*(?:\.\d+)?)\s*(m[²³]?|m2|m3|kg|ton|nr|nos|ls|set|pc|pcs|each|lm|sqm|cum))?$'
+        # Handles formats like: "1.1 Description - 500 m3" or "Item 1.1 Description 500 m3"
+        boq_pattern = r'^[\s]*(?:Item\s+)?([A-Z]?\d+(?:\.\d+)*)\s+(.+?)(?:\s*[-–]\s*|\s+)(\d+(?:,\d{3})*(?:\.\d+)?)\s*(m[²³]?|m2|m3|kg|ton|tons?|nr|nos|ls|set|pc|pcs|each|lm|sqm|cum)\s*$'
 
         for idx, line in enumerate(lines):
             line = line.strip()

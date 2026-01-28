@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import numpy as np
 
-from backend.reasoning.models import (
+from backend.reasoning.schemas import (
     Entity,
     EntityType,
     Evidence,

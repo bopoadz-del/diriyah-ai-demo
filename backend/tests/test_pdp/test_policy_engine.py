@@ -25,9 +25,9 @@ def db_session():
     viewer_user = User(id=3, name="Viewer User", email="viewer@test.com", role="viewer")
     session.add_all([admin_user, engineer_user, viewer_user])
     
-    # Create test projects
-    project1 = Project(id=101, name="Test Project 1", description="Test project 1")
-    project2 = Project(id=102, name="Test Project 2", description="Test project 2")
+    # Create test projects (Project model doesn't have description field)
+    project1 = Project(id=101, name="Test Project 1")
+    project2 = Project(id=102, name="Test Project 2")
     session.add_all([project1, project2])
     
     # Create ACL entries

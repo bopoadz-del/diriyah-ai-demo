@@ -2,6 +2,90 @@
 
 This directory contains React components for the Policy Decision Point (PDP) system that manages access control, permissions, and policy enforcement.
 
+## Hooks and Context
+
+### usePDP Hook
+Location: `/frontend/src/hooks/usePDP.js`
+
+Custom React hook providing PDP operations for permission checking, access management, rate limiting, and audit trails.
+
+**Returns:**
+- `checkPermission(resource, action, userId, context)` - Check if user has permission
+- `grantAccess(userId, projectId, role, grantedBy, expiresAt)` - Grant user access
+- `revokeAccess(userId, projectId)` - Revoke user access
+- `getRateLimit(userId, endpoint)` - Get rate limit status
+- `getAuditTrail(filters)` - Get filtered audit logs
+- `loading` (boolean) - Loading state
+- `error` (Error|null) - Last error
+
+**Usage:**
+```jsx
+import { usePDP } from '../../hooks/usePDP';
+
+function MyComponent() {
+  const { checkPermission, grantAccess, loading, error } = usePDP();
+  
+  const handleCheck = async () => {
+    const decision = await checkPermission('project:123', 'read', userId);
+    if (decision.allowed) {
+      console.log('Access granted!');
+    }
+  };
+  
+  const handleGrant = async () => {
+    await grantAccess(userId, projectId, 'viewer', adminId);
+  };
+}
+```
+
+### PDPContext
+Location: `/frontend/src/contexts/PDPContext.jsx`
+
+Global React context for managing PDP state across the application.
+
+**Provider Props:**
+- `userId` (number, required) - Current user ID
+- `projectId` (number, optional) - Current project ID
+- `autoRefresh` (boolean, default: true) - Auto-refresh permissions
+- `refreshInterval` (number, default: 300000) - Refresh interval in ms
+
+**Context Value:**
+- `permissions` (Array) - Cached user permissions
+- `rateLimits` (Object) - Cached rate limit statuses
+- `loading` (boolean) - Loading state
+- `error` (Error|null) - Last error
+- `lastRefresh` (Date|null) - Last refresh timestamp
+- `refreshPermissions(userId, projectId)` - Refresh permissions
+- `hasPermission(permission)` - Check cached permission
+- `checkAccess(resource, action, context)` - Live permission check
+- `getRateLimitStatus(endpoint)` - Get rate limit status
+- `isRateLimitOk(endpoint)` - Check if rate limit allows requests
+
+**Usage:**
+```jsx
+import { PDPProvider, usePDPContext } from '../../contexts/PDPContext';
+
+// Wrap your app
+function App() {
+  return (
+    <PDPProvider userId={currentUserId} projectId={currentProjectId}>
+      <Dashboard />
+    </PDPProvider>
+  );
+}
+
+// Use in child components
+function Dashboard() {
+  const { hasPermission, checkAccess, permissions } = usePDPContext();
+  
+  if (!hasPermission('project:read')) {
+    return <AccessDenied />;
+  }
+  
+  return <div>Dashboard content</div>;
+}
+```
+
 ## Components
 
 ### 1. AccessDenied.jsx

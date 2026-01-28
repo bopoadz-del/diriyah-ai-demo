@@ -2,6 +2,7 @@ fastapi
 uvicorn
 httpx
 pytest
+pytest-asyncio
 # Core scientific stack required by backend modules imported during tests
 numpy==1.26.4
 pandas==2.2.3

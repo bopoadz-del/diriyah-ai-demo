@@ -1,4 +1,5 @@
 """Redis helper utilities."""
+"""Redis utilities package."""
 
 from backend.redisx.locks import DistributedLock
 

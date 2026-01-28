@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from backend.backend.db import get_db
@@ -37,6 +38,7 @@ from backend.hydration.schemas import (
     WorkspaceSourceOut,
     WorkspaceSourceUpdate,
 )
+from backend.redisx.locks import DistributedLock
 
 router = APIRouter(prefix="/hydration", tags=["Hydration"])
 
@@ -137,15 +139,27 @@ def run_now(
         )
         raise
 
-    pipeline = HydrationPipeline(db)
-    options = HydrationOptions(
-        trigger=HydrationTrigger.API,
-        source_ids=request.source_ids,
-        force_full_scan=request.force_full_scan,
-        max_files=request.max_files,
-        dry_run=request.dry_run,
-    )
-    run = pipeline.hydrate_workspace(request.workspace_id, options)
+    lock = DistributedLock()
+    lock_key = f"lock:workspace:{request.workspace_id}:hydration"
+    token = lock.acquire(lock_key, ttl=60 * 60 * 2, wait_seconds=0)
+    if token is None:
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={"message": "Hydration already running for workspace."},
+        )
+
+    try:
+        pipeline = HydrationPipeline(db)
+        options = HydrationOptions(
+            trigger=HydrationTrigger.API,
+            source_ids=request.source_ids,
+            force_full_scan=request.force_full_scan,
+            max_files=request.max_files,
+            dry_run=request.dry_run,
+        )
+        run = pipeline.hydrate_workspace(request.workspace_id, options)
+    finally:
+        lock.release(lock_key, token)
     return {"run_id": run.id}
 
 

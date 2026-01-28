@@ -16,6 +16,10 @@
 cp .env.example .env
 docker compose up --build
 ```
+* Frontend: http://localhost:5173
+* Backend: http://localhost:8000 (health: `/health` and `/healthz`)
+
+> Note: `stack/docker-compose.yml` is deprecated. Use the root `docker-compose.yml` for the official demo path.
 
 ## Local development
 
@@ -52,3 +56,8 @@ The interactive sidebar and chat workspace consume a dedicated set of workspace 
 - `POST /api/workspace/chats/{chat_id}/attachments` – register supporting files against the context panel.
 - `POST /api/workspace/microphone` – toggle the shared microphone capture state.
 - `PUT /api/workspace/messages/{message_id}/action` – log quick actions taken against a message.
+
+### 60-second demo flow
+1. Run `docker compose up --build`.
+2. Open http://localhost:5173.
+3. Open any chat, send a message, and watch the assistant reply appear in the timeline.

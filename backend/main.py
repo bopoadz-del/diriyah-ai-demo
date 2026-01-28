@@ -161,3 +161,8 @@ def health_check():
             "error": error,
         },
     }
+
+
+@app.get("/healthz")
+def health_check_alias():
+    return health_check()

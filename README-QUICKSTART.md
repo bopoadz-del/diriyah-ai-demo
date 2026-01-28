@@ -13,8 +13,9 @@ Copy `.env.example` to `.env` and fill in keys.
 ```bash
 docker compose up --build
 ```
-- Backend: http://localhost:8000 (health: `/healthz`)
+- Backend: http://localhost:8000 (health: `/health` and `/healthz`)
 - Frontend: http://localhost:5173
+> Use the root `docker-compose.yml` (the `stack/` compose file is deprecated).
 
 ## 3) Local Dev (no Docker)
 Backend
@@ -36,3 +37,8 @@ Place YOLO weights into `backend/models/` (replace the `.pt.placeholder` files).
 ```bash
 API_BASE_URL=http://localhost:8000 python3 scripts/health_check.py
 ```
+
+## 6) Demo flow
+1. Open http://localhost:5173.
+2. Click a chat thread.
+3. Send a message and confirm the assistant reply appears.

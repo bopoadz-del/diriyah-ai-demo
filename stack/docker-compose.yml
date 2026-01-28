@@ -1,20 +1,23 @@
 version: "3.9"
+# Deprecated: use ../docker-compose.yml for the official one-command demo.
 services:
   backend:
-    build: ./backend
+    build:
+      context: ..
+      dockerfile: Dockerfile
     container_name: masterise-backend
-    env_file: .env
+    env_file: ../.env
     volumes:
-      - ./backend/uploads:/app/uploads
-      - ./backend/images:/app/images
-      - ./backend/storage:/app/storage
-      - ./service_account.json:/app/service_account.json:ro
+      - ../backend/uploads:/app/uploads
+      - ../backend/images:/app/images
+      - ../backend/storage:/app/storage
+      - ../service_account.json:/app/service_account.json:ro
     ports:
       - "8000:8000"
   frontend:
-    build: ./frontend
+    build: ../frontend
     container_name: masterise-frontend
-    env_file: .env
+    env_file: ../.env
     depends_on:
       - backend
     ports:

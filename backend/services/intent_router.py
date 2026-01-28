@@ -30,8 +30,34 @@ class IntentRouter:
             intent = "VISION_ANALYZE"
         elif "audio" in lower_text or "mic" in lower_text:
             intent = "TRANSCRIBE_AUDIO"
+        elif _is_runtime_query(lower_text):
+            intent = "RUNTIME_EXECUTE"
 
         return {"intent": intent, "message": message, "project_id": project_id}
+
+
+# Runtime query patterns for code generation
+_RUNTIME_PATTERNS = [
+    r"calculate.*variance",
+    r"what.*if.*(increase|decrease)",
+    r"forecast.*(delay|slip|cost)",
+    r"monte carlo|simulation",
+    r"analyze.*p&l",
+    r"run.*analysis",
+    r"compute.*total",
+    r"sum.*of",
+    r"average.*of",
+    r"sensitivity.*analysis",
+    r"what\'?s the (cost|schedule|budget)",
+]
+
+
+def _is_runtime_query(text: str) -> bool:
+    """Check if text matches runtime query patterns."""
+    for pattern in _RUNTIME_PATTERNS:
+        if re.search(pattern, text, re.IGNORECASE):
+            return True
+    return False
 
 
 router = IntentRouter()

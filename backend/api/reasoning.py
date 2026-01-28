@@ -6,33 +6,32 @@ import logging
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from backend.backend.db import get_db
-from backend.reasoning import ULEEngine
-from backend.reasoning.models import (
+from backend.reasoning.ule_engine import ULEEngine
+from backend.reasoning.schemas import (
     DocumentInput,
+    Entity,
     EntityType,
-    EvidenceResponse,
+    Evidence,
+    EvidenceType,
+    Link,
     LinkRequest,
     LinkResult,
     LinkType,
     PackConfig,
-    RegisterPackRequest,
 )
-from backend.reasoning.packs import BasePack, CommercialPack, ConstructionPack
+from backend.reasoning.packs.construction_pack import ConstructionPack
+from backend.reasoning.packs.commercial_pack import CommercialPack
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/reasoning", tags=["Reasoning"])
+router = APIRouter()
 
-
-# -------------------------------------------------------------------------
 # Engine singleton
-# -------------------------------------------------------------------------
-
 _engine: Optional[ULEEngine] = None
 
 
@@ -45,310 +44,136 @@ def get_engine() -> ULEEngine:
             embedding_model="all-MiniLM-L6-v2",
             use_openai_embeddings=False,
         )
-        # Register default packs
         _engine.register_pack(ConstructionPack())
         _engine.register_pack(CommercialPack())
         logger.info("ULE Engine initialized with default packs")
     return _engine
 
 
-# -------------------------------------------------------------------------
-# Request/Response Models
-# -------------------------------------------------------------------------
+# Request models
+class LinkRequestBody(BaseModel):
+    text: str = Field(description="Text to find links for")
+    project_id: Optional[int] = Field(default=None)
+    document_type: str = Field(default="general")
+    confidence_threshold: float = Field(default=0.75)
+
 
 class ProcessDocumentRequest(BaseModel):
-    """Request to process a document for linking."""
-
-    document_id: str = Field(description="Unique identifier for the document")
-    document_name: str = Field(description="Human-readable document name")
     content: str = Field(description="Document text content")
-    document_type: str = Field(
-        description="Type of document: boq, specification, contract, drawing, cost, payment, variation, invoice"
-    )
-    project_id: Optional[str] = Field(default=None, description="Project identifier")
-    packs: Optional[List[str]] = Field(default=None, description="Specific packs to use")
-    metadata: Dict[str, Any] = Field(default_factory=dict)
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "document_id": "DOC-001",
-                "document_name": "BOQ_Foundations.xlsx",
-                "content": "Item B-1234: Concrete Grade C40 for foundations - 500 m3\nSection 03300 - Cast-in-Place Concrete",
-                "document_type": "boq",
-                "project_id": "PROJ-001",
-            }
-        }
+    document_type: str = Field(default="general")
+    project_id: Optional[int] = Field(default=None)
 
 
-class LinkQueryRequest(BaseModel):
-    """Request to find links."""
+# Endpoints following existing pattern from backend/backend/api/ai.py
 
-    document_id: Optional[str] = Field(default=None, description="Document ID to find links for")
-    query_text: Optional[str] = Field(default=None, description="Text query to find links for")
-    entity_types: Optional[List[str]] = Field(default=None, description="Filter by entity types")
-    link_types: Optional[List[str]] = Field(default=None, description="Filter by link types")
-    packs: Optional[List[str]] = Field(default=None, description="Specific packs to use")
-    confidence_threshold: float = Field(default=0.75, ge=0.0, le=1.0)
-    max_links: int = Field(default=100, ge=1, le=1000)
-    include_evidence: bool = Field(default=True)
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "document_id": "DOC-001",
-                "confidence_threshold": 0.75,
-                "max_links": 50,
-            }
-        }
-
-
-class PackRegistrationRequest(BaseModel):
-    """Request to register a custom pack."""
-
-    name: str = Field(description="Unique name for the pack")
-    version: str = Field(default="1.0.0")
-    description: Optional[str] = None
-    entity_types: List[str] = Field(description="Entity types this pack handles")
-    link_types: List[str] = Field(description="Link types this pack can create")
-    confidence_threshold: float = Field(default=0.75, ge=0.0, le=1.0)
-    semantic_weight: float = Field(default=0.6, ge=0.0, le=1.0)
-    keyword_weight: float = Field(default=0.4, ge=0.0, le=1.0)
-    settings: Dict[str, Any] = Field(default_factory=dict)
-
-
-class LinkResponse(BaseModel):
-    """Response containing a link."""
-
-    id: str
-    source: Dict[str, Any]
-    target: Dict[str, Any]
-    link_type: str
-    confidence: float
-    evidence: List[Dict[str, Any]]
-    pack_name: str
-    created_at: str
-
-
-class LinksResponse(BaseModel):
-    """Response containing multiple links."""
-
-    document_id: Optional[str] = None
-    query_id: Optional[str] = None
-    links: List[LinkResponse]
-    total_entities_processed: int
-    total_links_found: int
-    processing_time_ms: float
-    packs_used: List[str]
-    confidence_threshold: float
-
-
-class PackInfo(BaseModel):
-    """Pack information response."""
-
-    name: str
-    version: str
-    description: Optional[str]
-    entity_types: List[str]
-    link_types: List[str]
-    confidence_threshold: float
-    enabled: bool
-
-
-class EngineStats(BaseModel):
-    """Engine statistics response."""
-
-    total_packs: int
-    total_entities: int
-    total_links: int
-    total_documents: int
-    entity_types: Dict[str, int]
-    link_types: Dict[str, int]
-    packs: List[str]
-    embeddings_enabled: bool
-
-
-# -------------------------------------------------------------------------
-# API Endpoints
-# -------------------------------------------------------------------------
-
-@router.post("/link", response_model=LinksResponse)
-async def find_links_for_query(
-    request: LinkQueryRequest,
-    db: Session = Depends(get_db),
-) -> LinksResponse:
-    """
-    Find links for a document or text query.
-
-    This endpoint searches for related entities and returns links with
-    confidence scores and supporting evidence.
-    """
+@router.post("/reasoning/link")
+async def find_links(request: LinkRequestBody, db: Session = Depends(get_db)):
+    """Find links for a text query."""
     engine = get_engine()
 
-    # Parse entity types
-    entity_types_parsed: Optional[List[EntityType]] = None
-    if request.entity_types:
-        try:
-            entity_types_parsed = [EntityType(et) for et in request.entity_types]
-        except ValueError as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid entity type: {e}",
-            )
-
-    # Parse link types
-    link_types_parsed: Optional[List[LinkType]] = None
-    if request.link_types:
-        try:
-            link_types_parsed = [LinkType(lt) for lt in request.link_types]
-        except ValueError as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid link type: {e}",
-            )
+    # Create a temporary document to process
+    doc = DocumentInput(
+        document_id=f"query-{id(request)}",
+        document_name="Query",
+        content=request.text,
+        document_type=request.document_type,
+        project_id=str(request.project_id) if request.project_id else None,
+    )
 
     try:
-        result = await engine.find_links(
-            document_id=request.document_id,
-            query_text=request.query_text,
-            entity_types=entity_types_parsed,
-            link_types=link_types_parsed,
-            packs=request.packs,
-            confidence_threshold=request.confidence_threshold,
-            max_links=request.max_links,
-        )
+        result = await engine.process_document(doc)
+
+        # Filter by confidence
+        filtered_links = [
+            link for link in result.links
+            if link.confidence >= request.confidence_threshold
+        ]
+
+        return {
+            "links": [
+                {
+                    "id": str(link.id),
+                    "source": {
+                        "type": link.source.type.value,
+                        "id": link.source.id,
+                        "text": link.source.text[:200],
+                    },
+                    "target": {
+                        "type": link.target.type.value,
+                        "id": link.target.id,
+                        "text": link.target.text[:200],
+                    },
+                    "link_type": link.link_type.value,
+                    "confidence": link.confidence,
+                    "evidence": [
+                        {
+                            "type": e.type.value,
+                            "value": e.value,
+                            "weight": e.weight,
+                        }
+                        for e in link.evidence
+                    ],
+                }
+                for link in filtered_links
+            ],
+            "total_entities": result.total_entities_processed,
+            "total_links": len(filtered_links),
+            "processing_time_ms": result.processing_time_ms,
+        }
     except Exception as e:
         logger.exception("Failed to find links")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Link search failed: {str(e)}",
-        )
-
-    # Convert to response format
-    links_response = [
-        LinkResponse(
-            id=str(link.id),
-            source={
-                "type": link.source.type.value,
-                "id": link.source.id,
-                "text": link.source.text[:200],
-                "document_id": link.source.document_id,
-                "section": link.source.section,
-            },
-            target={
-                "type": link.target.type.value,
-                "id": link.target.id,
-                "text": link.target.text[:200],
-                "document_id": link.target.document_id,
-                "section": link.target.section,
-            },
-            link_type=link.link_type.value,
-            confidence=link.confidence,
-            evidence=[e.model_dump() for e in link.evidence] if request.include_evidence else [],
-            pack_name=link.pack_name,
-            created_at=link.created_at.isoformat(),
-        )
-        for link in result.links
-    ]
-
-    return LinksResponse(
-        document_id=result.document_id,
-        query_id=result.query_id,
-        links=links_response,
-        total_entities_processed=result.total_entities_processed,
-        total_links_found=result.total_links_found,
-        processing_time_ms=result.processing_time_ms,
-        packs_used=result.packs_used,
-        confidence_threshold=result.confidence_threshold,
-    )
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/process", response_model=LinksResponse)
+@router.post("/reasoning/process-document/{document_id}")
 async def process_document(
+    document_id: str,
     request: ProcessDocumentRequest,
     db: Session = Depends(get_db),
-) -> LinksResponse:
-    """
-    Process a document to extract entities and find links.
-
-    This endpoint extracts entities from the document using registered packs,
-    computes embeddings, and discovers links with existing entities.
-    """
+):
+    """Process a document to extract entities and find links."""
     engine = get_engine()
 
-    document = DocumentInput(
-        document_id=request.document_id,
-        document_name=request.document_name,
+    doc = DocumentInput(
+        document_id=document_id,
+        document_name=document_id,
         content=request.content,
         document_type=request.document_type,
-        project_id=request.project_id,
-        metadata=request.metadata,
+        project_id=str(request.project_id) if request.project_id else None,
     )
 
     try:
-        result = await engine.process_document(document, packs=request.packs)
+        result = await engine.process_document(doc)
+
+        return {
+            "document_id": document_id,
+            "entities_extracted": result.total_entities_processed,
+            "links_found": result.total_links_found,
+            "links": [
+                {
+                    "id": str(link.id),
+                    "source": {"type": link.source.type.value, "id": link.source.id, "text": link.source.text[:100]},
+                    "target": {"type": link.target.type.value, "id": link.target.id, "text": link.target.text[:100]},
+                    "link_type": link.link_type.value,
+                    "confidence": link.confidence,
+                }
+                for link in result.links
+            ],
+            "packs_used": result.packs_used,
+            "processing_time_ms": result.processing_time_ms,
+        }
     except Exception as e:
         logger.exception("Failed to process document")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Document processing failed: {str(e)}",
-        )
-
-    # Store links in database
-    try:
-        _store_links_to_db(db, result)
-    except Exception as e:
-        logger.warning("Failed to persist links to database: %s", e)
-
-    # Convert to response format
-    links_response = [
-        LinkResponse(
-            id=str(link.id),
-            source={
-                "type": link.source.type.value,
-                "id": link.source.id,
-                "text": link.source.text[:200],
-                "document_id": link.source.document_id,
-                "section": link.source.section,
-            },
-            target={
-                "type": link.target.type.value,
-                "id": link.target.id,
-                "text": link.target.text[:200],
-                "document_id": link.target.document_id,
-                "section": link.target.section,
-            },
-            link_type=link.link_type.value,
-            confidence=link.confidence,
-            evidence=[e.model_dump() for e in link.evidence],
-            pack_name=link.pack_name,
-            created_at=link.created_at.isoformat(),
-        )
-        for link in result.links
-    ]
-
-    return LinksResponse(
-        document_id=result.document_id,
-        links=links_response,
-        total_entities_processed=result.total_entities_processed,
-        total_links_found=result.total_links_found,
-        processing_time_ms=result.processing_time_ms,
-        packs_used=result.packs_used,
-        confidence_threshold=result.confidence_threshold,
-    )
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/links/{document_id}", response_model=LinksResponse)
+@router.get("/reasoning/links/{document_id}")
 async def get_document_links(
     document_id: str,
     confidence_threshold: float = 0.75,
     max_links: int = 100,
-) -> LinksResponse:
-    """
-    Get all links for a specific document.
-
-    Returns links where the document's entities appear as either source or target.
-    """
+):
+    """Get all links for a specific document."""
     engine = get_engine()
 
     try:
@@ -357,74 +182,51 @@ async def get_document_links(
             confidence_threshold=confidence_threshold,
             max_links=max_links,
         )
+
+        return {
+            "document_id": document_id,
+            "links": [
+                {
+                    "id": str(link.id),
+                    "source": {
+                        "type": link.source.type.value,
+                        "id": link.source.id,
+                        "text": link.source.text[:200],
+                        "document_id": link.source.document_id,
+                    },
+                    "target": {
+                        "type": link.target.type.value,
+                        "id": link.target.id,
+                        "text": link.target.text[:200],
+                        "document_id": link.target.document_id,
+                    },
+                    "link_type": link.link_type.value,
+                    "confidence": link.confidence,
+                    "evidence": [e.model_dump() for e in link.evidence],
+                }
+                for link in result.links
+            ],
+            "total_links": result.total_links_found,
+        }
     except Exception as e:
         logger.exception("Failed to get document links")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve links: {str(e)}",
-        )
-
-    links_response = [
-        LinkResponse(
-            id=str(link.id),
-            source={
-                "type": link.source.type.value,
-                "id": link.source.id,
-                "text": link.source.text[:200],
-                "document_id": link.source.document_id,
-                "section": link.source.section,
-            },
-            target={
-                "type": link.target.type.value,
-                "id": link.target.id,
-                "text": link.target.text[:200],
-                "document_id": link.target.document_id,
-                "section": link.target.section,
-            },
-            link_type=link.link_type.value,
-            confidence=link.confidence,
-            evidence=[e.model_dump() for e in link.evidence],
-            pack_name=link.pack_name,
-            created_at=link.created_at.isoformat(),
-        )
-        for link in result.links
-    ]
-
-    return LinksResponse(
-        document_id=document_id,
-        links=links_response,
-        total_entities_processed=result.total_entities_processed,
-        total_links_found=result.total_links_found,
-        processing_time_ms=result.processing_time_ms,
-        packs_used=result.packs_used,
-        confidence_threshold=confidence_threshold,
-    )
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/evidence/{link_id}")
-async def get_link_evidence(link_id: str) -> Dict[str, Any]:
-    """
-    Get detailed evidence for a specific link.
-
-    Returns the full evidence chain with human-readable explanation.
-    """
+@router.get("/reasoning/evidence/{link_id}")
+async def get_link_evidence(link_id: str):
+    """Get detailed evidence for a specific link."""
     engine = get_engine()
 
     try:
         link_uuid = UUID(link_id)
     except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid link ID format (expected UUID)",
-        )
+        raise HTTPException(status_code=400, detail="Invalid link ID format")
 
     evidence_response = engine.get_evidence(link_uuid)
 
     if evidence_response is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Link {link_id} not found",
-        )
+        raise HTTPException(status_code=404, detail=f"Link {link_id} not found")
 
     return {
         "link_id": str(evidence_response.link_id),
@@ -432,17 +234,11 @@ async def get_link_evidence(link_id: str) -> Dict[str, Any]:
             "type": evidence_response.source.type.value,
             "id": evidence_response.source.id,
             "text": evidence_response.source.text,
-            "document_id": evidence_response.source.document_id,
-            "section": evidence_response.source.section,
-            "metadata": evidence_response.source.metadata,
         },
         "target": {
             "type": evidence_response.target.type.value,
             "id": evidence_response.target.id,
             "text": evidence_response.target.text,
-            "document_id": evidence_response.target.document_id,
-            "section": evidence_response.target.section,
-            "metadata": evidence_response.target.metadata,
         },
         "link_type": evidence_response.link_type.value,
         "confidence": evidence_response.confidence,
@@ -451,148 +247,97 @@ async def get_link_evidence(link_id: str) -> Dict[str, Any]:
     }
 
 
-@router.post("/register-pack")
-async def register_pack(request: PackRegistrationRequest) -> Dict[str, Any]:
-    """
-    Register a new pack with the engine.
-
-    Note: Custom packs are configuration-only. For full custom logic,
-    extend BasePack and register programmatically.
-    """
+@router.get("/reasoning/graph/{project_id}")
+async def get_project_graph(project_id: int, db: Session = Depends(get_db)):
+    """Get knowledge graph data for visualization."""
     engine = get_engine()
 
-    # Check if pack already exists
-    existing = engine.get_pack(request.name)
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Pack '{request.name}' already registered",
-        )
+    # Get all links for the project
+    stats = engine.get_statistics()
 
-    # Validate entity types
-    try:
-        entity_types = [EntityType(et) for et in request.entity_types]
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid entity type: {e}",
-        )
+    # Build nodes and edges for visualization
+    nodes = []
+    edges = []
+    seen_entities = set()
 
-    # Validate link types
-    try:
-        link_types = [LinkType(lt) for lt in request.link_types]
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid link type: {e}",
-        )
+    for link in engine._links.values():
+        # Add source node
+        if link.source.id not in seen_entities:
+            nodes.append({
+                "id": link.source.id,
+                "label": link.source.text[:50],
+                "type": link.source.type.value,
+                "document_id": link.source.document_id,
+            })
+            seen_entities.add(link.source.id)
 
-    # For now, return config info (full custom pack registration requires Python code)
-    config = PackConfig(
-        name=request.name,
-        version=request.version,
-        description=request.description,
-        entity_types=entity_types,
-        link_types=link_types,
-        confidence_threshold=request.confidence_threshold,
-        semantic_weight=request.semantic_weight,
-        keyword_weight=request.keyword_weight,
-        settings=request.settings,
-    )
+        # Add target node
+        if link.target.id not in seen_entities:
+            nodes.append({
+                "id": link.target.id,
+                "label": link.target.text[:50],
+                "type": link.target.type.value,
+                "document_id": link.target.document_id,
+            })
+            seen_entities.add(link.target.id)
+
+        # Add edge
+        edges.append({
+            "id": str(link.id),
+            "source": link.source.id,
+            "target": link.target.id,
+            "link_type": link.link_type.value,
+            "confidence": link.confidence,
+        })
 
     return {
-        "status": "configuration_accepted",
-        "message": f"Pack configuration for '{request.name}' accepted. "
-                   "Note: For full custom logic, extend BasePack in Python.",
-        "config": {
-            "name": config.name,
-            "version": config.version,
-            "entity_types": [et.value for et in config.entity_types],
-            "link_types": [lt.value for lt in config.link_types],
-            "confidence_threshold": config.confidence_threshold,
+        "project_id": project_id,
+        "nodes": nodes,
+        "edges": edges,
+        "stats": {
+            "total_nodes": len(nodes),
+            "total_edges": len(edges),
+            "entity_types": stats["entity_types"],
+            "link_types": stats["link_types"],
         },
     }
 
 
-@router.get("/packs", response_model=List[PackInfo])
-async def list_packs() -> List[PackInfo]:
+@router.get("/reasoning/packs")
+async def list_packs():
     """List all registered packs."""
     engine = get_engine()
 
-    return [
-        PackInfo(
-            name=config.name,
-            version=config.version,
-            description=config.description,
-            entity_types=[et.value for et in config.entity_types],
-            link_types=[lt.value for lt in config.link_types],
-            confidence_threshold=config.confidence_threshold,
-            enabled=config.enabled,
-        )
-        for config in engine.list_packs()
-    ]
+    return {
+        "packs": [
+            {
+                "name": config.name,
+                "version": config.version,
+                "description": config.description,
+                "entity_types": [et.value for et in config.entity_types],
+                "link_types": [lt.value for lt in config.link_types],
+                "confidence_threshold": config.confidence_threshold,
+                "enabled": config.enabled,
+            }
+            for config in engine.list_packs()
+        ]
+    }
 
 
-@router.get("/stats", response_model=EngineStats)
-async def get_engine_stats() -> EngineStats:
+@router.get("/reasoning/stats")
+async def get_stats():
     """Get engine statistics."""
     engine = get_engine()
-    stats = engine.get_statistics()
-
-    return EngineStats(
-        total_packs=stats["total_packs"],
-        total_entities=stats["total_entities"],
-        total_links=stats["total_links"],
-        total_documents=stats["total_documents"],
-        entity_types=stats["entity_types"],
-        link_types=stats["link_types"],
-        packs=stats["packs"],
-        embeddings_enabled=stats["embeddings_enabled"],
-    )
+    return engine.get_statistics()
 
 
-@router.get("/entity-types")
-async def list_entity_types() -> List[Dict[str, str]]:
+@router.get("/reasoning/entity-types")
+async def list_entity_types():
     """List all available entity types."""
-    return [
-        {"value": et.value, "name": et.name}
-        for et in EntityType
-    ]
+    return [{"value": et.value, "name": et.name} for et in EntityType]
 
 
-@router.get("/link-types")
-async def list_link_types() -> List[Dict[str, str]]:
+@router.get("/reasoning/link-types")
+async def list_link_types():
     """List all available link types."""
-    return [
-        {"value": lt.value, "name": lt.name}
-        for lt in LinkType
-    ]
-
-
-# -------------------------------------------------------------------------
-# Database helpers
-# -------------------------------------------------------------------------
-
-def _store_links_to_db(db: Session, result: LinkResult) -> None:
-    """Store links to the database."""
-    from backend.reasoning.db_models import DocumentLink
-
-    for link in result.links:
-        db_link = DocumentLink(
-            id=str(link.id),
-            source_entity_id=link.source.id,
-            source_entity_type=link.source.type.value,
-            source_document_id=link.source.document_id,
-            target_entity_id=link.target.id,
-            target_entity_type=link.target.type.value,
-            target_document_id=link.target.document_id,
-            link_type=link.link_type.value,
-            confidence=link.confidence,
-            evidence=[e.model_dump() for e in link.evidence],
-            pack_name=link.pack_name,
-            validated=link.validated,
-            metadata_=link.metadata,
-        )
-        db.merge(db_link)
-
-    db.commit()
+    return [{"value": lt.value, "name": lt.name} for lt in LinkType]

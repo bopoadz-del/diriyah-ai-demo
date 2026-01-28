@@ -27,7 +27,7 @@ PROHIBITED_PATTERNS = {
         "sql_semicolon": r";[\s]*(drop|delete|insert|update)",
     },
     "xss": {
-        "script_tag": r"<script[^>]*>.*?</script\s*>",
+        "script_tag": r"<script[^>]*>.*?<\s*/\s*script[^>]*>",
         "javascript": r"javascript:",
         "event_handler": r"on\w+\s*=",
         "iframe": r"<iframe[^>]*>",
@@ -227,8 +227,8 @@ class ContentScanner:
         """
         sanitized = content
         
-        # Remove script tags (including with spaces before closing bracket)
-        sanitized = re.sub(r'<script[^>]*>.*?</script\s*>', '', sanitized, flags=re.IGNORECASE | re.DOTALL)
+        # Remove script tags (including with whitespace/attributes before closing bracket)
+        sanitized = re.sub(r'<script[^>]*>.*?<\s*/\s*script[^>]*>', '', sanitized, flags=re.IGNORECASE | re.DOTALL)
         
         # Remove event handlers
         sanitized = re.sub(r'on\w+\s*=\s*["\']?[^"\']*["\']?', '', sanitized, flags=re.IGNORECASE)
@@ -239,8 +239,8 @@ class ContentScanner:
         # Remove SQL comments
         sanitized = re.sub(r'(--|#|\/\*|\*\/)', '', sanitized)
         
-        # Remove iframe, object, embed tags (including with spaces before closing bracket)
-        sanitized = re.sub(r'<(iframe|object|embed)[^>]*>.*?</\1\s*>', '', sanitized, flags=re.IGNORECASE | re.DOTALL)
+        # Remove iframe, object, embed tags (including with whitespace/attributes before closing bracket)
+        sanitized = re.sub(r'<(iframe|object|embed)[^>]*>.*?<\s*/\s*\1[^>]*>', '', sanitized, flags=re.IGNORECASE | re.DOTALL)
         
         # Remove null bytes
         sanitized = sanitized.replace('\x00', '')

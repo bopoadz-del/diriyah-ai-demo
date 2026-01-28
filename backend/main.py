@@ -55,17 +55,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# PDP middleware (add after CORS but before other middleware)
-try:
-    from backend.backend.pdp.middleware import PDPMiddleware
-    from backend.backend.pdp.policy_engine import PolicyEngine
-    from backend.backend.db import SessionLocal
-    
-    policy_engine = PolicyEngine()
-    app.add_middleware(PDPMiddleware, policy_engine=policy_engine, db_factory=SessionLocal)
-    logger.info("PDP middleware initialized")
-except Exception as e:
-    logger.warning("PDP middleware not loaded: %s", e)
+# Note: PDP middleware is not added here to avoid initialization issues
+# The PDP system is available via /api/pdp endpoints
+# For production, consider implementing PDP middleware with proper dependency injection
 
 _BASE_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _BASE_DIR.parent

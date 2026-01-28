@@ -1,4 +1,13 @@
 apiVersion: v2
 name: diriyah-brain-ai
+description: AI-powered construction project management and intelligence platform
+type: application
 version: 0.1.0
-appVersion: 1.0.0
+appVersion: "1.24"
+keywords:
+  - construction
+  - ai
+  - project-management
+  - fastapi
+maintainers:
+  - name: Diriyah Team

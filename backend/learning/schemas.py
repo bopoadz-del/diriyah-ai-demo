@@ -10,7 +10,6 @@ from pydantic import BaseModel, Field
 class FeedbackCreateRequest(BaseModel):
     workspace_id: str = Field(..., description="Workspace identifier")
     user_id: Optional[int] = Field(default=None, description="Optional user id")
-    event_type: Optional[str] = Field(default=None, description="Feedback event type")
     source: Optional[str] = Field(default=None, description="Source of feedback")
     input_text: str = Field(..., description="Prompt or input text")
     output_text: Optional[str] = Field(default=None, description="System output")

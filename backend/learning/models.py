@@ -45,7 +45,6 @@ class FeedbackEvent(Base):
     id = Column(Integer, primary_key=True)
     workspace_id = Column(String, nullable=False, index=True)
     user_id = Column(Integer, nullable=True, index=True)
-    event_type = Column(String, nullable=True, index=True)
     source = Column(String, nullable=True)
     input_text = Column(Text, nullable=False)
     output_text = Column(Text, nullable=True)

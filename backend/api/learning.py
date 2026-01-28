@@ -85,7 +85,6 @@ def create_feedback(
     event = FeedbackEvent(
         workspace_id=payload.workspace_id,
         user_id=payload.user_id,
-        event_type=payload.event_type,
         source=payload.source,
         input_text=payload.input_text,
         output_text=payload.output_text,

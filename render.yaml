@@ -33,6 +33,46 @@ services:
       - key: INSTALL_DEV_REQUIREMENTS
         value: "false"
     healthCheckPath: /health
+  - type: worker
+    name: mba-hydration-worker
+    env: python
+    plan: starter
+    region: oregon
+    branch: main
+    pythonVersion: 3.11.9
+    buildCommand: ./render-build.sh
+    startCommand: >-
+      bash -c "if [ -f /opt/render/project/.venv/bin/activate ]; then
+        source /opt/render/project/.venv/bin/activate
+      fi
+      exec python -m backend.jobs.hydration_worker"
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        fromService:
+          name: mba-postgres-main
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: mba-redis
+          property: connectionString
+      - key: HYDRATION_ENABLED
+        value: "true"
+      - key: HYDRATION_TZ
+        value: "Asia/Riyadh"
+      - key: HYDRATION_HOUR
+        value: "2"
+      - key: HYDRATION_MINUTE
+        value: "0"
+      - key: HYDRATION_POLL_SECONDS
+        value: "60"
+      - key: HYDRATION_MAX_FILES_PER_RUN
+        value: "500"
+      - key: HYDRATION_OCR_ENABLED
+        value: "false"
+      - key: HYDRATION_FORCE_FULL_SCAN
+        value: "false"
   - type: redis
     name: mba-redis
     plan: starter

@@ -1,11 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { BrowserRouter, Route, Routes, useParams } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import ChatUI from "./components/ChatUI";
+import HydrationDashboard from "./components/hydration/HydrationDashboard";
 import { PDPProvider } from "./contexts/PDPContext";
 import "./App.css";
 
-function App() {
+function HydrationRoute() {
+  const { workspaceId } = useParams();
+  return <HydrationDashboard workspaceId={workspaceId} />;
+}
+
+function MainShell() {
   const { t } = useTranslation();
   const [workspace, setWorkspace] = useState({ projects: [], chatGroups: [], conversations: {} });
   const [activeProjectId, setActiveProjectId] = useState(null);
@@ -200,52 +207,45 @@ function App() {
     setIsContextPanelOpen((current) => !current);
   };
 
-  if (loading) {
-    return <div className="app-shell app-shell--loading">{t("app.loading")}</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="app-shell app-shell--error" role="alert">
-        {error}
-      </div>
-    );
-  }
-
-  if (!activeProject || !activeConversation) {
-    return (
-      <div className="app-shell app-shell--error" role="alert">
-        {t("app.unavailable")}
-      </div>
-    );
-  }
-
   return (
-    <PDPProvider userId={1} projectId={activeProjectId}>
-      <div className={`app-shell ${isContextPanelOpen ? "app-shell--panel-open" : ""}`}>
+    <PDPProvider>
+      <div className="app">
         <Sidebar
           projects={workspace.projects}
-          activeProjectId={activeProjectId}
-          onProjectChange={handleProjectChange}
           chatGroups={workspace.chatGroups}
+          activeProjectId={activeProjectId}
           activeChatId={activeChatId}
+          onProjectChange={handleProjectChange}
           onChatSelect={handleChatSelect}
           onCreateChat={handleCreateChat}
+          loading={loading}
+          error={error}
+          t={t}
         />
         <ChatUI
-          project={activeProject}
-          conversation={activeConversation}
+          activeProject={activeProject}
+          activeConversation={activeConversation}
+          onMessageSubmit={handleMessageSubmit}
+          onAttachmentUpload={handleAttachmentUpload}
+          onMessageAction={handleMessageAction}
+          microphoneEnabled={microphoneEnabled}
+          onMicrophoneToggle={handleMicrophoneToggle}
           isContextPanelOpen={isContextPanelOpen}
           onToggleContextPanel={handleToggleContextPanel}
-          onSubmitMessage={handleMessageSubmit}
-          onUploadAttachment={handleAttachmentUpload}
-          onToggleMicrophone={handleMicrophoneToggle}
-          microphoneEnabled={microphoneEnabled}
-          onMessageAction={handleMessageAction}
+          t={t}
         />
       </div>
     </PDPProvider>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<MainShell />} />
+        <Route path="/hydration/:workspaceId" element={<HydrationRoute />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}

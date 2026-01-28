@@ -238,6 +238,38 @@ class WorkspaceState:
             conversation.context.activity.insert(0, f"{message.timestamp} Update captured: {body[:60]}")
             return conversation
 
+    def create_assistant_message(
+        self,
+        chat_id: str,
+        body: str,
+        author: str = "Diriyah Brain",
+        update_preview: bool = False,
+    ) -> ConversationModel:
+        message = MessageModel(
+            id=f"msg-{uuid4().hex[:8]}",
+            role="assistant",
+            author=author,
+            timestamp=self._now_display(),
+            body=body,
+            summary="Assistant response",
+        )
+
+        with self._lock:
+            conversation = self.get_conversation(chat_id)
+            conversation.last_activity = f"{message.timestamp} • Assistant response"
+            if conversation.timeline:
+                conversation.timeline[0].messages.append(message)
+            else:  # pragma: no cover - defensive guard
+                conversation.timeline.append(
+                    TimelineEntryModel(id="live", label="Live", messages=[message])
+                )
+            if update_preview:
+                self._touch_chat_preview(chat_id, body[:72], "Now")
+            conversation.context.activity.insert(
+                0, f"{message.timestamp} Assistant reply posted: {body[:60]}"
+            )
+            return conversation
+
     def log_assistant_action(self, chat_id: str, summary: str) -> None:
         with self._lock:
             conversation = self.get_conversation(chat_id)
@@ -656,6 +688,17 @@ def _seed_state() -> WorkspaceState:
     )
 
 
+def _draft_assistant_reply(message: str, project_id: str | None) -> str:
+    project_clause = f" for {project_id}" if project_id else ""
+    summary = message.strip().replace("\n", " ")
+    if len(summary) > 90:
+        summary = f"{summary[:87]}..."
+    return (
+        f"Acknowledged{project_clause}. I've logged: “{summary}”. "
+        "Next, I'll outline the immediate actions and share a quick status update."
+    )
+
+
 _STATE = _seed_state()
 
 
@@ -698,6 +741,8 @@ def submit_message(chat_id: str, request: MessageCreateRequest) -> ConversationU
         raise HTTPException(status_code=400, detail="Message body cannot be empty")
 
     conversation = _STATE.create_message(chat_id, request.body)
+    assistant_reply = _draft_assistant_reply(request.body, request.project_id)
+    conversation = _STATE.create_assistant_message(chat_id, assistant_reply, update_preview=False)
     return ConversationUpdateModel(conversation=conversation, chat_groups=_STATE.chat_groups)
 
 

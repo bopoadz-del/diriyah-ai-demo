@@ -125,6 +125,7 @@ def _iter_router_specs() -> Iterable[Tuple[str, str]]:
         ("backend.api.translation", "Translation"),
         ("backend.api.reasoning", "Reasoning"),
         ("backend.api.pdp", "PDP"),
+        ("backend.api.runtime", "Runtime"),
     )
 
 
@@ -161,3 +162,8 @@ def health_check():
             "error": error,
         },
     }
+
+
+@app.get("/healthz")
+def health_check_alias():
+    return health_check()

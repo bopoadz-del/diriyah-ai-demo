@@ -1,18 +1,19 @@
 # scripts/seed_demo_data.py
+import os
 import requests
 
-BASE_URL = "http://localhost:8000/api/v1"
+BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 def seed_chat():
-    r = requests.post(f"{BASE_URL}/chat", data={"message": "Hello, demo project team!"})
+    r = requests.post(f"{BASE_URL}/api/chat", json={"message": "Hello, demo project team!"})
     print("Chat response:", r.json())
 
 def seed_project():
-    r = requests.post(f"{BASE_URL}/project/intel", data={"project": "Gateway1"})
+    r = requests.post(f"{BASE_URL}/api/project/intel", json={"project": "Gateway1"})
     print("Project intel:", r.json())
 
 def seed_cache():
-    r = requests.get(f"{BASE_URL}/cache/status")
+    r = requests.get(f"{BASE_URL}/api/cache/status")
     print("Cache status:", r.json())
 
 if __name__ == "__main__":

@@ -1,5 +1,8 @@
-
+# Simplified compose for quick local testing.
+# For development with hot-reload, use: docker compose -f docker-compose.dev.yml up --build
+# For production-like setup, use: docker compose -f docker-compose.prod.yml up --build
 version: "3.9"
+
 services:
   backend:
     build: .
@@ -7,18 +10,18 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - CORS_ORIGINS=*
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+      - CORS_ALLOW_CREDENTIALS=true
       - UNCERTAINTY_THRESHOLD=${UNCERTAINTY_THRESHOLD:-0.3}
       - CAUSAL_CONFIDENCE_LEVEL=${CAUSAL_CONFIDENCE_LEVEL:-0.9}
     volumes:
-      - ./:/app
+      - ./backend:/app/backend
+
   frontend:
     build:
       context: ./frontend
     ports:
-      - "5173:5173"
-    environment:
-      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
-    volumes:
-      - ./frontend:/app
+      - "3000:80"
+    depends_on:
+      - backend

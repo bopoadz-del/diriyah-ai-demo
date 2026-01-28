@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: diriyah-brain-app
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:8000}
+      - CORS_ALLOW_CREDENTIALS=false
+      - UNCERTAINTY_THRESHOLD=${UNCERTAINTY_THRESHOLD:-0.3}
+      - CAUSAL_CONFIDENCE_LEVEL=${CAUSAL_CONFIDENCE_LEVEL:-0.9}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./app.db}
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+      - postgres
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: diriyah-brain-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: diriyah-brain-postgres
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-diriyah}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-diriyah_prod}
+      - POSTGRES_DB=${POSTGRES_DB:-diriyah_brain}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  redis_data:
+  postgres_data:

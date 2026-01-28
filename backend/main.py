@@ -8,7 +8,7 @@ import os
 import sys
 from pathlib import Path
 from types import ModuleType
-from typing import Iterable, Tuple
+from typing import Iterable, List, Tuple
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -43,17 +43,42 @@ def _configure_logging() -> logging.Logger:
 logger = _configure_logging()
 
 
+def _configure_cors_middleware(fastapi_app: FastAPI) -> None:
+    """Configure CORS middleware based on environment variables.
+
+    Environment variables:
+    - CORS_ORIGINS: Comma-separated list of allowed origins, or "*" for all
+      Default: "http://localhost:5173,http://localhost:3000"
+    - CORS_ALLOW_CREDENTIALS: "true" or "false"
+      Default: "false" (forced false when CORS_ORIGINS is "*")
+    """
+    cors_origins_env = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000")
+    allow_credentials_env = os.getenv("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
+
+    if cors_origins_env == "*":
+        # Wildcard origin - credentials MUST be false (browser requirement)
+        allow_origins: List[str] = ["*"]
+        allow_credentials = False
+        logger.info("CORS configured with wildcard origin (credentials disabled)")
+    else:
+        # Explicit origin list
+        allow_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+        allow_credentials = allow_credentials_env
+        logger.info("CORS configured with origins: %s (credentials=%s)", allow_origins, allow_credentials)
+
+    fastapi_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allow_origins,
+        allow_credentials=allow_credentials,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+
 app = FastAPI(title="Diriyah Brain AI", version="v1.24")
 logger.info("FastAPI application initialised", extra={"version": app.version})
 
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+_configure_cors_middleware(app)
 
 # Note: PDP middleware is not added here to avoid initialization issues
 # The PDP system is available via /api/pdp endpoints
@@ -125,6 +150,7 @@ def _iter_router_specs() -> Iterable[Tuple[str, str]]:
         ("backend.api.translation", "Translation"),
         ("backend.api.reasoning", "Reasoning"),
         ("backend.api.pdp", "PDP"),
+        ("backend.api.runtime", "Runtime"),
     )
 
 
@@ -149,8 +175,8 @@ async def serve_frontend() -> FileResponse:
     return FileResponse(_INDEX_HTML, media_type="text/html")
 
 
-@app.get("/health")
-def health_check():
+def _health_payload() -> dict:
+    """Generate health check payload."""
     error = drive_service_error()
     return {
         "status": "ok" if error is None else "degraded",
@@ -161,3 +187,21 @@ def health_check():
             "error": error,
         },
     }
+
+
+@app.get("/health")
+def health_check():
+    """Primary health check endpoint."""
+    return _health_payload()
+
+
+@app.get("/healthz")
+def health_check_alias():
+    """Health check alias (Kubernetes-style)."""
+    return _health_payload()
+
+
+@app.get("/api/health")
+def health_check_api():
+    """Health check under /api prefix for frontend compatibility."""
+    return _health_payload()

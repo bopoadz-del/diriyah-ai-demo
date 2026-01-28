@@ -5,20 +5,33 @@ set -o pipefail
 
 # Install system packages required for building and running the app on Render
 apt-get update
+
+# Core build dependencies (always installed)
 apt-get install -y --no-install-recommends \
   build-essential \
   ca-certificates \
   curl \
-  libreoffice \
-  libmagic1 \
-  poppler-utils \
   python3-venv \
   python3-dev \
   libffi-dev \
   libssl-dev \
-  sqlite3 \
-  libboost-all-dev \
-  tesseract-ocr
+  sqlite3
+
+# Optional: Document processing tools (LibreOffice, Poppler, Tesseract)
+# Set INSTALL_DOC_TOOLS=true to enable these heavy dependencies
+if [[ "${INSTALL_DOC_TOOLS:-false}" == "true" ]]; then
+  echo "Installing document processing tools (INSTALL_DOC_TOOLS=true)..."
+  apt-get install -y --no-install-recommends \
+    libreoffice \
+    libmagic1 \
+    poppler-utils \
+    tesseract-ocr \
+    libboost-all-dev
+else
+  echo "Skipping document processing tools (set INSTALL_DOC_TOOLS=true to enable)"
+fi
+
+# Install Node.js for frontend build
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt-get install -y --no-install-recommends nodejs
 rm -rf /var/lib/apt/lists/*

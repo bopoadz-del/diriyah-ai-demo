@@ -32,6 +32,8 @@ services:
           property: connectionString
       - key: INSTALL_DEV_REQUIREMENTS
         value: "false"
+      - key: INSTALL_DOC_TOOLS
+        value: "false"
     healthCheckPath: /health
   - type: redis
     name: mba-redis

@@ -319,7 +319,7 @@ def test_log_decision_audit_trail(db_session):
     decision = engine.evaluate(request)
     
     # Verify decision was logged
-    from backend.backend.pdp.models import AuditLog
+    from backend.backend.pdp.models import PDPAuditLog as AuditLog
     logs = db_session.query(AuditLog).filter(
         AuditLog.user_id == 1,
         AuditLog.action == "read"

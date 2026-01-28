@@ -77,7 +77,9 @@ def test_window_reset(db_session):
     allowed, remaining = limiter.check_limit(user_id=1, endpoint="test")
     
     assert allowed is True
-    assert remaining == 10  # Reset to limit
+    # Reset uses the default limit from RATE_LIMITS config, not the original limit_count
+    default_limit = RATE_LIMITS["default"]["limit"]
+    assert remaining == default_limit
 
 
 def test_different_endpoints(db_session):

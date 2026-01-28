@@ -6,6 +6,7 @@ class Project(Base):
     __tablename__ = "projects"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, nullable=False)
+    description = Column(String, nullable=True)
     drive_id = Column(String, unique=True, nullable=True)  # Google Drive folder ID
     chats = relationship("Chat", back_populates="project")
 

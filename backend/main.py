@@ -117,6 +117,7 @@ def _iter_router_specs() -> Iterable[Tuple[str, str]]:
         ("backend.api.users", "Users"),
         ("backend.api.workspace", "Workspace"),
         ("backend.api.translation", "Translation"),
+        ("backend.api.reasoning", "Reasoning"),
     )
 
 

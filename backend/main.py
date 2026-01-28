@@ -45,6 +45,8 @@ logger = _configure_logging()
 
 app = FastAPI(title="Diriyah Brain AI", version="v1.24")
 logger.info("FastAPI application initialised", extra={"version": app.version})
+
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -52,6 +54,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# PDP middleware (add after CORS but before other middleware)
+try:
+    from backend.backend.pdp.middleware import PDPMiddleware
+    from backend.backend.pdp.policy_engine import PolicyEngine
+    from backend.backend.db import SessionLocal
+    
+    policy_engine = PolicyEngine()
+    app.add_middleware(PDPMiddleware, policy_engine=policy_engine, db_factory=SessionLocal)
+    logger.info("PDP middleware initialized")
+except Exception as e:
+    logger.warning("PDP middleware not loaded: %s", e)
 
 _BASE_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _BASE_DIR.parent
@@ -118,6 +132,7 @@ def _iter_router_specs() -> Iterable[Tuple[str, str]]:
         ("backend.api.workspace", "Workspace"),
         ("backend.api.translation", "Translation"),
         ("backend.api.reasoning", "Reasoning"),
+        ("backend.api.pdp", "PDP"),
     )
 
 

@@ -17,7 +17,6 @@ from sqlalchemy import (
     Text,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 try:
@@ -27,11 +26,7 @@ except ImportError:
     Base = declarative_base()
 
 
-# Use JSON type that falls back to TEXT for SQLite
-try:
-    from sqlalchemy.dialects.postgresql import JSONB as JSONType
-except ImportError:
-    from sqlalchemy import JSON as JSONType
+from sqlalchemy import JSON as JSONType
 
 
 class DocumentEntity(Base):

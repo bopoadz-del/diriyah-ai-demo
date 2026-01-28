@@ -126,6 +126,7 @@ def _iter_router_specs() -> Iterable[Tuple[str, str]]:
         ("backend.api.reasoning", "Reasoning"),
         ("backend.api.pdp", "PDP"),
         ("backend.api.runtime", "Runtime"),
+        ("backend.api.hydration", "Hydration"),
     )
 
 

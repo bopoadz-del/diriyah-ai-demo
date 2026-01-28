@@ -13,6 +13,24 @@ services:
       - CAUSAL_CONFIDENCE_LEVEL=${CAUSAL_CONFIDENCE_LEVEL:-0.9}
     volumes:
       - ./:/app
+  hydration-worker:
+    build: .
+    command: python -m backend.jobs.hydration_worker
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CORS_ORIGINS=*
+      - UNCERTAINTY_THRESHOLD=${UNCERTAINTY_THRESHOLD:-0.3}
+      - CAUSAL_CONFIDENCE_LEVEL=${CAUSAL_CONFIDENCE_LEVEL:-0.9}
+      - HYDRATION_ENABLED=${HYDRATION_ENABLED:-true}
+      - HYDRATION_TZ=${HYDRATION_TZ:-Asia/Riyadh}
+      - HYDRATION_HOUR=${HYDRATION_HOUR:-2}
+      - HYDRATION_MINUTE=${HYDRATION_MINUTE:-0}
+      - HYDRATION_POLL_SECONDS=${HYDRATION_POLL_SECONDS:-60}
+      - HYDRATION_MAX_FILES_PER_RUN=${HYDRATION_MAX_FILES_PER_RUN:-500}
+      - HYDRATION_OCR_ENABLED=${HYDRATION_OCR_ENABLED:-false}
+      - HYDRATION_FORCE_FULL_SCAN=${HYDRATION_FORCE_FULL_SCAN:-false}
+    volumes:
+      - ./:/app
   frontend:
     build:
       context: ./frontend

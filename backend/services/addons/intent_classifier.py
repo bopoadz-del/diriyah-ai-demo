@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import logging
+import os
 import re
 from functools import lru_cache
 from pathlib import Path
@@ -57,6 +58,8 @@ def _tfidf_resources() -> Tuple[Any | None, Any | None]:
 
 
 def _transformers_available() -> bool:
+    if os.getenv("ENABLE_BERT_INTENT", "false").lower() != "true":
+        return False
     return importlib.util.find_spec("transformers") is not None
 
 

@@ -239,7 +239,11 @@ class WorkspaceState:
             return conversation
 
     def create_assistant_message(
-        self, chat_id: str, body: str, author: str = "Diriyah Brain"
+        self,
+        chat_id: str,
+        body: str,
+        author: str = "Diriyah Brain",
+        update_preview: bool = False,
     ) -> ConversationModel:
         message = MessageModel(
             id=f"msg-{uuid4().hex[:8]}",
@@ -259,7 +263,8 @@ class WorkspaceState:
                 conversation.timeline.append(
                     TimelineEntryModel(id="live", label="Live", messages=[message])
                 )
-            self._touch_chat_preview(chat_id, body[:72], "Now")
+            if update_preview:
+                self._touch_chat_preview(chat_id, body[:72], "Now")
             conversation.context.activity.insert(
                 0, f"{message.timestamp} Assistant reply posted: {body[:60]}"
             )
@@ -737,7 +742,7 @@ def submit_message(chat_id: str, request: MessageCreateRequest) -> ConversationU
 
     conversation = _STATE.create_message(chat_id, request.body)
     assistant_reply = _draft_assistant_reply(request.body, request.project_id)
-    conversation = _STATE.create_assistant_message(chat_id, assistant_reply)
+    conversation = _STATE.create_assistant_message(chat_id, assistant_reply, update_preview=False)
     return ConversationUpdateModel(conversation=conversation, chat_groups=_STATE.chat_groups)
 
 

@@ -1,3 +1,6 @@
+from backend.events.emitter import EventEmitter
+from backend.events.envelope import EventEnvelope
+
 import pytest
 from fastapi import HTTPException
 from sqlalchemy import create_engine
@@ -8,7 +11,6 @@ from backend.backend.db import Base
 from backend.backend.pdp.schemas import PolicyDecision
 from backend.regression.guard import RegressionGuard
 from backend.regression.models import CurrentComponentVersion
-
 
 @pytest.fixture()
 def session_factory():

@@ -6,21 +6,33 @@ services:
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
+    depends_on:
+      - redis
+      - chroma
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - CORS_ORIGINS=*
       - UNCERTAINTY_THRESHOLD=${UNCERTAINTY_THRESHOLD:-0.3}
       - CAUSAL_CONFIDENCE_LEVEL=${CAUSAL_CONFIDENCE_LEVEL:-0.9}
+      - REDIS_URL=redis://redis:6379/0
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
     volumes:
       - ./:/app
   hydration-worker:
     build: .
     command: python -m backend.jobs.hydration_worker
+    depends_on:
+      - redis
+      - chroma
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - CORS_ORIGINS=*
       - UNCERTAINTY_THRESHOLD=${UNCERTAINTY_THRESHOLD:-0.3}
       - CAUSAL_CONFIDENCE_LEVEL=${CAUSAL_CONFIDENCE_LEVEL:-0.9}
+      - REDIS_URL=redis://redis:6379/0
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
       - HYDRATION_ENABLED=${HYDRATION_ENABLED:-true}
       - HYDRATION_TZ=${HYDRATION_TZ:-Asia/Riyadh}
       - HYDRATION_HOUR=${HYDRATION_HOUR:-2}
@@ -29,6 +41,38 @@ services:
       - HYDRATION_MAX_FILES_PER_RUN=${HYDRATION_MAX_FILES_PER_RUN:-500}
       - HYDRATION_OCR_ENABLED=${HYDRATION_OCR_ENABLED:-false}
       - HYDRATION_FORCE_FULL_SCAN=${HYDRATION_FORCE_FULL_SCAN:-false}
+    volumes:
+      - ./:/app
+  queue-worker:
+    build: .
+    command: python -m backend.jobs.queue_worker
+    depends_on:
+      - redis
+      - chroma
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CORS_ORIGINS=*
+      - UNCERTAINTY_THRESHOLD=${UNCERTAINTY_THRESHOLD:-0.3}
+      - CAUSAL_CONFIDENCE_LEVEL=${CAUSAL_CONFIDENCE_LEVEL:-0.9}
+      - REDIS_URL=redis://redis:6379/0
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+    volumes:
+      - ./:/app
+  event-projector-worker:
+    build: .
+    command: python -m backend.jobs.event_projector_worker
+    depends_on:
+      - redis
+      - chroma
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CORS_ORIGINS=*
+      - UNCERTAINTY_THRESHOLD=${UNCERTAINTY_THRESHOLD:-0.3}
+      - CAUSAL_CONFIDENCE_LEVEL=${CAUSAL_CONFIDENCE_LEVEL:-0.9}
+      - REDIS_URL=redis://redis:6379/0
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
     volumes:
       - ./:/app
   frontend:
@@ -40,3 +84,16 @@ services:
       - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
     volumes:
       - ./frontend:/app
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+  chroma:
+    image: ghcr.io/chroma-core/chroma:latest
+    volumes:
+      - chroma_data:/chroma/chroma
+
+volumes:
+  redis_data:
+  chroma_data:

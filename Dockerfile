@@ -38,7 +38,7 @@ COPY backend /app/backend
 COPY frontend/public /app/frontend/public
 RUN mkdir -p /app/uploads /app/images /app/storage
 # Include the compiled frontend bundle
-COPY --from=frontend-build /frontend/dist /app/frontend_dist
+COPY --from=frontend-build /frontend/dist /app/backend/frontend_dist
 
 EXPOSE 8000
 CMD ["gunicorn", "backend.main:app", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]

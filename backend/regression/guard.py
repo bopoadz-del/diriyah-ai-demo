@@ -157,6 +157,21 @@ class RegressionGuard:
         request.approved_by = approved_by
         db.commit()
         db.refresh(request)
+        EventEmitter(db=db).emit(
+            EventEnvelope.create(
+                event_type="regression.approved",
+                source="regression",
+                workspace_id=_safe_int(request.workspace_id),
+                actor_id=approved_by,
+                correlation_id=None,
+                payload={
+                    "component": request.component,
+                    "candidate_tag": request.candidate_tag,
+                    "baseline_tag": request.baseline_tag,
+                    "request_id": request.id,
+                },
+            )
+        )
         write_audit(
             db,
             approved_by,
@@ -206,6 +221,21 @@ class RegressionGuard:
         request.status = "promoted"
         db.commit()
         db.refresh(request)
+        EventEmitter(db=db).emit(
+            EventEnvelope.create(
+                event_type="regression.promoted",
+                source="regression",
+                workspace_id=workspace_id,
+                actor_id=actor_id,
+                correlation_id=None,
+                payload={
+                    "component": request.component,
+                    "candidate_tag": request.candidate_tag,
+                    "baseline_tag": request.baseline_tag,
+                    "request_id": request.id,
+                },
+            )
+        )
         write_audit(
             db,
             actor_id,

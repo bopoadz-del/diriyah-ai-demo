@@ -13,6 +13,8 @@ from typing import Any, Callable, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from backend.backend.db import SessionLocal
+from backend.events.emitter import EventEmitter
+from backend.events.envelope import EventEnvelope
 from backend.ops.handlers.hydration_handler import handle_hydration_job
 from backend.ops.models import BackgroundJob, BackgroundJobEvent
 from backend.redisx.queue import CONSUMER_GROUP, STREAM_NAME, RedisQueue, QueueEntry
@@ -145,6 +147,21 @@ def _handle_entry(
     job.redis_entry_id = entry.entry_id
     _record_event(db, job_id, "started", "Job processing started")
     db.commit()
+    emitter = EventEmitter(db=db)
+    emitter.emit(
+        EventEnvelope.create(
+            event_type="hydration.started",
+            source="hydration",
+            workspace_id=_safe_int(payload.get("workspace_id")),
+            actor_id=_safe_int(headers.get("user_id")),
+            correlation_id=headers.get("correlation_id"),
+            payload={
+                "job_id": job_id,
+                "job_type": job_type,
+                "attempt": job.attempts,
+            },
+        )
+    )
 
     try:
         if job_type != "hydration":
@@ -154,6 +171,20 @@ def _handle_entry(
         _mark_success(job, result)
         _record_event(db, job_id, "completed", "Job completed", data=result)
         db.commit()
+        emitter.emit(
+            EventEnvelope.create(
+                event_type="hydration.completed",
+                source="hydration",
+                workspace_id=_safe_int(payload.get("workspace_id")),
+                actor_id=_safe_int(headers.get("user_id")),
+                correlation_id=headers.get("correlation_id"),
+                payload={
+                    "job_id": job_id,
+                    "job_type": job_type,
+                    "result": result,
+                },
+            )
+        )
         queue.ack(STREAM_NAME, CONSUMER_GROUP, entry.entry_id)
     except Exception as exc:
         error_message = str(exc)
@@ -161,6 +192,21 @@ def _handle_entry(
         _mark_failed(job, error_message)
         _record_event(db, job_id, "failed_attempt", error_message, data={"attempt": job.attempts})
         db.commit()
+        emitter.emit(
+            EventEnvelope.create(
+                event_type="hydration.failed",
+                source="hydration",
+                workspace_id=_safe_int(payload.get("workspace_id")),
+                actor_id=_safe_int(headers.get("user_id")),
+                correlation_id=headers.get("correlation_id"),
+                payload={
+                    "job_id": job_id,
+                    "job_type": job_type,
+                    "attempt": job.attempts,
+                    "error": error_message,
+                },
+            )
+        )
 
         if job.attempts >= MAX_ATTEMPTS:
             queue.ack(STREAM_NAME, CONSUMER_GROUP, entry.entry_id)
@@ -168,6 +214,21 @@ def _handle_entry(
             _mark_dlq(job, error_message)
             _record_event(db, job_id, "dlq", "Job moved to DLQ")
             db.commit()
+            emitter.emit(
+                EventEnvelope.create(
+                    event_type="hydration.dlq",
+                    source="hydration",
+                    workspace_id=_safe_int(payload.get("workspace_id")),
+                    actor_id=_safe_int(headers.get("user_id")),
+                    correlation_id=headers.get("correlation_id"),
+                    payload={
+                        "job_id": job_id,
+                        "job_type": job_type,
+                        "attempt": job.attempts,
+                        "error": error_message,
+                    },
+                )
+            )
             return
 
         backoff = BACKOFF_SECONDS[min(job.attempts - 1, len(BACKOFF_SECONDS) - 1)]

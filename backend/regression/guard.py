@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import logging
 from datetime import datetime, timezone
 from typing import Dict, Optional, Tuple
 
@@ -34,6 +35,8 @@ _SUITE_MAPPING = {
     "tool_router": "runtime",
     "prompt_templates": "runtime",
 }
+
+logger = logging.getLogger(__name__)
 
 
 def _safe_int(value: Optional[str]) -> int:

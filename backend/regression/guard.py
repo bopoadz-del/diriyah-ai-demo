@@ -10,12 +10,6 @@ from typing import Dict, Optional, Tuple
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-try:  # pragma: no cover - optional events dependency
-    from backend.events.emitter import EventEmitter
-    from backend.events.envelope import EventEnvelope
-except Exception:  # pragma: no cover - events optional during tests
-    EventEmitter = None  # type: ignore[assignment]
-    EventEnvelope = None  # type: ignore[assignment]
 from backend.ops.regression_guard import RegressionGuard as OpsRegressionGuard
 from backend.regression.models import (
     CurrentComponentVersion,
@@ -64,6 +58,15 @@ def _emit_regression_event(
     _emitter.emit_global(envelope, db=db)
     if envelope.workspace_id is not None:
         _emitter.emit_workspace(envelope.workspace_id, envelope, db=db)
+
+
+def _safe_int(value: Optional[str]) -> int:
+    if value is None:
+        return 0
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _safe_int(value: Optional[str]) -> int:
@@ -236,19 +239,6 @@ class RegressionGuard:
         workspace_id = _safe_int(request.workspace_id)
         allowed, reason = ops_guard.should_promote(request.component, workspace_id, db)
         if not allowed:
-            _emit_regression_event(
-                event_type="regression.denied",
-                payload={
-                    "request_id": request.id,
-                    "component": request.component,
-                    "baseline_tag": request.baseline_tag,
-                    "candidate_tag": request.candidate_tag,
-                    "reason": reason,
-                },
-                workspace_id=workspace_id,
-                actor_id=actor_id,
-                db=db,
-            )
             raise HTTPException(status_code=409, detail=reason)
 
         current = db.query(CurrentComponentVersion).filter(CurrentComponentVersion.component == request.component).one_or_none()

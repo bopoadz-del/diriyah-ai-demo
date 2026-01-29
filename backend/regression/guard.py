@@ -10,7 +10,7 @@ from typing import Dict, Optional, Tuple
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-import logging
+import logging as logging_lib
 
 try:
     from backend.events.emitter import EventEmitter
@@ -43,7 +43,7 @@ _SUITE_MAPPING = {
     "prompt_templates": "runtime",
 }
 
-logger = logging.getLogger(__name__)
+logger = logging_lib.getLogger(__name__)
 
 
 class _NoopEmitter:

@@ -12,12 +12,15 @@ services:
       bash -c "if [ -f /opt/render/project/.venv/bin/activate ]; then
         source /opt/render/project/.venv/bin/activate
       fi
-      PORT_VALUE="${PORT:-8000}" && \
-      echo "Starting gunicorn on port ${PORT_VALUE}" && \
+      python -c \"from backend.backend.db import init_db; init_db()\" && \
+      PORT_VALUE=\"${PORT:-8000}\" && \
+      echo \"Starting gunicorn on port ${PORT_VALUE}\" && \
       exec gunicorn \
         -k uvicorn.workers.UvicornWorker \
-        -w 4 \
-        -b 0.0.0.0:"${PORT_VALUE}" \
+        -w 1 \
+        -t 180 \
+        --graceful-timeout 180 \
+        -b 0.0.0.0:\"${PORT_VALUE}\" \
         backend.main:app"
     envVars:
       - key: OPENAI_API_KEY
@@ -35,6 +38,8 @@ services:
       - key: CHROMA_PORT
         sync: false
       - key: INSTALL_DEV_REQUIREMENTS
+        value: "false"
+      - key: INIT_DB_ON_STARTUP
         value: "false"
     healthCheckPath: /health
   - type: worker

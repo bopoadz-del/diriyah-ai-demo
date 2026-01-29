@@ -15,11 +15,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.services.google_drive import (
-    drive_credentials_available,
-    drive_service_error,
-    drive_stubbed,
-)
 from backend.backend.db import init_db
 
 
@@ -46,7 +41,21 @@ logger = _configure_logging()
 
 app = FastAPI(title="Diriyah Brain AI", version="v1.24")
 logger.info("FastAPI application initialised", extra={"version": app.version})
-init_db()
+
+
+def _init_db_if_configured() -> None:
+    """Initialise the database if startup init is enabled."""
+
+    init_flag = os.getenv("INIT_DB_ON_STARTUP", "true").strip().lower()
+    should_init = init_flag not in {"0", "false", "no"}
+    if should_init:
+        logger.info("Initialising database on startup")
+        init_db()
+    else:
+        logger.info("Skipping database init on startup", extra={"INIT_DB_ON_STARTUP": init_flag})
+
+
+_init_db_if_configured()
 
 # CORS middleware
 app.add_middleware(
@@ -160,15 +169,8 @@ async def serve_frontend() -> FileResponse:
 
 @app.get("/health")
 def health_check():
-    error = drive_service_error()
     return {
-        "status": "ok" if error is None else "degraded",
-        "version": "v1.24",
-        "drive": {
-            "credentials_available": drive_credentials_available(),
-            "stubbed": drive_stubbed(),
-            "error": error,
-        },
+        "status": "ok",
     }
 
 

@@ -9,6 +9,7 @@ from backend.backend.db import Base
 from backend.hydration import models as hydration_models  # noqa: F401
 from backend.reasoning import db_models as reasoning_models  # noqa: F401
 from backend.backend.pdp import models as pdp_models  # noqa: F401
+from backend.events import models as event_models  # noqa: F401
 
 
 @pytest.fixture()

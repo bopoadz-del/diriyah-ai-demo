@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.hydration.models import (
     AlertCategory,
@@ -135,5 +135,4 @@ class DocumentOut(BaseModel):
     checksum: Optional[str]
     doc_type: DocumentType
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

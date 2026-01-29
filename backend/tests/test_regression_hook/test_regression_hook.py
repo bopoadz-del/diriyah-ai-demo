@@ -20,6 +20,7 @@ def session_factory():
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     import backend.backend.models  # noqa: F401
     import backend.backend.pdp.models  # noqa: F401
+    import backend.events.models  # noqa: F401
     import backend.regression.models  # noqa: F401
     Base.metadata.create_all(engine)
     try:

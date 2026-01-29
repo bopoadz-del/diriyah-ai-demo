@@ -1,238 +1,219 @@
 import time
-from typing import Dict, List, Tuple
+from typing import Callable, Dict, List, Tuple
 
 import pytest
-from redis.exceptions import ResponseError
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend.backend.db import Base
-from backend.ops.jobs import enqueue_job
+from backend.jobs.queue_worker import process_once
 from backend.ops.models import BackgroundJob
-from backend.redisx import queue
-import backend.jobs.queue_worker as queue_worker
+from backend.redisx.queue import RedisQueue
 
 
-class FakeRedis:
-    def __init__(self) -> None:
-        self.streams: Dict[str, List[Tuple[str, Dict[str, str]]]] = {}
-        self.groups: Dict[str, Dict[str, Dict[str, object]]] = {}
-        self._counters: Dict[str, int] = {}
-        self.pending: Dict[str, Dict[str, Dict[str, Dict[str, object]]]] = {}
+class FakeRedisResponseError(Exception):
+    pass
 
-    def _next_id(self, stream: str) -> str:
-        self._counters.setdefault(stream, 0)
-        self._counters[stream] += 1
-        return f"{self._counters[stream]}-0"
 
-    def xadd(self, stream: str, fields: Dict[str, str]):
-        entry_id = self._next_id(stream)
-        self.streams.setdefault(stream, []).append((entry_id, fields))
+class FakeRedisStream:
+    def __init__(self, time_fn: Callable[[], float] | None = None) -> None:
+        self._streams: Dict[str, List[Tuple[str, Dict[str, str]]]] = {}
+        self._groups: Dict[Tuple[str, str], Dict[str, Dict[str, Dict[str, float]]]] = {}
+        self._ids: Dict[str, int] = {}
+        self._time_fn = time_fn or time.monotonic
+
+    def xgroup_create(self, name: str, groupname: str, id: str = "$", mkstream: bool = False):
+        if name not in self._streams and mkstream:
+            self._streams[name] = []
+        key = (name, groupname)
+        if key in self._groups:
+            raise FakeRedisResponseError("BUSYGROUP Consumer Group name already exists")
+        self._groups[key] = {"pending": {}, "last_index": 0}
+
+    def xadd(self, name: str, fields: Dict[str, str]):
+        self._streams.setdefault(name, [])
+        next_id = self._ids.get(name, 0) + 1
+        self._ids[name] = next_id
+        entry_id = f"{next_id}-0"
+        self._streams[name].append((entry_id, dict(fields)))
         return entry_id
 
-    def xgroup_create(self, stream: str, groupname: str, id: str = "0-0", mkstream: bool = False):
-        if mkstream:
-            self.streams.setdefault(stream, [])
-        self.groups.setdefault(stream, {})
-        if groupname in self.groups[stream]:
-            raise ResponseError("BUSYGROUP Consumer Group name already exists")
-        self.groups[stream][groupname] = {"last_id": id}
-        self.pending.setdefault(stream, {})
-        self.pending[stream].setdefault(groupname, {})
-
     def xreadgroup(self, groupname: str, consumername: str, streams: Dict[str, str], count: int = 10, block: int = 0):
-        responses = []
-        for stream, last_id in streams.items():
-            group = self.groups[stream][groupname]
-            if last_id != ">":
-                start_id = last_id
-            else:
-                start_id = group["last_id"]
-            items = []
-            for entry_id, fields in self.streams.get(stream, []):
-                if entry_id <= start_id:
-                    continue
-                items.append((entry_id, fields))
-                group["last_id"] = entry_id
-                self.pending[stream][groupname][entry_id] = {
-                    "consumer": consumername,
-                    "fields": fields,
-                    "timestamp": time.monotonic(),
-                }
-                if count and len(items) >= count:
-                    break
-            if items:
-                responses.append((stream, items))
-        return responses
-
-    def xack(self, stream: str, groupname: str, entry_id: str):
-        self.pending.get(stream, {}).get(groupname, {}).pop(entry_id, None)
-
-    def xautoclaim(
-        self,
-        stream: str,
-        groupname: str,
-        consumername: str,
-        min_idle_time: int,
-        start_id: str = "0-0",
-        count: int = 10,
-    ):
-        claimed = []
-        now = time.monotonic()
-        for entry_id, info in list(self.pending.get(stream, {}).get(groupname, {}).items()):
-            idle_ms = (now - info["timestamp"]) * 1000
-            if idle_ms >= min_idle_time:
-                info["consumer"] = consumername
-                info["timestamp"] = now
-                claimed.append((entry_id, info["fields"]))
-                if count and len(claimed) >= count:
-                    break
-        return start_id, claimed
-
-    def xpending_range(self, stream: str, groupname: str, min: str, max: str, count: int = 10, idle: int = 0):
-        pending_items = []
-        now = time.monotonic()
-        for entry_id, info in self.pending.get(stream, {}).get(groupname, {}).items():
-            idle_ms = (now - info["timestamp"]) * 1000
-            if idle_ms >= idle:
-                pending_items.append((entry_id, info["consumer"], idle_ms, 1))
-                if count and len(pending_items) >= count:
-                    break
-        return pending_items
-
-    def xclaim(self, stream: str, groupname: str, consumername: str, min_idle_time: int, message_ids: List[str]):
-        claimed = []
-        now = time.monotonic()
-        for entry_id in message_ids:
-            info = self.pending.get(stream, {}).get(groupname, {}).get(entry_id)
-            if not info:
+        results = []
+        for stream_name, stream_id in streams.items():
+            if stream_id != ">":
                 continue
-            info["consumer"] = consumername
-            info["timestamp"] = now
-            claimed.append((entry_id, info["fields"]))
+            group_key = (stream_name, groupname)
+            group = self._groups[group_key]
+            last_index = group["last_index"]
+            entries = self._streams.get(stream_name, [])
+            new_entries = entries[last_index:last_index + count]
+            if new_entries:
+                group["last_index"] = last_index + len(new_entries)
+                now = self._time_fn()
+                for entry_id, _ in new_entries:
+                    group["pending"][entry_id] = {
+                        "consumer": consumername,
+                        "delivered_at": now,
+                    }
+                results.append((stream_name, new_entries))
+        return results
+
+    def xack(self, name: str, groupname: str, entry_id: str):
+        group_key = (name, groupname)
+        group = self._groups[group_key]
+        if entry_id in group["pending"]:
+            del group["pending"][entry_id]
+            return 1
+        return 0
+
+    def xautoclaim(self, name: str, groupname: str, consumername: str, min_idle_time: int, start_id: str = "0-0", count: int = 10):
+        group_key = (name, groupname)
+        group = self._groups[group_key]
+        now = self._time_fn()
+        messages = []
+        for entry_id, meta in list(group["pending"].items()):
+            if len(messages) >= count:
+                break
+            idle_ms = (now - meta["delivered_at"]) * 1000
+            if idle_ms >= min_idle_time:
+                meta["consumer"] = consumername
+                meta["delivered_at"] = now
+                for candidate_id, fields in self._streams.get(name, []):
+                    if candidate_id == entry_id:
+                        messages.append((candidate_id, fields))
+                        break
+        return "0-0", messages
+
+    def xpending_range(self, name: str, groupname: str, min: str, max: str, count: int):
+        group_key = (name, groupname)
+        group = self._groups[group_key]
+        now = self._time_fn()
+        items = []
+        for entry_id, meta in list(group["pending"].items())[:count]:
+            idle_ms = int((now - meta["delivered_at"]) * 1000)
+            items.append({"message_id": entry_id, "idle": idle_ms})
+        return items
+
+    def xclaim(self, name: str, groupname: str, consumername: str, min_idle_time: int, entry_ids: List[str]):
+        group_key = (name, groupname)
+        group = self._groups[group_key]
+        now = self._time_fn()
+        claimed = []
+        for entry_id in entry_ids:
+            meta = group["pending"].get(entry_id)
+            if not meta:
+                continue
+            idle_ms = (now - meta["delivered_at"]) * 1000
+            if idle_ms < min_idle_time:
+                continue
+            meta["consumer"] = consumername
+            meta["delivered_at"] = now
+            for candidate_id, fields in self._streams.get(name, []):
+                if candidate_id == entry_id:
+                    claimed.append((candidate_id, fields))
+                    break
         return claimed
 
-    def set_pending_idle(self, stream: str, groupname: str, entry_id: str, idle_seconds: int) -> None:
-        info = self.pending.get(stream, {}).get(groupname, {}).get(entry_id)
-        if info:
-            info["timestamp"] = time.monotonic() - idle_seconds
+    @property
+    def streams(self):
+        return self._streams
 
 
 @pytest.fixture()
-def session_factory():
+def db_factory():
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    import backend.ops.models  # noqa: F401
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(engine)
+    yield TestingSessionLocal
+    Base.metadata.drop_all(engine)
+
+
+def _enqueue_job(queue: RedisQueue, db_factory, payload: dict):
+    db = db_factory()
     try:
-        yield SessionLocal
+        return queue.enqueue(
+            "hydration",
+            payload,
+            {"correlation_id": "corr-1", "workspace_id": payload["workspace_id"], "user_id": 7},
+            db=db,
+        )
     finally:
-        Base.metadata.drop_all(engine)
+        db.close()
 
 
-@pytest.fixture()
-def db_session(session_factory):
-    session = session_factory()
+def test_enqueue_creates_db_job_row(db_factory):
+    redis_client = FakeRedisStream()
+    queue = RedisQueue(redis_client=redis_client, db_factory=db_factory)
+    job_id = _enqueue_job(queue, db_factory, {"workspace_id": "1"})
+
+    db = db_factory()
     try:
-        yield session
+        job = db.query(BackgroundJob).filter(BackgroundJob.job_id == job_id).one()
+        assert job.status == "queued"
     finally:
-        session.close()
+        db.close()
 
 
-@pytest.fixture()
-def fake_redis():
-    return FakeRedis()
+def test_worker_consumes_job_success(db_factory):
+    redis_client = FakeRedisStream()
+    queue = RedisQueue(redis_client=redis_client, db_factory=db_factory)
+    job_id = _enqueue_job(queue, db_factory, {"workspace_id": "2"})
+
+    def handler(payload, headers, db):
+        return {"status": "succeeded", "workspace_id": payload["workspace_id"]}
+
+    processed = process_once(queue, db_factory=db_factory, hydration_handler=handler, sleep_fn=lambda _: None)
+    assert processed == 1
+
+    db = db_factory()
+    try:
+        job = db.query(BackgroundJob).filter(BackgroundJob.job_id == job_id).one()
+        assert job.status == "succeeded"
+        assert job.result_json["status"] == "succeeded"
+    finally:
+        db.close()
 
 
-def test_enqueue_creates_db_job_row(db_session, fake_redis):
-    job = enqueue_job(
-        db_session,
-        "hydration",
-        {"workspace_id": "ws-1"},
-        {"correlation_id": "corr-1", "workspace_id": "ws-1"},
-        redis_client=fake_redis,
-    )
-    stored = db_session.query(BackgroundJob).filter(BackgroundJob.job_id == job.job_id).one()
-    assert stored.status == "queued"
+def test_worker_retries_then_dlq(db_factory):
+    redis_client = FakeRedisStream()
+    queue = RedisQueue(redis_client=redis_client, db_factory=db_factory)
+    job_id = _enqueue_job(queue, db_factory, {"workspace_id": "3"})
+
+    def handler(payload, headers, db):
+        raise RuntimeError("boom")
+
+    for _ in range(6):
+        process_once(queue, db_factory=db_factory, hydration_handler=handler, sleep_fn=lambda _: None)
+
+    db = db_factory()
+    try:
+        job = db.query(BackgroundJob).filter(BackgroundJob.job_id == job_id).one()
+        assert job.attempts == 5
+        assert job.status == "dlq"
+    finally:
+        db.close()
+
+    assert len(redis_client.streams.get("jobs:dlq", [])) == 1
 
 
-def test_worker_consumes_job_success(db_session, fake_redis, session_factory, monkeypatch):
-    job = enqueue_job(
-        db_session,
-        "hydration",
-        {"workspace_id": "ws-2"},
-        {"correlation_id": "corr-2", "workspace_id": "ws-2"},
-        redis_client=fake_redis,
-    )
+def test_claim_stuck_pending(db_factory):
+    now = [time.monotonic()]
 
-    monkeypatch.setattr(queue_worker, "handle_hydration", lambda *args, **kwargs: {"run_id": 10})
+    def time_fn():
+        return now[0]
 
-    processed = queue_worker.process_once(
-        redis_client=fake_redis,
-        db_session_factory=session_factory,
-        consumer_name="worker-test",
-    )
-    assert processed >= 1
+    redis_client = FakeRedisStream(time_fn=time_fn)
+    queue = RedisQueue(redis_client=redis_client, db_factory=db_factory)
+    _enqueue_job(queue, db_factory, {"workspace_id": "4"})
 
-    db_session.expire_all()
-    stored = db_session.query(BackgroundJob).filter(BackgroundJob.job_id == job.job_id).one()
-    assert stored.status == "succeeded"
-    assert stored.result_json["run_id"] == 10
+    queue.read_batch(consumer_name="consumer-1", count=1, block_ms=10)
+    now[0] += 61
 
-
-def test_worker_retries_then_dlq(db_session, fake_redis, session_factory, monkeypatch):
-    job = enqueue_job(
-        db_session,
-        "hydration",
-        {"workspace_id": "ws-3"},
-        {"correlation_id": "corr-3", "workspace_id": "ws-3"},
-        redis_client=fake_redis,
-    )
-
-    monkeypatch.setattr(queue_worker, "handle_hydration", lambda *args, **kwargs: (_ for _ in ()).throw(ValueError("boom")))
-    monkeypatch.setattr(queue_worker, "BACKOFF_SECONDS", [0, 0, 0, 0, 0])
-    monkeypatch.setattr(queue_worker.time, "sleep", lambda *_args, **_kwargs: None)
-
-    queue_worker.process_once(
-        redis_client=fake_redis,
-        db_session_factory=session_factory,
-        consumer_name="worker-test",
-    )
-
-    db_session.expire_all()
-    stored = db_session.query(BackgroundJob).filter(BackgroundJob.job_id == job.job_id).one()
-    assert stored.status == "dlq"
-    assert stored.attempts == 5
-    assert fake_redis.streams.get(queue.DLQ_STREAM)
-
-
-def test_claim_stuck_pending(db_session, fake_redis, session_factory, monkeypatch):
-    job = enqueue_job(
-        db_session,
-        "hydration",
-        {"workspace_id": "ws-4"},
-        {"correlation_id": "corr-4", "workspace_id": "ws-4"},
-        redis_client=fake_redis,
-    )
-
-    monkeypatch.setattr(queue_worker, "handle_hydration", lambda *args, **kwargs: {"run_id": 99})
-
-    queue.read_batch("worker-a", redis_client=fake_redis)
-    pending_id = job.redis_entry_id
-    fake_redis.set_pending_idle(queue.STREAM_NAME, queue.GROUP_NAME, pending_id, 120)
-
-    processed = queue_worker.process_once(
-        redis_client=fake_redis,
-        db_session_factory=session_factory,
-        consumer_name="worker-b",
-    )
-    assert processed >= 1
-
-    db_session.expire_all()
-    stored = db_session.query(BackgroundJob).filter(BackgroundJob.job_id == job.job_id).one()
-    assert stored.status == "succeeded"
+    processed = process_once(queue, db_factory=db_factory, hydration_handler=lambda p, h, d: {"status": "succeeded"}, sleep_fn=lambda _: None)
+    assert processed == 1

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import uuid
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
@@ -34,7 +36,7 @@ from backend.hydration.schemas import (
     WorkspaceSourceOut,
     WorkspaceSourceUpdate,
 )
-from backend.ops.jobs import enqueue_job
+from backend.redisx.queue import RedisQueue
 
 router = APIRouter(prefix="/hydration", tags=["Hydration"])
 
@@ -122,6 +124,7 @@ def run_now(
     request: RunNowRequest,
     db: Session = Depends(get_db),
     x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
+    x_correlation_id: Optional[str] = Header(default=None, alias="X-Correlation-Id"),
 ):
     user_id = _parse_user_id(x_user_id)
     try:
@@ -135,8 +138,8 @@ def run_now(
         )
         raise
 
-    correlation_id = f"hydration-{uuid.uuid4()}"
-
+    correlation_id = x_correlation_id or os.getenv("CORRELATION_ID") or str(uuid.uuid4())
+    queue = RedisQueue()
     payload = {
         "workspace_id": request.workspace_id,
         "source_ids": request.source_ids,
@@ -149,9 +152,11 @@ def run_now(
         "workspace_id": request.workspace_id,
         "user_id": user_id,
     }
-
-    job = enqueue_job(db, "hydration", payload, headers)
-    return {"job_id": job.job_id, "status": "queued"}
+    try:
+        job_id = queue.enqueue("hydration", payload, headers, db=db)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    return {"job_id": job_id, "status": "queued"}
 
 
 @router.get("/runs", response_model=List[HydrationRunOut])

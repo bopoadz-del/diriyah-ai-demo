@@ -23,8 +23,6 @@ def ensure_job(
     headers: dict,
     redis_entry_id: Optional[str] = None,
     status: str = "queued",
-    not_before_at: Optional[datetime] = None,
-    priority: Optional[int] = None,
 ) -> BackgroundJob:
     job = db.query(BackgroundJob).filter(BackgroundJob.job_id == job_id).one_or_none()
     if job:
@@ -32,10 +30,6 @@ def ensure_job(
             job.redis_entry_id = redis_entry_id
         if job.status != status and job.status == "queued":
             job.status = status
-        if not_before_at is not None:
-            job.not_before_at = not_before_at
-        if priority is not None:
-            job.priority = priority
         db.commit()
         return job
 
@@ -46,8 +40,6 @@ def ensure_job(
         status=status,
         redis_stream=queue.STREAM_NAME,
         redis_entry_id=redis_entry_id,
-        not_before_at=not_before_at,
-        priority=priority or 0,
     )
     db.add(job)
     db.commit()
@@ -68,15 +60,11 @@ def enqueue_job(
     payload: dict,
     headers: dict,
     redis_client: Optional[object] = None,
-    not_before_at: Optional[datetime] = None,
-    priority: Optional[int] = None,
 ) -> BackgroundJob:
     job_id, entry_id = queue.enqueue_with_entry_id(
         job_type,
         payload,
         headers,
-        not_before_at=not_before_at,
-        priority=priority,
         redis_client=redis_client,
     )
     job = ensure_job(
@@ -87,8 +75,6 @@ def enqueue_job(
         headers,
         redis_entry_id=entry_id,
         status="queued",
-        not_before_at=not_before_at,
-        priority=priority,
     )
     return job
 

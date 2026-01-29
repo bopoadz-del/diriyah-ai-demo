@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 
 class PromotionRequestCreate(BaseModel):
@@ -26,7 +26,8 @@ class PromotionRequestOut(BaseModel):
     approved_by: Optional[int]
     created_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
 
 class RegressionCheckOut(BaseModel):
@@ -40,7 +41,8 @@ class RegressionCheckOut(BaseModel):
     drop_value: Optional[float]
     passed: bool
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
 
 class PromotionApproveRequest(BaseModel):

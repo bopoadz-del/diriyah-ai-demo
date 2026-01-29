@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from backend.backend.db import SessionLocal
+from backend.backend.db import SessionLocal, init_db
 from backend.events.emitter import emit_global
 from backend.events.envelope import EventEnvelope
 from backend.ops.handlers.hydration_handler import handle_hydration_job
@@ -256,6 +256,7 @@ def process_once(
 
 
 def run_forever() -> None:
+    init_db()
     queue = RedisQueue()
     consumer = _consumer_name()
     queue.ensure_group(STREAM_NAME, CONSUMER_GROUP)

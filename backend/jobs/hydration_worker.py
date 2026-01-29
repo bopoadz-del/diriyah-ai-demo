@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from backend.backend.db import SessionLocal
+from backend.backend.db import SessionLocal, init_db
 from backend.backend.pdp.audit_logger import AuditLogger
 from backend.backend.pdp.policy_engine import PolicyEngine
 from backend.backend.pdp.schemas import PolicyRequest
@@ -75,6 +75,7 @@ def _evaluate_pdp(db: Session, user_id: int, workspace_id: str) -> tuple[bool, s
 
 def run_worker() -> None:
     logging.basicConfig(level=logging.INFO)
+    init_db()
     if not _env_bool("HYDRATION_ENABLED", True):
         logger.info("Hydration worker disabled via HYDRATION_ENABLED")
         return

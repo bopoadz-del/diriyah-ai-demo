@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
-from backend.backend.db import SessionLocal
+from backend.backend.db import SessionLocal, init_db
 from backend.events.envelope import EventEnvelope
 from backend.events.projector import EventProjector
 
@@ -138,6 +138,7 @@ def _process_entry(entry_id: str, fields: Dict[str, Any], db: Session, redis_cli
 
 
 def run_forever() -> None:
+    init_db()
     consumer = _consumer_name()
     logger.info("Event projector worker starting", extra={"consumer": consumer})
 

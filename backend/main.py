@@ -20,6 +20,7 @@ from backend.services.google_drive import (
     drive_service_error,
     drive_stubbed,
 )
+from backend.backend.db import init_db
 
 
 def _configure_logging() -> logging.Logger:
@@ -45,6 +46,7 @@ logger = _configure_logging()
 
 app = FastAPI(title="Diriyah Brain AI", version="v1.24")
 logger.info("FastAPI application initialised", extra={"version": app.version})
+init_db()
 
 # CORS middleware
 app.add_middleware(

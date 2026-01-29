@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .db import Base, engine
+from .db import init_db
 from .api import projects, chats, messages, drive, upload, speech, vision, ai, admin, settings, analytics
 
-Base.metadata.create_all(bind=engine)
+init_db()
 
 app = FastAPI(title="Masterise Brain AI")
 

@@ -7,15 +7,12 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 import base64
+import importlib
+import importlib.util
 import json
 
 import logging
 from typing import Dict, List, Optional
-
-try:  # pragma: no cover - optional dependency for lightweight deployments
-    import numpy as np  # type: ignore
-except ImportError:  # pragma: no cover - handled gracefully
-    np = None  # type: ignore[assignment]
 
 from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
@@ -23,23 +20,48 @@ from pydantic import BaseModel, Field
 
 from backend.redisx.locks import DistributedLock
 
-try:  # pragma: no cover - optional dependency
-    import cv2
-    _cv2_import_error: Optional[Exception] = None
-except Exception as exc:  # pragma: no cover - handled at runtime
-    cv2 = None  # type: ignore[assignment]
-    _cv2_import_error = exc
+def _optional_import(module_path: str):
+    try:
+        spec = importlib.util.find_spec(module_path)
+    except ModuleNotFoundError as exc:  # pragma: no cover - handled gracefully
+        return None, exc
+    if spec is None:
+        return None, None
+    try:
+        module = importlib.import_module(module_path)
+    except Exception as exc:  # pragma: no cover - handled gracefully
+        return None, exc
+    return module, None
 
-try:  # pragma: no cover - optional dependency for lightweight deployments
-    from services.progress_tracking_service import (
-        ProgressSnapshot,
-        ProgressTrackingService,
-    )
-    _progress_service_import_error: Optional[Exception] = None
-except Exception as exc:  # pragma: no cover - handled during runtime
-    ProgressTrackingService = None  # type: ignore[assignment]
-    ProgressSnapshot = None  # type: ignore[assignment]
-    _progress_service_import_error = exc
+
+cv2_module, _cv2_import_error = _optional_import("cv2")
+cv2 = cv2_module  # type: ignore[assignment]
+
+np_module, _np_import_error = _optional_import("numpy")
+np = np_module  # type: ignore[assignment]
+
+
+def _load_progress_service():
+    last_error: Optional[Exception] = None
+    for module_path in (
+        "backend.services.progress_tracking_service",
+        "backend.backend.services.progress_tracking_service",
+        "services.progress_tracking_service",
+    ):
+        module, error = _optional_import(module_path)
+        if module is None:
+            if error is not None:
+                last_error = error
+            continue
+        return (
+            getattr(module, "ProgressSnapshot", None),
+            getattr(module, "ProgressTrackingService", None),
+            None,
+        )
+    return None, None, last_error
+
+
+ProgressSnapshot, ProgressTrackingService, _progress_service_import_error = _load_progress_service()
 
 try:  # pragma: no cover - optional multipart dependency
     import multipart  # type: ignore

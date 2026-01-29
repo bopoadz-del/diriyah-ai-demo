@@ -22,6 +22,7 @@ def db_session():
     )
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     import backend.learning.models  # noqa: F401
+    import backend.events.models  # noqa: F401
     Base.metadata.create_all(engine)
     session = TestingSessionLocal()
     try:

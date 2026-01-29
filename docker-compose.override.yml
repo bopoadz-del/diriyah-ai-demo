@@ -13,10 +13,6 @@ services:
     volumes:
       - ./backend:/app/backend
       - ./frontend:/app/frontend
-      - ./chroma_data:/app/chroma_db
-    depends_on:
-      - redis
-      - chroma
 
   frontend:
     build:
@@ -29,24 +25,3 @@ services:
       - backend
     volumes:
       - ./frontend:/app
-
-  redis:
-    image: redis:7-alpine
-    container_name: diriyah-brain-redis
-    ports:
-      - "6379:6379"
-    command: ["redis-server", "--appendonly", "yes"]
-    volumes:
-      - redis_data:/data
-
-  chroma:
-    image: ghcr.io/chroma-core/chroma:latest
-    container_name: diriyah-brain-chroma
-    ports:
-      - "8001:8000"
-    volumes:
-      - ./chroma_data:/chroma/chroma
-
-volumes:
-  redis_data:
-  chroma_data:

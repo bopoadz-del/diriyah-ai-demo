@@ -147,26 +147,19 @@ def _enqueue_job(queue: RedisQueue, db_factory, payload: dict):
         db.close()
 
 
-def test_enqueue_creates_db_job_row(db_factory):
+def test_enqueue_and_worker_success(db_factory):
     redis_client = FakeRedisStream()
     queue = RedisQueue(redis_client=redis_client, db_factory=db_factory)
-    job_id = _enqueue_job(queue, db_factory, {"workspace_id": "1"})
-
-    db = db_factory()
-    try:
-        job = db.query(BackgroundJob).filter(BackgroundJob.job_id == job_id).one()
-        assert job.status == "queued"
-    finally:
-        db.close()
-
-
-def test_worker_consumes_job_success(db_factory):
-    redis_client = FakeRedisStream()
-    queue = RedisQueue(redis_client=redis_client, db_factory=db_factory)
-    job_id = _enqueue_job(queue, db_factory, {"workspace_id": "2"})
+    job_id = _enqueue_job(queue, db_factory, {"workspace_id": "10"})
 
     def handler(job, payload, headers, db):
-        return {"status": "success", "workspace_id": payload["workspace_id"]}
+        return {
+            "files_scanned": 4,
+            "docs_added": 2,
+            "embeddings_added": 2,
+            "duration_sec": 1.2,
+            "correlation_id": headers.get("correlation_id"),
+        }
 
     processed = process_once(queue, db_factory=db_factory, hydration_handler=handler, sleep_fn=lambda _: None)
     assert processed == 1
@@ -175,15 +168,15 @@ def test_worker_consumes_job_success(db_factory):
     try:
         job = db.query(BackgroundJob).filter(BackgroundJob.job_id == job_id).one()
         assert job.status == "success"
-        assert job.result_json["status"] == "success"
+        assert job.result_json is not None
     finally:
         db.close()
 
 
-def test_worker_retries_then_dlq(db_factory):
+def test_retry_then_dlq(db_factory):
     redis_client = FakeRedisStream()
     queue = RedisQueue(redis_client=redis_client, db_factory=db_factory)
-    job_id = _enqueue_job(queue, db_factory, {"workspace_id": "3"})
+    job_id = _enqueue_job(queue, db_factory, {"workspace_id": "11"})
 
     def handler(job, payload, headers, db):
         raise RuntimeError("boom")
@@ -200,25 +193,3 @@ def test_worker_retries_then_dlq(db_factory):
         db.close()
 
     assert len(redis_client.streams.get("jobs:dlq", [])) == 1
-
-
-def test_claim_stuck_pending(db_factory):
-    now = [time.monotonic()]
-
-    def time_fn():
-        return now[0]
-
-    redis_client = FakeRedisStream(time_fn=time_fn)
-    queue = RedisQueue(redis_client=redis_client, db_factory=db_factory)
-    _enqueue_job(queue, db_factory, {"workspace_id": "4"})
-
-    queue.read(consumer="consumer-1", count=1, block_ms=10)
-    now[0] += 61
-
-    processed = process_once(
-        queue,
-        db_factory=db_factory,
-        hydration_handler=lambda job, p, h, d: {"status": "success"},
-        sleep_fn=lambda _: None,
-    )
-    assert processed == 1

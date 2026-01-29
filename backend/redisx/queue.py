@@ -1,342 +1,250 @@
-"""Redis Streams queue utilities."""
+"""Redis Streams-backed job queue helpers."""
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from datetime import datetime, timezone
 import json
+import logging
 import os
 import uuid
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-from redis.exceptions import ResponseError
+from sqlalchemy.orm import Session
+
+from backend.backend.db import SessionLocal
+from backend.ops.models import BackgroundJob, BackgroundJobEvent
+
+logger = logging.getLogger(__name__)
+
 
 STREAM_NAME = "jobs:main"
-DLQ_STREAM = "jobs:dlq"
-GROUP_NAME = "jobs"
+DLQ_STREAM_NAME = "jobs:dlq"
+CONSUMER_GROUP = "jobs"
 
 
-def _get_redis(redis_url: Optional[str] = None, redis_client: Optional[object] = None):
-    if redis_client is not None:
-        return redis_client
-    url = redis_url or os.getenv("REDIS_URL")
-    if not url:
-        raise RuntimeError("REDIS_URL is not configured")
-    try:
-        import redis  # type: ignore
-
-        return redis.Redis.from_url(url)
-    except Exception as exc:  # pragma: no cover - defensive guard
-        raise RuntimeError(f"Failed to initialize Redis client: {exc}") from exc
+@dataclass(frozen=True)
+class QueueEntry:
+    entry_id: str
+    fields: Dict[str, Any]
 
 
-def ensure_group(redis_client: Optional[object] = None, redis_url: Optional[str] = None) -> None:
-    redis_conn = _get_redis(redis_url=redis_url, redis_client=redis_client)
-    try:
-        redis_conn.xgroup_create(STREAM_NAME, GROUP_NAME, id="0-0", mkstream=True)
-    except ResponseError as exc:
-        if "BUSYGROUP" not in str(exc):
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+class RedisQueue:
+    """Redis Streams queue wrapper with DB lifecycle mirroring."""
+
+    def __init__(
+        self,
+        redis_client: Optional[object] = None,
+        redis_url: Optional[str] = None,
+        db_factory=SessionLocal,
+    ) -> None:
+        self._redis = redis_client
+        self._redis_url = redis_url or os.getenv("REDIS_URL")
+        self._db_factory = db_factory
+        self._warned = False
+
+        if self._redis is None and self._redis_url:
+            try:
+                import redis  # type: ignore
+
+                self._redis = redis.Redis.from_url(self._redis_url, decode_responses=True)
+            except Exception as exc:  # pragma: no cover - defensive guard
+                self._redis = None
+                self._log_degraded(f"Redis client init failed: {exc}")
+
+    @property
+    def redis(self) -> object:
+        if self._redis is None:
+            raise RuntimeError("Redis is not configured for the job queue.")
+        return self._redis
+
+    def ensure_group(self) -> None:
+        redis_client = self.redis
+        try:
+            redis_client.xgroup_create(STREAM_NAME, CONSUMER_GROUP, id="$", mkstream=True)
+        except Exception as exc:
+            if "BUSYGROUP" in str(exc):
+                return
             raise
 
-
-def _serialize_fields(
-    job_id: str,
-    job_type: str,
-    payload: dict,
-    headers: dict,
-    not_before_at: Optional[datetime] = None,
-    priority: Optional[int] = None,
-) -> Dict[str, str]:
-    fields = {
-        "job_id": job_id,
-        "job_type": job_type,
-        "payload_json": json.dumps(payload),
-        "headers_json": json.dumps(headers),
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    if not_before_at is not None:
-        fields["not_before_at"] = not_before_at.isoformat()
-    if priority is not None:
-        fields["priority"] = str(priority)
-    return fields
-
-
-def enqueue_with_entry_id(
-    job_type: str,
-    payload: dict,
-    headers: dict,
-    not_before_at: Optional[datetime] = None,
-    priority: Optional[int] = None,
-    job_id: Optional[str] = None,
-    redis_client: Optional[object] = None,
-    redis_url: Optional[str] = None,
-) -> Tuple[str, str]:
-    redis_conn = _get_redis(redis_url=redis_url, redis_client=redis_client)
-    ensure_group(redis_client=redis_conn)
-    job_id = job_id or str(uuid.uuid4())
-    fields = _serialize_fields(job_id, job_type, payload, headers, not_before_at, priority)
-    entry_id = redis_conn.xadd(STREAM_NAME, fields)
-    if isinstance(entry_id, bytes):
-        entry_id = entry_id.decode("utf-8")
-    return job_id, str(entry_id)
-
-
-def enqueue(
-    job_type: str,
-    payload: dict,
-    headers: dict,
-    db: Optional[object] = None,
-    not_before_ts: Optional[datetime] = None,
-    priority: Optional[int] = None,
-    job_id: Optional[str] = None,
-    redis_client: Optional[object] = None,
-    redis_url: Optional[str] = None,
-) -> str:
-    job_id, entry_id = enqueue_with_entry_id(
-        job_type,
-        payload,
-        headers,
-        not_before_at=not_before_ts,
-        priority=priority,
-        job_id=job_id,
-        redis_client=redis_client,
-        redis_url=redis_url,
-    )
-    if db is not None:
-        from backend.ops.models import BackgroundJob, BackgroundJobEvent
-
-        job = db.query(BackgroundJob).filter(BackgroundJob.job_id == job_id).one_or_none()
-        if job is None:
+    def enqueue(
+        self,
+        job_type: str,
+        payload: Dict[str, Any],
+        headers: Dict[str, Any],
+        db: Optional[Session] = None,
+    ) -> str:
+        job_id = str(uuid.uuid4())
+        created_at = _utc_now().isoformat()
+        headers_json = json.dumps(headers)
+        payload_json = json.dumps(payload)
+        fields = {
+            "job_id": job_id,
+            "job_type": job_type,
+            "payload_json": payload_json,
+            "headers_json": headers_json,
+            "created_at": created_at,
+        }
+        manage_session = db is None
+        session = db or self._db_factory()
+        try:
             job = BackgroundJob(
                 job_id=job_id,
                 job_type=job_type,
-                workspace_id=payload.get("workspace_id") or headers.get("workspace_id"),
+                workspace_id=_safe_int(payload.get("workspace_id")),
                 status="queued",
-                redis_stream=STREAM_NAME,
-                redis_entry_id=entry_id,
-                not_before_at=not_before_ts,
-                priority=priority or 0,
+                attempts=0,
+                created_at=_utc_now(),
+                updated_at=_utc_now(),
             )
-            db.add(job)
-            db.commit()
-            event = BackgroundJobEvent(job_id=job_id, event_type="queued", data_json={"queued_at": datetime.now(timezone.utc).isoformat()})
-            db.add(event)
-            db.commit()
-        else:
+            session.add(job)
+            session.flush()
+
+            if not _event_exists(session, job_id, "queued"):
+                session.add(
+                    BackgroundJobEvent(
+                        job_id=job_id,
+                        event_type="queued",
+                        message="Job queued",
+                        data_json={"headers": headers, "payload": payload},
+                        created_at=_utc_now(),
+                    )
+                )
+
+            self.ensure_group()
+            entry_id = self.redis.xadd(STREAM_NAME, fields)
+            job.redis_stream = STREAM_NAME
             job.redis_entry_id = entry_id
-            job.status = "queued"
-            job.not_before_at = not_before_ts
-            job.priority = priority or job.priority
-            job.attempts = 0
-            job.last_error = None
-            db.commit()
-    return job_id
+            job.updated_at = _utc_now()
+            session.commit()
+            return job_id
+        except Exception as exc:
+            session.rollback()
+            if "job" in locals():
+                job.status = "failed"
+                job.last_error = str(exc)
+                job.updated_at = _utc_now()
+                session.add(job)
+                session.commit()
+            raise
+        finally:
+            if manage_session:
+                session.close()
 
-
-def decode_fields(raw_fields: Dict[object, object]) -> Dict[str, str]:
-    decoded: Dict[str, str] = {}
-    for key, value in raw_fields.items():
-        if isinstance(key, bytes):
-            key = key.decode("utf-8")
-        if isinstance(value, bytes):
-            value = value.decode("utf-8")
-        decoded[str(key)] = str(value)
-    return decoded
-
-
-def read_batch(
-    consumer_name: str,
-    count: int = 10,
-    block_ms: int = 2000,
-    redis_client: Optional[object] = None,
-    redis_url: Optional[str] = None,
-) -> List[Tuple[str, Dict[str, str]]]:
-    redis_conn = _get_redis(redis_url=redis_url, redis_client=redis_client)
-    ensure_group(redis_client=redis_conn)
-    response = redis_conn.xreadgroup(
-        GROUP_NAME,
-        consumer_name,
-        {STREAM_NAME: ">"},
-        count=count,
-        block=block_ms,
-    )
-    entries: List[Tuple[str, Dict[str, str]]] = []
-    for _stream, stream_entries in response or []:
-        for entry_id, fields in stream_entries:
-            if isinstance(entry_id, bytes):
-                entry_id = entry_id.decode("utf-8")
-            entries.append((str(entry_id), decode_fields(fields)))
-    return entries
-
-
-def ack(
-    entry_id: str,
-    redis_client: Optional[object] = None,
-    redis_url: Optional[str] = None,
-) -> None:
-    redis_conn = _get_redis(redis_url=redis_url, redis_client=redis_client)
-    redis_conn.xack(STREAM_NAME, GROUP_NAME, entry_id)
-
-
-def claim_stuck(
-    consumer_name: str,
-    min_idle_ms: int = 60000,
-    count: int = 10,
-    redis_client: Optional[object] = None,
-    redis_url: Optional[str] = None,
-) -> List[Tuple[str, Dict[str, str]]]:
-    redis_conn = _get_redis(redis_url=redis_url, redis_client=redis_client)
-    ensure_group(redis_client=redis_conn)
-
-    try:
-        next_id, entries = redis_conn.xautoclaim(
-            STREAM_NAME,
-            GROUP_NAME,
+    def read_batch(self, consumer_name: str, count: int = 10, block_ms: int = 2000) -> List[QueueEntry]:
+        self.ensure_group()
+        response = self.redis.xreadgroup(
+            CONSUMER_GROUP,
             consumer_name,
-            min_idle_ms,
-            "0-0",
+            streams={STREAM_NAME: ">"},
             count=count,
+            block=block_ms,
         )
-        claimed_entries = entries
-    except Exception:
-        claimed_entries = _claim_stuck_fallback(
-            redis_conn,
-            consumer_name,
-            min_idle_ms,
-            count,
-        )
+        return _parse_stream_response(response)
 
-    results: List[Tuple[str, Dict[str, str]]] = []
-    for entry_id, fields in claimed_entries or []:
-        if isinstance(entry_id, bytes):
-            entry_id = entry_id.decode("utf-8")
-        results.append((str(entry_id), decode_fields(fields)))
-    return results
+    def claim_stuck(
+        self,
+        consumer_name: str,
+        min_idle_ms: int = 60000,
+        count: int = 10,
+    ) -> List[QueueEntry]:
+        self.ensure_group()
+        redis_client = self.redis
+        if hasattr(redis_client, "xautoclaim"):
+            _, messages = redis_client.xautoclaim(
+                STREAM_NAME,
+                CONSUMER_GROUP,
+                consumer_name,
+                min_idle_ms,
+                start_id="0-0",
+                count=count,
+            )
+            return [QueueEntry(entry_id, fields) for entry_id, fields in messages]
 
-
-def _claim_stuck_fallback(
-    redis_conn: object,
-    consumer_name: str,
-    min_idle_ms: int,
-    count: int,
-) -> List[Tuple[str, Dict[str, str]]]:
-    try:
-        pending = redis_conn.xpending_range(
+        pending = redis_client.xpending_range(
             STREAM_NAME,
-            GROUP_NAME,
+            CONSUMER_GROUP,
             min="-",
             max="+",
             count=count,
-            idle=min_idle_ms,
         )
-    except Exception:
-        return []
-    message_ids = [item[0] for item in pending]
-    if not message_ids:
-        return []
-    return redis_conn.xclaim(
-        STREAM_NAME,
-        GROUP_NAME,
-        consumer_name,
-        min_idle_ms,
-        message_ids,
+        entries: List[QueueEntry] = []
+        for item in pending:
+            entry_id = item["message_id"]
+            idle = item["idle"]
+            if idle < min_idle_ms:
+                continue
+            claimed = redis_client.xclaim(
+                STREAM_NAME,
+                CONSUMER_GROUP,
+                consumer_name,
+                min_idle_ms,
+                [entry_id],
+            )
+            for claimed_entry in claimed:
+                entries.append(QueueEntry(claimed_entry[0], claimed_entry[1]))
+        return entries
+
+    def ack(self, entry_id: str) -> None:
+        self.redis.xack(STREAM_NAME, CONSUMER_GROUP, entry_id)
+
+    def send_to_dlq(self, fields: Dict[str, Any], error: str, attempts: int) -> str:
+        payload = dict(fields)
+        payload.update(
+            {
+                "error": error,
+                "attempts": str(attempts),
+                "last_failure_at": _utc_now().isoformat(),
+            }
+        )
+        return self.redis.xadd(DLQ_STREAM_NAME, payload)
+
+    def requeue(self, fields: Dict[str, Any]) -> str:
+        self.ensure_group()
+        return self.redis.xadd(STREAM_NAME, fields)
+
+    def _log_degraded(self, reason: str) -> None:
+        if self._warned:
+            return
+        logger.warning("Redis queue disabled (%s); job enqueue will fail.", reason)
+        self._warned = True
+
+
+def _event_exists(db: Session, job_id: str, event_type: str) -> bool:
+    return (
+        db.query(BackgroundJobEvent)
+        .filter(BackgroundJobEvent.job_id == job_id, BackgroundJobEvent.event_type == event_type)
+        .first()
+        is not None
     )
 
 
-def send_to_dlq(
-    original_fields: Dict[str, str],
-    error: str,
-    attempts: int,
-    redis_client: Optional[object] = None,
-    redis_url: Optional[str] = None,
-) -> str:
-    redis_conn = _get_redis(redis_url=redis_url, redis_client=redis_client)
-    payload = dict(original_fields)
-    payload["error"] = error
-    payload["attempts"] = str(attempts)
-    payload["last_failure_at"] = datetime.now(timezone.utc).isoformat()
-    entry_id = redis_conn.xadd(DLQ_STREAM, payload)
-    if isinstance(entry_id, bytes):
-        entry_id = entry_id.decode("utf-8")
-    return str(entry_id)
+def _parse_stream_response(response: Iterable) -> List[QueueEntry]:
+    entries: List[QueueEntry] = []
+    for stream_name, stream_entries in response or []:
+        for entry_id, fields in stream_entries:
+            entries.append(QueueEntry(entry_id, _decode_fields(fields)))
+    return entries
 
 
-def get_dlq_entries(
-    limit: int = 50,
-    redis_client: Optional[object] = None,
-    redis_url: Optional[str] = None,
-) -> List[Dict[str, str]]:
-    redis_conn = _get_redis(redis_url=redis_url, redis_client=redis_client)
-    entries = redis_conn.xrevrange(DLQ_STREAM, max="+", min="-", count=limit)
-    results: List[Dict[str, str]] = []
-    for entry_id, fields in entries:
-        decoded = decode_fields(fields)
-        decoded["entry_id"] = entry_id.decode("utf-8") if isinstance(entry_id, bytes) else str(entry_id)
-        results.append(decoded)
-    return results
+def _decode_fields(fields: Dict[str, Any]) -> Dict[str, Any]:
+    decoded: Dict[str, Any] = {}
+    for key, value in fields.items():
+        if isinstance(value, bytes):
+            decoded[key] = value.decode()
+        else:
+            decoded[key] = value
+    return decoded
 
 
-def replay_from_dlq(
-    job_id: Optional[str] = None,
-    job_type: Optional[str] = None,
-    redis_client: Optional[object] = None,
-    redis_url: Optional[str] = None,
-    db: Optional[object] = None,
-) -> Optional[str]:
-    redis_conn = _get_redis(redis_url=redis_url, redis_client=redis_client)
-    entries = redis_conn.xrange(DLQ_STREAM, min="-", max="+")
-    for entry_id, fields in entries:
-        decoded = decode_fields(fields)
-        if job_id and decoded.get("job_id") != job_id:
-            continue
-        if job_type and decoded.get("job_type") != job_type:
-            continue
-        payload = json.loads(decoded.get("payload_json") or "{}")
-        headers = json.loads(decoded.get("headers_json") or "{}")
-        return enqueue(
-            decoded.get("job_type") or "unknown",
-            payload,
-            headers,
-            db=db,
-            not_before_ts=None,
-            priority=int(decoded.get("priority") or 0),
-            job_id=decoded.get("job_id"),
-            redis_client=redis_conn,
-        )
-    return None
-
-
-def stats(redis_client: Optional[object] = None, redis_url: Optional[str] = None) -> Dict[str, int]:
-    redis_conn = _get_redis(redis_url=redis_url, redis_client=redis_client)
-    ensure_group(redis_client=redis_conn)
-    pending_count = 0
-    consumer_count = 0
-    lag = 0
+def _safe_int(value: Any) -> Optional[int]:
+    if value is None:
+        return None
     try:
-        pending_info = redis_conn.xpending(STREAM_NAME, GROUP_NAME)
-        if isinstance(pending_info, dict):
-            pending_count = pending_info.get("pending", 0)
-    except Exception:
-        pending_count = 0
-    try:
-        consumers = redis_conn.xinfo_consumers(STREAM_NAME, GROUP_NAME)
-        consumer_count = len(consumers or [])
-    except Exception:
-        consumer_count = 0
-    try:
-        groups = redis_conn.xinfo_groups(STREAM_NAME)
-        for group in groups or []:
-            if group.get("name") == GROUP_NAME:
-                lag = group.get("lag", 0)
-                break
-    except Exception:
-        lag = 0
-    try:
-        dlq_count = redis_conn.xlen(DLQ_STREAM)
-    except Exception:
-        dlq_count = 0
-    return {
-        "pending_count": int(pending_count or 0),
-        "lag": int(lag or 0),
-        "consumer_count": int(consumer_count or 0),
-        "dlq_count": int(dlq_count or 0),
-    }
+        return int(value)
+    except (TypeError, ValueError):
+        return None

@@ -1,1 +1,2 @@
-"""Ops package for background job tracking."""
+"""Operational tooling models and handlers."""
+

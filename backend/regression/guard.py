@@ -35,6 +35,39 @@ _SUITE_MAPPING = {
     "prompt_templates": "runtime",
 }
 
+_emitter = EventEmitter() if EventEmitter is not None else None
+
+
+def _emit_regression_event(
+    *,
+    event_type: str,
+    payload: Dict[str, object],
+    workspace_id: int,
+    actor_id: Optional[int],
+    db: Session,
+) -> None:
+    if _emitter is None or EventEnvelope is None:
+        return
+    envelope = EventEnvelope.build(
+        event_type=event_type,
+        source="regression",
+        payload=payload,
+        workspace_id=workspace_id,
+        actor_id=actor_id,
+    )
+    _emitter.emit_global(envelope, db=db)
+    if envelope.workspace_id is not None:
+        _emitter.emit_workspace(envelope.workspace_id, envelope, db=db)
+
+
+def _safe_int(value: Optional[str]) -> int:
+    if value is None:
+        return 0
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
 
 def _safe_int(value: Optional[str]) -> int:
     if value is None:
@@ -164,6 +197,18 @@ class RegressionGuard:
             f"regression:promotion_request:{request.id}",
             {**context, "decision": "allow", "message": "approved"},
         )
+        _emit_regression_event(
+            event_type="regression.approved",
+            payload={
+                "request_id": request.id,
+                "component": request.component,
+                "baseline_tag": request.baseline_tag,
+                "candidate_tag": request.candidate_tag,
+            },
+            workspace_id=_safe_int(request.workspace_id),
+            actor_id=approved_by,
+            db=db,
+        )
         return request
 
     def promote(self, db: Session, request_id: int, actor_id: int) -> PromotionRequest:
@@ -212,6 +257,18 @@ class RegressionGuard:
             "regression.promote",
             f"regression:promotion_request:{request.id}",
             {**context, "decision": "allow", "message": "promoted"},
+        )
+        _emit_regression_event(
+            event_type="regression.promoted",
+            payload={
+                "request_id": request.id,
+                "component": request.component,
+                "baseline_tag": request.baseline_tag,
+                "candidate_tag": request.candidate_tag,
+            },
+            workspace_id=_safe_int(request.workspace_id),
+            actor_id=actor_id,
+            db=db,
         )
         return request
 

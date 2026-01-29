@@ -69,6 +69,28 @@ def _record_event(
     )
 
 
+def _emit_hydration_event(
+    db: Session,
+    event_type: str,
+    job: BackgroundJob,
+    payload: Dict[str, Any],
+    headers: Dict[str, Any],
+    extra: Optional[Dict[str, Any]] = None,
+) -> None:
+    event_payload = {"job_id": job.job_id, "job_type": job.job_type, **(extra or {})}
+    event = EventEnvelope.build(
+        event_type=event_type,
+        source="hydration",
+        payload=event_payload,
+        workspace_id=job.workspace_id,
+        actor_id=_safe_int(headers.get("user_id")),
+        correlation_id=headers.get("correlation_id"),
+    )
+    _emitter.emit_global(event, db=db)
+    if job.workspace_id is not None:
+        _emitter.emit_workspace(job.workspace_id, event, db=db)
+
+
 def _get_job(db: Session, job_id: str) -> Optional[BackgroundJob]:
     return db.query(BackgroundJob).filter(BackgroundJob.job_id == job_id).one_or_none()
 
@@ -145,6 +167,14 @@ def _handle_entry(
     job.redis_entry_id = entry.entry_id
     _record_event(db, job_id, "started", "Job processing started")
     db.commit()
+    _emit_hydration_event(
+        db,
+        "hydration.started",
+        job,
+        payload,
+        headers,
+        extra={"attempt": job.attempts + 1},
+    )
 
     try:
         if job_type != "hydration":
@@ -161,6 +191,14 @@ def _handle_entry(
         _mark_failed(job, error_message)
         _record_event(db, job_id, "failed_attempt", error_message, data={"attempt": job.attempts})
         db.commit()
+        _emit_hydration_event(
+            db,
+            "hydration.failed",
+            job,
+            payload,
+            headers,
+            extra={"attempt": job.attempts, "error": error_message},
+        )
 
         if job.attempts >= MAX_ATTEMPTS:
             queue.ack(STREAM_NAME, CONSUMER_GROUP, entry.entry_id)

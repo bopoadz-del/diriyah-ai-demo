@@ -13,6 +13,8 @@ from typing import Any, Callable, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from backend.backend.db import SessionLocal
+from backend.events.emitter import emit_global
+from backend.events.envelope import EventEnvelope
 from backend.ops.handlers.hydration_handler import handle_hydration_job
 from backend.ops.models import BackgroundJob, BackgroundJobEvent
 from backend.redisx.queue import CONSUMER_GROUP, STREAM_NAME, RedisQueue, QueueEntry
@@ -67,6 +69,27 @@ def _record_event(
             created_at=_utc_now(),
         )
     )
+
+
+def _emit_hydration_event(
+    event_type: str,
+    workspace_id: Optional[int],
+    job_id: str,
+    payload: Dict[str, Any],
+    headers: Dict[str, Any],
+) -> None:
+    event = EventEnvelope.build(
+        event_type=event_type,
+        payload={"job_id": job_id, **payload},
+        workspace_id=workspace_id,
+        actor_id=None,
+        correlation_id=headers.get("correlation_id"),
+        source="hydration",
+    )
+    try:
+        emit_global(event)
+    except Exception as exc:
+        logger.warning("Failed to emit hydration event %s: %s", event_type, exc)
 
 
 def _get_job(db: Session, job_id: str) -> Optional[BackgroundJob]:
@@ -144,6 +167,13 @@ def _handle_entry(
     _mark_running(job)
     job.redis_entry_id = entry.entry_id
     _record_event(db, job_id, "started", "Job processing started")
+    _emit_hydration_event(
+        "hydration.started",
+        job.workspace_id,
+        job_id,
+        {"job_type": job_type, "attempt": job.attempts + 1},
+        headers,
+    )
     db.commit()
 
     try:
@@ -153,6 +183,13 @@ def _handle_entry(
         result = hydration_handler(job, payload, headers, db)
         _mark_success(job, result)
         _record_event(db, job_id, "completed", "Job completed", data=result)
+        _emit_hydration_event(
+            "hydration.completed",
+            job.workspace_id,
+            job_id,
+            result,
+            headers,
+        )
         db.commit()
         queue.ack(STREAM_NAME, CONSUMER_GROUP, entry.entry_id)
     except Exception as exc:
@@ -160,6 +197,13 @@ def _handle_entry(
         job.attempts += 1
         _mark_failed(job, error_message)
         _record_event(db, job_id, "failed_attempt", error_message, data={"attempt": job.attempts})
+        _emit_hydration_event(
+            "hydration.failed",
+            job.workspace_id,
+            job_id,
+            {"error": error_message, "attempt": job.attempts},
+            headers,
+        )
         db.commit()
 
         if job.attempts >= MAX_ATTEMPTS:
@@ -167,6 +211,13 @@ def _handle_entry(
             queue.add_to_dlq(fields, error_message)
             _mark_dlq(job, error_message)
             _record_event(db, job_id, "dlq", "Job moved to DLQ")
+            _emit_hydration_event(
+                "hydration.dlq",
+                job.workspace_id,
+                job_id,
+                {"error": error_message, "attempt": job.attempts},
+                headers,
+            )
             db.commit()
             return
 

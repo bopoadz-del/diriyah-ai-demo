@@ -30,16 +30,37 @@ except Exception as exc:  # pragma: no cover - handled at runtime
     cv2 = None  # type: ignore[assignment]
     _cv2_import_error = exc
 
+ProgressTrackingService = None  # type: ignore[assignment]
+ProgressSnapshot = None  # type: ignore[assignment]
+_progress_service_import_error: Optional[Exception] = None
+
 try:  # pragma: no cover - optional dependency for lightweight deployments
-    from services.progress_tracking_service import (
+    from backend.services.progress_tracking_service import (
         ProgressSnapshot,
         ProgressTrackingService,
     )
-    _progress_service_import_error: Optional[Exception] = None
 except Exception as exc:  # pragma: no cover - handled during runtime
-    ProgressTrackingService = None  # type: ignore[assignment]
-    ProgressSnapshot = None  # type: ignore[assignment]
     _progress_service_import_error = exc
+
+if ProgressTrackingService is None:
+    try:  # pragma: no cover - optional dependency
+        from backend.backend.services.progress_tracking_service import (
+            ProgressSnapshot,
+            ProgressTrackingService,
+        )
+        _progress_service_import_error = None
+    except Exception as exc:  # pragma: no cover - handled during runtime
+        _progress_service_import_error = exc
+
+if ProgressTrackingService is None:
+    try:  # pragma: no cover - optional dependency
+        from services.progress_tracking_service import (
+            ProgressSnapshot,
+            ProgressTrackingService,
+        )
+        _progress_service_import_error = None
+    except Exception as exc:  # pragma: no cover - handled during runtime
+        _progress_service_import_error = exc
 
 try:  # pragma: no cover - optional multipart dependency
     import multipart  # type: ignore

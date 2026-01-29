@@ -10,8 +10,6 @@ from typing import Dict, Optional, Tuple
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from backend.events.emitter import EventEmitter
-from backend.events.envelope import EventEnvelope
 from backend.ops.regression_guard import RegressionGuard as OpsRegressionGuard
 from backend.regression.models import (
     CurrentComponentVersion,
@@ -211,22 +209,6 @@ class RegressionGuard:
         workspace_id = _safe_int(request.workspace_id)
         allowed, reason = ops_guard.should_promote(request.component, workspace_id, db)
         if not allowed:
-            EventEmitter(db=db).emit(
-                EventEnvelope.create(
-                    event_type="regression.denied",
-                    source="regression",
-                    workspace_id=workspace_id,
-                    actor_id=actor_id,
-                    correlation_id=None,
-                    payload={
-                        "component": request.component,
-                        "candidate_tag": request.candidate_tag,
-                        "baseline_tag": request.baseline_tag,
-                        "request_id": request.id,
-                        "reason": reason,
-                    },
-                )
-            )
             raise HTTPException(status_code=409, detail=reason)
 
         current = db.query(CurrentComponentVersion).filter(CurrentComponentVersion.component == request.component).one_or_none()

@@ -1,9 +1,36 @@
+import os
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from .db import init_db
 from .api import projects, chats, messages, drive, upload, speech, vision, ai, admin, settings, analytics
 
-init_db()
+logger = logging.getLogger(__name__)
+
+_TRUE_VALUES = {"1", "true", "yes", "y", "on"}
+_FALSE_VALUES = {"0", "false", "no", "n", "off"}
+
+
+def _parse_env_bool(raw_value: str | None, *, default: bool) -> bool:
+    if raw_value is None:
+        return default
+    normalized = raw_value.strip().lower()
+    if normalized in _TRUE_VALUES:
+        return True
+    if normalized in _FALSE_VALUES:
+        return False
+    return default
+
+
+raw_flag = os.getenv("INIT_DB_ON_STARTUP")
+should_init_db = _parse_env_bool(raw_flag, default=True)
+logger.info("INIT_DB_ON_STARTUP=%r parsed=%s", raw_flag, should_init_db)
+if should_init_db:
+    init_db()
+else:
+    logger.info("Skipping DB init on startup")
 
 app = FastAPI(title="Masterise Brain AI")
 

@@ -25,16 +25,8 @@ else:  # pragma: no cover
 
 logger = logging.getLogger(__name__)
 
-try:  # pragma: no cover - optional dependency for Render deployments
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt  # type: ignore
-except Exception as exc:  # pragma: no cover - diagnostics only
-    plt = None  # type: ignore[assignment]
-    _matplotlib_import_error: Optional[Exception] = exc
-else:  # pragma: no cover - plotting available
-    _matplotlib_import_error = None
+plt = None  # type: ignore[assignment]
+_matplotlib_import_error: Optional[Exception] = None
 
 try:  # pragma: no cover - optional styling
     import seaborn as sns  # type: ignore
@@ -43,6 +35,23 @@ except Exception as exc:  # pragma: no cover - diagnostics only
     _seaborn_import_error: Optional[Exception] = exc
 else:  # pragma: no cover
     _seaborn_import_error = None
+
+
+def _load_matplotlib() -> None:
+    global plt, _matplotlib_import_error
+    if plt is not None or _matplotlib_import_error is not None:
+        return
+    try:  # pragma: no cover - optional dependency for Render deployments
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as matplotlib_pyplot  # type: ignore
+    except Exception as exc:  # pragma: no cover - diagnostics only
+        plt = None  # type: ignore[assignment]
+        _matplotlib_import_error = exc
+    else:  # pragma: no cover - plotting available
+        plt = matplotlib_pyplot  # type: ignore[assignment]
+        _matplotlib_import_error = None
 
 try:  # pragma: no cover - optional rich charts
     import plotly.graph_objects as go  # type: ignore
@@ -344,6 +353,7 @@ class AutomatedReportGenerator:
         self.output_dir = Path("./reports")
         self.output_dir.mkdir(exist_ok=True, parents=True)
 
+        _load_matplotlib()
         if plt is not None and sns is not None:  # pragma: no cover - styling only
             try:
                 plt.style.use("seaborn-v0_8-darkgrid")
@@ -510,6 +520,7 @@ class AutomatedReportGenerator:
         )
     async def _generate_charts(self, report_data: ReportData) -> Dict[str, str]:
         charts: Dict[str, str] = {}
+        _load_matplotlib()
         if plt is None:
             return charts
 

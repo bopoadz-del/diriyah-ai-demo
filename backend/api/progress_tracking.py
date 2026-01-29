@@ -2,15 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 import base64
+import importlib
+import importlib.util
 import json
 
 import logging
 from typing import Dict, List, Optional
-
-try:  # pragma: no cover - optional dependency for lightweight deployments
-    import numpy as np  # type: ignore
-except ImportError:  # pragma: no cover - handled gracefully
-    np = None  # type: ignore[assignment]
 
 from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse

@@ -10,6 +10,7 @@ from typing import Dict, Optional, Tuple
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from backend.ops.regression_guard import RegressionGuard as OpsRegressionGuard
 from backend.regression.models import (
     CurrentComponentVersion,
     PromotionRequest,
@@ -33,6 +34,15 @@ _SUITE_MAPPING = {
     "tool_router": "runtime",
     "prompt_templates": "runtime",
 }
+
+
+def _safe_int(value: Optional[str]) -> int:
+    if value is None:
+        return 0
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 class RegressionGuard:
@@ -179,6 +189,12 @@ class RegressionGuard:
             f"regression:promotion_request:{request.id}",
             context,
         )
+
+        ops_guard = OpsRegressionGuard()
+        workspace_id = _safe_int(request.workspace_id)
+        allowed, reason = ops_guard.should_promote(request.component, workspace_id, db)
+        if not allowed:
+            raise HTTPException(status_code=409, detail=reason)
 
         current = db.query(CurrentComponentVersion).filter(CurrentComponentVersion.component == request.component).one_or_none()
         if current:

@@ -61,7 +61,7 @@ app.add_middleware(
 
 _BASE_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _BASE_DIR.parent
-_FRONTEND_DIST_DIR = _PROJECT_ROOT / "frontend_dist"
+_FRONTEND_DIST_DIR = _BASE_DIR / "frontend_dist"
 _FRONTEND_PUBLIC_DIR = _PROJECT_ROOT / "frontend" / "public"
 
 if _FRONTEND_PUBLIC_DIR.exists():

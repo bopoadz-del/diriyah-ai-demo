@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
+import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
-from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from backend.backend.db import get_db
@@ -27,7 +28,6 @@ from backend.hydration.models import (
     HydrationTrigger,
     WorkspaceSource,
 )
-from backend.hydration.pipeline import HydrationOptions, HydrationPipeline
 from backend.hydration.schemas import (
     HydrationAlertOut,
     HydrationRunItemOut,
@@ -38,7 +38,7 @@ from backend.hydration.schemas import (
     WorkspaceSourceOut,
     WorkspaceSourceUpdate,
 )
-from backend.redisx.locks import DistributedLock
+from backend.redisx.queue import RedisQueue
 
 router = APIRouter(prefix="/hydration", tags=["Hydration"])
 
@@ -126,6 +126,7 @@ def run_now(
     request: RunNowRequest,
     db: Session = Depends(get_db),
     x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
+    x_correlation_id: Optional[str] = Header(default=None, alias="X-Correlation-Id"),
 ):
     user_id = _parse_user_id(x_user_id)
     try:
@@ -139,28 +140,25 @@ def run_now(
         )
         raise
 
-    lock = DistributedLock()
-    lock_key = f"lock:workspace:{request.workspace_id}:hydration"
-    token = lock.acquire(lock_key, ttl=60 * 60 * 2, wait_seconds=0)
-    if token is None:
-        return JSONResponse(
-            status_code=status.HTTP_409_CONFLICT,
-            content={"message": "Hydration already running for workspace."},
-        )
-
+    correlation_id = x_correlation_id or os.getenv("CORRELATION_ID") or str(uuid.uuid4())
+    queue = RedisQueue()
+    payload = {
+        "workspace_id": request.workspace_id,
+        "source_ids": request.source_ids,
+        "force_full_scan": request.force_full_scan,
+        "max_files": request.max_files,
+        "dry_run": request.dry_run,
+    }
+    headers = {
+        "correlation_id": correlation_id,
+        "workspace_id": request.workspace_id,
+        "user_id": user_id,
+    }
     try:
-        pipeline = HydrationPipeline(db)
-        options = HydrationOptions(
-            trigger=HydrationTrigger.API,
-            source_ids=request.source_ids,
-            force_full_scan=request.force_full_scan,
-            max_files=request.max_files,
-            dry_run=request.dry_run,
-        )
-        run = pipeline.hydrate_workspace(request.workspace_id, options)
-    finally:
-        lock.release(lock_key, token)
-    return {"run_id": run.id}
+        job_id = queue.enqueue("hydration", payload, headers, db=db)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    return {"job_id": job_id, "status": "queued"}
 
 
 @router.get("/runs", response_model=List[HydrationRunOut])

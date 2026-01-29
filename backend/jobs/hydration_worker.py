@@ -1,4 +1,7 @@
-"""Background worker for nightly hydration."""
+"""Background worker for nightly hydration.
+
+Legacy loop: prefer the Redis Streams queue worker in queue_worker.py.
+"""
 
 from __future__ import annotations
 

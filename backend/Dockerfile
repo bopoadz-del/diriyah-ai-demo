@@ -9,7 +9,7 @@ COPY frontend/public ./public
 
 RUN npm ci && npm run build
 
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -28,7 +28,7 @@ RUN pip install --no-cache-dir -r /app/backend/requirements.txt \
 
 COPY backend /app/backend
 RUN mkdir -p /app/uploads /app/images /app/storage
-COPY --from=frontend-build /frontend/dist /app/frontend_dist
+COPY --from=frontend-build /frontend/dist /app/backend/frontend_dist
 COPY --from=frontend-build /frontend/public /app/frontend/public
 
 EXPOSE 8000

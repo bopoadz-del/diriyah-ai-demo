@@ -10,6 +10,9 @@ from typing import Dict, Optional, Tuple
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from backend.events.emitter import EventEmitter
+from backend.events.envelope import EventEnvelope
+from backend.ops.regression_guard import RegressionGuard as OpsRegressionGuard
 from backend.regression.models import (
     CurrentComponentVersion,
     PromotionRequest,
@@ -33,6 +36,15 @@ _SUITE_MAPPING = {
     "tool_router": "runtime",
     "prompt_templates": "runtime",
 }
+
+
+def _safe_int(value: Optional[str]) -> int:
+    if value is None:
+        return 0
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 class RegressionGuard:
@@ -147,6 +159,21 @@ class RegressionGuard:
         request.approved_by = approved_by
         db.commit()
         db.refresh(request)
+        EventEmitter(db=db).emit(
+            EventEnvelope.create(
+                event_type="regression.approved",
+                source="regression",
+                workspace_id=_safe_int(request.workspace_id),
+                actor_id=approved_by,
+                correlation_id=None,
+                payload={
+                    "component": request.component,
+                    "candidate_tag": request.candidate_tag,
+                    "baseline_tag": request.baseline_tag,
+                    "request_id": request.id,
+                },
+            )
+        )
         write_audit(
             db,
             approved_by,
@@ -180,6 +207,28 @@ class RegressionGuard:
             context,
         )
 
+        ops_guard = OpsRegressionGuard()
+        workspace_id = _safe_int(request.workspace_id)
+        allowed, reason = ops_guard.should_promote(request.component, workspace_id, db)
+        if not allowed:
+            EventEmitter(db=db).emit(
+                EventEnvelope.create(
+                    event_type="regression.denied",
+                    source="regression",
+                    workspace_id=workspace_id,
+                    actor_id=actor_id,
+                    correlation_id=None,
+                    payload={
+                        "component": request.component,
+                        "candidate_tag": request.candidate_tag,
+                        "baseline_tag": request.baseline_tag,
+                        "request_id": request.id,
+                        "reason": reason,
+                    },
+                )
+            )
+            raise HTTPException(status_code=409, detail=reason)
+
         current = db.query(CurrentComponentVersion).filter(CurrentComponentVersion.component == request.component).one_or_none()
         if current:
             current.current_tag = request.candidate_tag
@@ -190,6 +239,21 @@ class RegressionGuard:
         request.status = "promoted"
         db.commit()
         db.refresh(request)
+        EventEmitter(db=db).emit(
+            EventEnvelope.create(
+                event_type="regression.promoted",
+                source="regression",
+                workspace_id=workspace_id,
+                actor_id=actor_id,
+                correlation_id=None,
+                payload={
+                    "component": request.component,
+                    "candidate_tag": request.candidate_tag,
+                    "baseline_tag": request.baseline_tag,
+                    "request_id": request.id,
+                },
+            )
+        )
         write_audit(
             db,
             actor_id,

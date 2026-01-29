@@ -7,8 +7,9 @@ from datetime import datetime, timezone
 import json
 import logging
 import os
+import socket
 import uuid
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -17,10 +18,9 @@ from backend.ops.models import BackgroundJob, BackgroundJobEvent
 
 logger = logging.getLogger(__name__)
 
-
 STREAM_NAME = "jobs:main"
 DLQ_STREAM_NAME = "jobs:dlq"
-CONSUMER_GROUP = "jobs"
+CONSUMER_GROUP = "workers"
 
 
 @dataclass(frozen=True)
@@ -45,27 +45,31 @@ class RedisQueue:
         self._redis = redis_client
         self._redis_url = redis_url or os.getenv("REDIS_URL")
         self._db_factory = db_factory
-        self._warned = False
 
-        if self._redis is None and self._redis_url:
-            try:
-                import redis  # type: ignore
+    def connect(self) -> object:
+        if self._redis is not None:
+            return self._redis
+        if not self._redis_url:
+            raise RuntimeError("REDIS_URL is not configured for the job queue.")
+        try:
+            import redis  # type: ignore
 
-                self._redis = redis.Redis.from_url(self._redis_url, decode_responses=True)
-            except Exception as exc:  # pragma: no cover - defensive guard
-                self._redis = None
-                self._log_degraded(f"Redis client init failed: {exc}")
+            client = redis.Redis.from_url(self._redis_url, decode_responses=True)
+            if hasattr(client, "ping"):
+                client.ping()
+            self._redis = client
+            return client
+        except Exception as exc:
+            raise RuntimeError(f"Redis unavailable for job queue: {exc}") from exc
 
     @property
     def redis(self) -> object:
-        if self._redis is None:
-            raise RuntimeError("Redis is not configured for the job queue.")
-        return self._redis
+        return self.connect()
 
-    def ensure_group(self) -> None:
+    def ensure_group(self, stream: str = STREAM_NAME, group: str = CONSUMER_GROUP) -> None:
         redis_client = self.redis
         try:
-            redis_client.xgroup_create(STREAM_NAME, CONSUMER_GROUP, id="$", mkstream=True)
+            redis_client.xgroup_create(stream, group, id="$", mkstream=True)
         except Exception as exc:
             if "BUSYGROUP" in str(exc):
                 return
@@ -78,15 +82,18 @@ class RedisQueue:
         headers: Dict[str, Any],
         db: Optional[Session] = None,
     ) -> str:
-        job_id = str(uuid.uuid4())
+        job_id = str(headers.get("job_id") or uuid.uuid4())
         created_at = _utc_now().isoformat()
-        headers_json = json.dumps(headers)
         payload_json = json.dumps(payload)
+        headers_json = json.dumps(headers)
+        workspace_id = _safe_int(payload.get("workspace_id"))
         fields = {
             "job_id": job_id,
             "job_type": job_type,
+            "workspace_id": str(workspace_id) if workspace_id is not None else "",
             "payload_json": payload_json,
             "headers_json": headers_json,
+            "attempt": "0",
             "created_at": created_at,
         }
         manage_session = db is None
@@ -95,29 +102,27 @@ class RedisQueue:
             job = BackgroundJob(
                 job_id=job_id,
                 job_type=job_type,
-                workspace_id=_safe_int(payload.get("workspace_id")),
+                workspace_id=workspace_id,
                 status="queued",
                 attempts=0,
+                redis_stream=STREAM_NAME,
                 created_at=_utc_now(),
                 updated_at=_utc_now(),
             )
             session.add(job)
             session.flush()
-
-            if not _event_exists(session, job_id, "queued"):
-                session.add(
-                    BackgroundJobEvent(
-                        job_id=job_id,
-                        event_type="queued",
-                        message="Job queued",
-                        data_json={"headers": headers, "payload": payload},
-                        created_at=_utc_now(),
-                    )
+            session.add(
+                BackgroundJobEvent(
+                    job_id=job_id,
+                    event_type="queued",
+                    message="Job queued",
+                    data_json={"headers": headers, "payload": payload},
+                    created_at=_utc_now(),
                 )
+            )
 
             self.ensure_group()
             entry_id = self.redis.xadd(STREAM_NAME, fields)
-            job.redis_stream = STREAM_NAME
             job.redis_entry_id = entry_id
             job.updated_at = _utc_now()
             session.commit()
@@ -135,70 +140,80 @@ class RedisQueue:
             if manage_session:
                 session.close()
 
-    def read_batch(self, consumer_name: str, count: int = 10, block_ms: int = 2000) -> List[QueueEntry]:
-        self.ensure_group()
+    def read(
+        self,
+        stream: str = STREAM_NAME,
+        group: str = CONSUMER_GROUP,
+        consumer: Optional[str] = None,
+        count: int = 1,
+        block_ms: int = 2000,
+    ) -> List[QueueEntry]:
+        self.ensure_group(stream, group)
+        consumer_name = consumer or os.getenv("HOSTNAME") or socket.gethostname()
         response = self.redis.xreadgroup(
-            CONSUMER_GROUP,
+            group,
             consumer_name,
-            streams={STREAM_NAME: ">"},
+            streams={stream: ">"},
             count=count,
             block=block_ms,
         )
         return _parse_stream_response(response)
 
-    def claim_stuck(
+    def claim(
         self,
-        consumer_name: str,
+        stream: str = STREAM_NAME,
+        group: str = CONSUMER_GROUP,
+        consumer: Optional[str] = None,
         min_idle_ms: int = 60000,
-        count: int = 10,
+        entry_ids: Optional[List[str]] = None,
     ) -> List[QueueEntry]:
-        self.ensure_group()
+        self.ensure_group(stream, group)
+        consumer_name = consumer or os.getenv("HOSTNAME") or socket.gethostname()
         redis_client = self.redis
+
         if hasattr(redis_client, "xautoclaim"):
             _, messages = redis_client.xautoclaim(
-                STREAM_NAME,
-                CONSUMER_GROUP,
+                stream,
+                group,
                 consumer_name,
                 min_idle_ms,
                 start_id="0-0",
-                count=count,
+                count=len(entry_ids) if entry_ids else 10,
             )
-            return [QueueEntry(entry_id, fields) for entry_id, fields in messages]
+            return [QueueEntry(entry_id, _decode_fields(fields)) for entry_id, fields in messages]
 
-        pending = redis_client.xpending_range(
-            STREAM_NAME,
-            CONSUMER_GROUP,
-            min="-",
-            max="+",
-            count=count,
-        )
+        if entry_ids is None:
+            pending = redis_client.xpending_range(
+                stream,
+                group,
+                min="-",
+                max="+",
+                count=10,
+            )
+            entry_ids = [item["message_id"] for item in pending]
+
         entries: List[QueueEntry] = []
-        for item in pending:
-            entry_id = item["message_id"]
-            idle = item["idle"]
-            if idle < min_idle_ms:
-                continue
+        if entry_ids:
             claimed = redis_client.xclaim(
-                STREAM_NAME,
-                CONSUMER_GROUP,
+                stream,
+                group,
                 consumer_name,
                 min_idle_ms,
-                [entry_id],
+                entry_ids,
             )
-            for claimed_entry in claimed:
-                entries.append(QueueEntry(claimed_entry[0], claimed_entry[1]))
+            for entry_id, fields in claimed:
+                entries.append(QueueEntry(entry_id, _decode_fields(fields)))
         return entries
 
-    def ack(self, entry_id: str) -> None:
-        self.redis.xack(STREAM_NAME, CONSUMER_GROUP, entry_id)
+    def ack(self, stream: str, group: str, entry_id: str) -> None:
+        self.redis.xack(stream, group, entry_id)
 
-    def send_to_dlq(self, fields: Dict[str, Any], error: str, attempts: int) -> str:
+    def add_to_dlq(self, fields: Dict[str, Any], error: str) -> str:
         payload = dict(fields)
         payload.update(
             {
                 "error": error,
-                "attempts": str(attempts),
-                "last_failure_at": _utc_now().isoformat(),
+                "failed_at": _utc_now().isoformat(),
             }
         )
         return self.redis.xadd(DLQ_STREAM_NAME, payload)
@@ -207,25 +222,10 @@ class RedisQueue:
         self.ensure_group()
         return self.redis.xadd(STREAM_NAME, fields)
 
-    def _log_degraded(self, reason: str) -> None:
-        if self._warned:
-            return
-        logger.warning("Redis queue disabled (%s); job enqueue will fail.", reason)
-        self._warned = True
-
-
-def _event_exists(db: Session, job_id: str, event_type: str) -> bool:
-    return (
-        db.query(BackgroundJobEvent)
-        .filter(BackgroundJobEvent.job_id == job_id, BackgroundJobEvent.event_type == event_type)
-        .first()
-        is not None
-    )
-
 
 def _parse_stream_response(response: Iterable) -> List[QueueEntry]:
     entries: List[QueueEntry] = []
-    for stream_name, stream_entries in response or []:
+    for _stream_name, stream_entries in response or []:
         for entry_id, fields in stream_entries:
             entries.append(QueueEntry(entry_id, _decode_fields(fields)))
     return entries

@@ -35,6 +35,35 @@ _SUITE_MAPPING = {
     "prompt_templates": "runtime",
 }
 
+logger = logging.getLogger(__name__)
+
+
+class _NoopEmitter:
+    def emit_global(self, *_args, **_kwargs):
+        return None
+
+    def emit_workspace(self, *_args, **_kwargs):
+        return None
+
+
+_emitter = EventEmitter() if EventEmitter is not None else _NoopEmitter()
+
+
+def _build_envelope(*args, **kwargs):
+    if EventEnvelope is None:
+        logger.warning("EventEnvelope unavailable; skipping regression event emission.")
+        return None
+    return EventEnvelope.build(*args, **kwargs)
+
+
+def _safe_int(value: Optional[str]) -> int:
+    if value is None:
+        return 0
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
 
 def _safe_int(value: Optional[str]) -> int:
     if value is None:
@@ -164,6 +193,22 @@ class RegressionGuard:
             f"regression:promotion_request:{request.id}",
             {**context, "decision": "allow", "message": "approved"},
         )
+        envelope = _build_envelope(
+            event_type="regression.approved",
+            source="regression",
+            payload={
+                "request_id": request.id,
+                "component": request.component,
+                "baseline_tag": request.baseline_tag,
+                "candidate_tag": request.candidate_tag,
+            },
+            workspace_id=_safe_int(request.workspace_id),
+            actor_id=approved_by,
+        )
+        if envelope is not None:
+            _emitter.emit_global(envelope, db=db)
+            if envelope.workspace_id is not None:
+                _emitter.emit_workspace(envelope.workspace_id, envelope, db=db)
         return request
 
     def promote(self, db: Session, request_id: int, actor_id: int) -> PromotionRequest:
@@ -213,6 +258,22 @@ class RegressionGuard:
             f"regression:promotion_request:{request.id}",
             {**context, "decision": "allow", "message": "promoted"},
         )
+        envelope = _build_envelope(
+            event_type="regression.promoted",
+            source="regression",
+            payload={
+                "request_id": request.id,
+                "component": request.component,
+                "baseline_tag": request.baseline_tag,
+                "candidate_tag": request.candidate_tag,
+            },
+            workspace_id=_safe_int(request.workspace_id),
+            actor_id=actor_id,
+        )
+        if envelope is not None:
+            _emitter.emit_global(envelope, db=db)
+            if envelope.workspace_id is not None:
+                _emitter.emit_workspace(envelope.workspace_id, envelope, db=db)
         return request
 
     def update_thresholds(

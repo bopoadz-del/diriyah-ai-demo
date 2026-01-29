@@ -129,6 +129,7 @@ def db_factory():
         poolclass=StaticPool,
     )
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    import backend.events.models  # noqa: F401
     Base.metadata.create_all(engine)
     yield TestingSessionLocal
     Base.metadata.drop_all(engine)

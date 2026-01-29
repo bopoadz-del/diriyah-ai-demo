@@ -13,8 +13,6 @@ from typing import Any, Callable, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from backend.backend.db import SessionLocal
-from backend.events.emitter import EventEmitter
-from backend.events.envelope import EventEnvelope
 from backend.ops.handlers.hydration_handler import handle_hydration_job
 from backend.ops.models import BackgroundJob, BackgroundJobEvent
 from backend.redisx.queue import CONSUMER_GROUP, STREAM_NAME, RedisQueue, QueueEntry
@@ -23,8 +21,6 @@ logger = logging.getLogger(__name__)
 
 MAX_ATTEMPTS = 5
 BACKOFF_SECONDS = [5, 15, 60, 180, 600]
-
-_emitter = EventEmitter()
 
 
 def _utc_now() -> datetime:
@@ -188,14 +184,6 @@ def _handle_entry(
         _mark_success(job, result)
         _record_event(db, job_id, "completed", "Job completed", data=result)
         db.commit()
-        _emit_hydration_event(
-            db,
-            "hydration.completed",
-            job,
-            payload,
-            headers,
-            extra={"result": result},
-        )
         queue.ack(STREAM_NAME, CONSUMER_GROUP, entry.entry_id)
     except Exception as exc:
         error_message = str(exc)
@@ -218,14 +206,6 @@ def _handle_entry(
             _mark_dlq(job, error_message)
             _record_event(db, job_id, "dlq", "Job moved to DLQ")
             db.commit()
-            _emit_hydration_event(
-                db,
-                "hydration.dlq",
-                job,
-                payload,
-                headers,
-                extra={"error": error_message},
-            )
             return
 
         backoff = BACKOFF_SECONDS[min(job.attempts - 1, len(BACKOFF_SECONDS) - 1)]

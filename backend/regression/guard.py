@@ -10,6 +10,15 @@ from typing import Dict, Optional, Tuple
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+import logging
+
+try:
+    from backend.events.emitter import EventEmitter
+    from backend.events.envelope import EventEnvelope
+except Exception:  # pragma: no cover - optional events dependency
+    EventEmitter = None  # type: ignore[assignment]
+    EventEnvelope = None  # type: ignore[assignment]
+from backend.ops.regression_guard import RegressionGuard as OpsRegressionGuard
 from backend.regression.models import (
     CurrentComponentVersion,
     PromotionRequest,
@@ -33,6 +42,35 @@ _SUITE_MAPPING = {
     "tool_router": "runtime",
     "prompt_templates": "runtime",
 }
+
+logger = logging.getLogger(__name__)
+
+
+class _NoopEmitter:
+    def emit_global(self, *_args, **_kwargs):
+        return None
+
+    def emit_workspace(self, *_args, **_kwargs):
+        return None
+
+
+_emitter = EventEmitter() if EventEmitter is not None else _NoopEmitter()
+
+
+def _build_envelope(*args, **kwargs):
+    if EventEnvelope is None:
+        logger.warning("EventEnvelope unavailable; skipping regression event emission.")
+        return None
+    return EventEnvelope.build(*args, **kwargs)
+
+
+def _safe_int(value: Optional[str]) -> int:
+    if value is None:
+        return 0
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 class RegressionGuard:
@@ -154,6 +192,22 @@ class RegressionGuard:
             f"regression:promotion_request:{request.id}",
             {**context, "decision": "allow", "message": "approved"},
         )
+        envelope = _build_envelope(
+            event_type="regression.approved",
+            source="regression",
+            payload={
+                "request_id": request.id,
+                "component": request.component,
+                "baseline_tag": request.baseline_tag,
+                "candidate_tag": request.candidate_tag,
+            },
+            workspace_id=_safe_int(request.workspace_id),
+            actor_id=approved_by,
+        )
+        if envelope is not None:
+            _emitter.emit_global(envelope, db=db)
+            if envelope.workspace_id is not None:
+                _emitter.emit_workspace(envelope.workspace_id, envelope, db=db)
         return request
 
     def promote(self, db: Session, request_id: int, actor_id: int) -> PromotionRequest:
@@ -180,6 +234,29 @@ class RegressionGuard:
             context,
         )
 
+        ops_guard = OpsRegressionGuard()
+        workspace_id = _safe_int(request.workspace_id)
+        allowed, reason = ops_guard.should_promote(request.component, workspace_id, db)
+        if not allowed:
+            envelope = _build_envelope(
+                event_type="regression.denied",
+                source="regression",
+                payload={
+                    "request_id": request.id,
+                    "component": request.component,
+                    "baseline_tag": request.baseline_tag,
+                    "candidate_tag": request.candidate_tag,
+                    "reason": reason,
+                },
+                workspace_id=workspace_id,
+                actor_id=actor_id,
+            )
+            if envelope is not None:
+                _emitter.emit_global(envelope, db=db)
+                if envelope.workspace_id is not None:
+                    _emitter.emit_workspace(envelope.workspace_id, envelope, db=db)
+            raise HTTPException(status_code=409, detail=reason)
+
         current = db.query(CurrentComponentVersion).filter(CurrentComponentVersion.component == request.component).one_or_none()
         if current:
             current.current_tag = request.candidate_tag
@@ -197,6 +274,22 @@ class RegressionGuard:
             f"regression:promotion_request:{request.id}",
             {**context, "decision": "allow", "message": "promoted"},
         )
+        envelope = _build_envelope(
+            event_type="regression.promoted",
+            source="regression",
+            payload={
+                "request_id": request.id,
+                "component": request.component,
+                "baseline_tag": request.baseline_tag,
+                "candidate_tag": request.candidate_tag,
+            },
+            workspace_id=_safe_int(request.workspace_id),
+            actor_id=actor_id,
+        )
+        if envelope is not None:
+            _emitter.emit_global(envelope, db=db)
+            if envelope.workspace_id is not None:
+                _emitter.emit_workspace(envelope.workspace_id, envelope, db=db)
         return request
 
     def update_thresholds(

@@ -14,6 +14,8 @@ from backend.backend.db import get_db
 from backend.backend.pdp.audit_logger import AuditLogger
 from backend.backend.pdp.policy_engine import PolicyEngine
 from backend.backend.pdp.schemas import PolicyRequest
+from backend.events.emitter import EventEmitter
+from backend.events.envelope import EventEnvelope
 from backend.learning.datasets import export_dataset, get_dataset_builder
 from backend.learning.models import (
     FeedbackEvent,
@@ -37,6 +39,17 @@ from backend.learning.schemas import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/learning", tags=["Learning"])
+
+_emitter = EventEmitter()
+
+
+def _safe_int(value: Optional[str]) -> Optional[int]:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _evaluate_pdp(db: Session, user_id: int, action: str, workspace_id: str) -> None:
@@ -93,6 +106,19 @@ def create_feedback(
     db.add(event)
     db.commit()
     db.refresh(event)
+    envelope = EventEnvelope.build(
+        event_type="learning.feedback.created",
+        source="learning",
+        payload={
+            "feedback_id": event.id,
+            "source": event.source,
+        },
+        workspace_id=_safe_int(event.workspace_id),
+        actor_id=event.user_id,
+    )
+    _emitter.emit_global(envelope, db=db)
+    if envelope.workspace_id is not None:
+        _emitter.emit_workspace(envelope.workspace_id, envelope, db=db)
     logger.info("Feedback captured", extra={"feedback_id": event.id, "workspace_id": payload.workspace_id})
     return FeedbackCreateResponse(feedback_id=event.id)
 
@@ -144,6 +170,20 @@ def review_feedback(
     db.add(review)
     db.commit()
     db.refresh(review)
+    envelope = EventEnvelope.build(
+        event_type="learning.feedback.reviewed",
+        source="learning",
+        payload={
+            "feedback_id": feedback_id,
+            "status": status_value.value,
+            "notes": payload.notes,
+        },
+        workspace_id=_safe_int(feedback.workspace_id),
+        actor_id=payload.reviewer_id,
+    )
+    _emitter.emit_global(envelope, db=db)
+    if envelope.workspace_id is not None:
+        _emitter.emit_workspace(envelope.workspace_id, envelope, db=db)
     return FeedbackReviewResponse(review_id=review.id)
 
 
@@ -171,6 +211,20 @@ def export_dataset_api(
         export_dir=export_root,
         max_records=payload.max_records,
     )
+    envelope = EventEnvelope.build(
+        event_type="learning.dataset.exported",
+        source="learning",
+        payload={
+            "dataset_name": dataset_name,
+            "record_count": result.get("record_count"),
+            "dataset_path": result.get("dataset_path"),
+        },
+        workspace_id=_safe_int(payload.workspace_id),
+        actor_id=None,
+    )
+    _emitter.emit_global(envelope, db=db)
+    if envelope.workspace_id is not None:
+        _emitter.emit_workspace(envelope.workspace_id, envelope, db=db)
     return ExportDatasetResponse(**result)
 
 

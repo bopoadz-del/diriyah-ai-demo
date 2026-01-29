@@ -10,6 +10,12 @@ from sqlalchemy.orm import Session
 from backend.backend.db import get_db
 from backend.ops.models import BackgroundJob, BackgroundJobEvent
 
+
+def _isoformat(value) -> Optional[str]:
+    if value is None:
+        return None
+    return value.isoformat()
+
 router = APIRouter(prefix="/ops/jobs", tags=["Ops Jobs"])
 
 
@@ -22,10 +28,10 @@ def _serialize_job(job: BackgroundJob) -> dict:
         "attempts": job.attempts,
         "last_error": job.last_error,
         "result_json": job.result_json,
-        "created_at": job.created_at,
-        "updated_at": job.updated_at,
-        "started_at": job.started_at,
-        "finished_at": job.finished_at,
+        "created_at": _isoformat(job.created_at),
+        "updated_at": _isoformat(job.updated_at),
+        "started_at": _isoformat(job.started_at),
+        "finished_at": _isoformat(job.finished_at),
         "redis_stream": job.redis_stream,
         "redis_entry_id": job.redis_entry_id,
     }
@@ -37,7 +43,7 @@ def _serialize_event(event: BackgroundJobEvent) -> dict:
         "event_type": event.event_type,
         "message": event.message,
         "data_json": event.data_json,
-        "created_at": event.created_at,
+        "created_at": _isoformat(event.created_at),
     }
 
 

@@ -14,6 +14,8 @@ from backend.backend.db import get_db
 from backend.backend.pdp.audit_logger import AuditLogger
 from backend.backend.pdp.policy_engine import PolicyEngine
 from backend.backend.pdp.schemas import PolicyRequest
+from backend.events.emitter import emit_global
+from backend.events.envelope import EventEnvelope
 from backend.learning.datasets import export_dataset, get_dataset_builder
 from backend.learning.models import (
     FeedbackEvent,
@@ -37,6 +39,14 @@ from backend.learning.schemas import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/learning", tags=["Learning"])
+
+def _safe_int(value: Optional[str]) -> Optional[int]:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _evaluate_pdp(db: Session, user_id: int, action: str, workspace_id: str) -> None:
@@ -94,6 +104,20 @@ def create_feedback(
     db.commit()
     db.refresh(event)
     logger.info("Feedback captured", extra={"feedback_id": event.id, "workspace_id": payload.workspace_id})
+    emit_global(
+        EventEnvelope.build(
+            event_type="learning.feedback.created",
+            workspace_id=_safe_int(payload.workspace_id),
+            actor_id=payload.user_id,
+            source="learning",
+            payload={
+                "feedback_id": event.id,
+                "workspace_id": payload.workspace_id,
+                "user_id": payload.user_id,
+                "source": payload.source,
+            },
+        )
+    )
     return FeedbackCreateResponse(feedback_id=event.id)
 
 
@@ -144,6 +168,20 @@ def review_feedback(
     db.add(review)
     db.commit()
     db.refresh(review)
+    emit_global(
+        EventEnvelope.build(
+            event_type="learning.feedback.reviewed",
+            workspace_id=_safe_int(str(feedback.workspace_id)),
+            actor_id=payload.reviewer_id,
+            source="learning",
+            payload={
+                "feedback_id": feedback.id,
+                "review_id": review.id,
+                "status": status_value.value,
+                "workspace_id": feedback.workspace_id,
+            },
+        )
+    )
     return FeedbackReviewResponse(review_id=review.id)
 
 
@@ -170,6 +208,20 @@ def export_dataset_api(
         workspace_id=payload.workspace_id,
         export_dir=export_root,
         max_records=payload.max_records,
+    )
+    emit_global(
+        EventEnvelope.build(
+            event_type="learning.dataset.exported",
+            workspace_id=_safe_int(payload.workspace_id),
+            actor_id=None,
+            source="learning",
+            payload={
+                "dataset_name": result.get("dataset_name"),
+                "record_count": result.get("record_count"),
+                "version_tag": result.get("version_tag"),
+                "workspace_id": payload.workspace_id,
+            },
+        )
     )
     return ExportDatasetResponse(**result)
 

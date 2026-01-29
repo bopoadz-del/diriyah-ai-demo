@@ -12,6 +12,8 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from backend.ops.regression_guard import RegressionGuard as OpsRegressionGuard
+from backend.events.emitter import emit_global
+from backend.events.envelope import EventEnvelope
 from backend.regression.models import (
     CurrentComponentVersion,
     PromotionRequest,
@@ -167,6 +169,21 @@ class RegressionGuard:
             f"regression:promotion_request:{request.id}",
             {**context, "decision": "allow", "message": "approved"},
         )
+        emit_global(
+            EventEnvelope.build(
+                event_type="regression.approved",
+                workspace_id=_safe_int(request.workspace_id),
+                actor_id=approved_by,
+                source="regression",
+                payload={
+                    "request_id": request.id,
+                    "component": request.component,
+                    "workspace_id": request.workspace_id,
+                    "candidate_tag": request.candidate_tag,
+                    "baseline_tag": request.baseline_tag,
+                },
+            )
+        )
         return request
 
     def promote(self, db: Session, request_id: int, actor_id: int) -> PromotionRequest:
@@ -197,6 +214,20 @@ class RegressionGuard:
         workspace_id = _safe_int(request.workspace_id)
         allowed, reason = ops_guard.should_promote(request.component, workspace_id, db)
         if not allowed:
+            emit_global(
+                EventEnvelope.build(
+                    event_type="regression.denied",
+                    workspace_id=_safe_int(request.workspace_id),
+                    actor_id=actor_id,
+                    source="regression",
+                    payload={
+                        "request_id": request.id,
+                        "component": request.component,
+                        "workspace_id": request.workspace_id,
+                        "reason": reason,
+                    },
+                )
+            )
             raise HTTPException(status_code=409, detail=reason)
 
         current = db.query(CurrentComponentVersion).filter(CurrentComponentVersion.component == request.component).one_or_none()
@@ -215,6 +246,21 @@ class RegressionGuard:
             "regression.promote",
             f"regression:promotion_request:{request.id}",
             {**context, "decision": "allow", "message": "promoted"},
+        )
+        emit_global(
+            EventEnvelope.build(
+                event_type="regression.promoted",
+                workspace_id=_safe_int(request.workspace_id),
+                actor_id=actor_id,
+                source="regression",
+                payload={
+                    "request_id": request.id,
+                    "component": request.component,
+                    "workspace_id": request.workspace_id,
+                    "candidate_tag": request.candidate_tag,
+                    "baseline_tag": request.baseline_tag,
+                },
+            )
         )
         return request
 

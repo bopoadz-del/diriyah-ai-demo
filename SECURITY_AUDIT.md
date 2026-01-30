@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-This audit identified and resolved **12 out of 31 total vulnerabilities** across the Python and Node.js dependencies. The remaining 19 vulnerabilities cannot be fixed due to dependency constraints, lack of patches, or the need for major version upgrades that would break compatibility.
+This audit identified and resolved **12 out of 30 total vulnerabilities** across the Python and Node.js dependencies. The remaining 18 vulnerabilities cannot be fixed due to dependency constraints, lack of patches, or the need for major version upgrades that would break compatibility.
 
 ## Audit Results by Component
 
@@ -27,7 +27,7 @@ Fixed issues:
 - Updated `cryptography>=41.0.0` (already secure)
 
 ### ⚠️ Backend Requirements
-**Status:** 19 KNOWN VULNERABILITIES (3 packages)  
+**Status:** 18 KNOWN VULNERABILITIES (2 packages)  
 **Audit Command:** `pip-audit -r backend/requirements.txt`
 
 ## Vulnerabilities Fixed (12 total)
@@ -72,7 +72,7 @@ Fixed issues:
 **Fix:** Replaced python-jose with PyJWT (PyJWT doesn't depend on ecdsa)  
 **Status:** ✅ RESOLVED  
 
-## Vulnerabilities Remaining (19 total)
+## Vulnerabilities Remaining (18 total)
 
 ### 1. transformers (14 CVEs) - HIGH PRIORITY
 **Current Version:** 4.43.4  
@@ -108,21 +108,7 @@ Fixed issues:
 - Test compatibility with sentence-transformers==2.2.2
 - Verify causalml, mapie, and scikit-learn compatibility
 
-### 3. ecdsa (1 CVE) - RESOLVED ✅
-**Previous Version:** 0.19.1  
-**CVE:** CVE-2024-23342 (Minerva timing attack)  
-**Severity:** HIGH (CVSS 7.4)  
-**Status:** ✅ RESOLVED
-
-**Fix Applied:**
-- Replaced `python-jose` (which depends on `ecdsa`) with `PyJWT` 
-- PyJWT does not depend on `ecdsa` and provides the same JWT functionality
-- Updated `backend/requirements.txt`, `backend/api/auth.py`, and `backend/main.py`
-
-**Background:**
-The ecdsa package is a pure-Python implementation vulnerable to timing attacks (CVE-2024-23342). The maintainer has stated that side-channel vulnerabilities are out of scope. The recommended solution is to use alternative libraries that don't depend on ecdsa. PyJWT provides JWT encode/decode functionality without requiring ecdsa.
-
-### 4. deep-translator (1 CVE) - LOW PRIORITY
+### 3. deep-translator (1 CVE) - LOW PRIORITY
 **Current Version:** 1.11.4 (latest)  
 **CVE:** PYSEC-2022-252  
 **Reason Not Fixed:** No patched version available  
@@ -195,7 +181,7 @@ If backend security scanning is required in CI, add this step:
 
 ## Conclusion
 
-This audit successfully resolved all fixable vulnerabilities in the direct dependencies. The remaining 19 vulnerabilities are in packages that:
+This audit successfully resolved all fixable vulnerabilities in the direct dependencies. The remaining 18 vulnerabilities are in packages that:
 1. Have no available patches (deep-translator)
 2. Require major upgrades blocked by compatibility constraints (transformers, torch)
 

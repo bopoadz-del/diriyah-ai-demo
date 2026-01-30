@@ -51,4 +51,5 @@ dowhy==0.12
 causalml==0.15.5
 networkx==3.3
 statsmodels==0.14.2
-python-jose[cryptography]==3.4.0
+# PyJWT replaces python-jose to avoid ecdsa dependency (CVE-2024-23342)
+# PyJWT==2.9.0 is already installed as a dependency, pinning it explicitly

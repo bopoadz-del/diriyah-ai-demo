@@ -3,6 +3,7 @@ uvicorn
 httpx
 pytest
 pytest-asyncio
+python-jose[cryptography]>=3.4.0
 # Core scientific stack required by backend modules imported during tests
 numpy==1.26.4
 pandas==2.2.3

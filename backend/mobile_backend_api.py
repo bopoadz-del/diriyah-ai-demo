@@ -93,6 +93,12 @@ DATABASE_URL = os.getenv(
     "sqlite:///" + str(Path("./diriyah_mobile.db").resolve()),
 )
 
+
+def _connect_args_for_url(url: str) -> dict:
+    if url.startswith("postgresql") or url.startswith("postgres"):
+        return {"connect_timeout": 5}
+    return {}
+
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "./uploads"))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -109,7 +115,12 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 # ---------------------------------------------------------------------------
 
 Base = declarative_base()
-engine = create_engine(DATABASE_URL, pool_pre_ping=True, future=True)
+engine = create_engine(
+    DATABASE_URL,
+    connect_args=_connect_args_for_url(DATABASE_URL),
+    pool_pre_ping=True,
+    future=True,
+)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 
@@ -1491,4 +1502,3 @@ if __name__ == "__main__":  # pragma: no cover - manual execution helper
         reload=bool(os.getenv("UVICORN_RELOAD")),
         log_level="info",
     )
-

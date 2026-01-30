@@ -13,8 +13,15 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
 _ALERT_LOG: List[Dict[str, Any]] = []
 _APPROVAL_LOG: List[Dict[str, Any]] = []
 
+def _connect_args_for_url(url: str) -> dict:
+    if url.startswith("postgresql") or url.startswith("postgres"):
+        return {"connect_timeout": 5}
+    return {}
+
+
 if create_engine is not None:
-    engine = create_engine(DATABASE_URL, future=True)
+    connect_args = _connect_args_for_url(DATABASE_URL)
+    engine = create_engine(DATABASE_URL, connect_args=connect_args, future=True)
 else:  # pragma: no cover - lightweight mode
     engine = None  # type: ignore[assignment]
 

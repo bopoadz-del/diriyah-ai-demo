@@ -12,9 +12,11 @@ services:
       bash -c "if [ -f /opt/render/project/.venv/bin/activate ]; then
         source /opt/render/project/.venv/bin/activate
       fi
-      python -c \"from backend.backend.db import init_db; init_db()\" && \
       PORT_VALUE=\"${PORT:-8000}\" && \
-      echo \"Starting gunicorn on port ${PORT_VALUE}\" && \
+      echo \"PORT=${PORT} resolved_port=${PORT_VALUE}\" && \
+      echo \"INIT_DB_ON_STARTUP=${INIT_DB_ON_STARTUP}\" && \
+      echo \"MPLCONFIGDIR=${MPLCONFIGDIR}\" && \
+      echo \"Launching gunicorn with: -w 1 -t 180 --graceful-timeout 180\" && \
       exec gunicorn \
         -k uvicorn.workers.UvicornWorker \
         -w 1 \
@@ -41,6 +43,8 @@ services:
         value: "false"
       - key: INIT_DB_ON_STARTUP
         value: "false"
+      - key: MPLCONFIGDIR
+        value: "/tmp/matplotlib"
       - key: LOG_LEVEL
         value: "DEBUG"
       - key: PROMETHEUS_ENABLED

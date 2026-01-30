@@ -18,11 +18,11 @@ source "$VENV_DIR/bin/activate"
 
 python -m pip install --upgrade pip
 python -m pip install --requirement "$PROJECT_ROOT/requirements.txt"
-python -m pip install --requirement "$PROJECT_ROOT/backend/requirements-dev.txt"
 
 if [[ "$INSTALL_BACKEND_OPTIONALS" == "true" ]]; then
-  echo "Installing full backend dependency stack (this may take several minutes)"
-  python -m pip install --requirement "$PROJECT_ROOT/backend/requirements.txt"
+  echo "Installing optional backend dependency packs (this may take several minutes)"
+  python -m pip install --requirement "$PROJECT_ROOT/backend/requirements-ml.txt"
+  python -m pip install --requirement "$PROJECT_ROOT/backend/requirements-translation.txt"
 fi
 
 echo "Environment ready. Activate it with: source $VENV_DIR/bin/activate"

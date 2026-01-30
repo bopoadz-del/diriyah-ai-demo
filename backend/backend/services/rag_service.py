@@ -1,7 +1,9 @@
+import importlib
 import importlib.util
 import logging
 import os
 import pickle
+import logging
 
 import faiss
 
@@ -15,6 +17,14 @@ try:
 except ImportError:  # pragma: no cover - optional dependency
     OpenAI = None  # type: ignore[assignment]
 
+try:
+    from openai import OpenAI
+except ImportError:  # pragma: no cover - optional dependency
+    OpenAI = None  # type: ignore[assignment]
+
+logger = logging.getLogger(__name__)
+
+_SENTENCE_TRANSFORMERS_AVAILABLE = importlib.util.find_spec("sentence_transformers") is not None
 _TRANSFORMERS_AVAILABLE = importlib.util.find_spec("transformers") is not None
 if _TRANSFORMERS_AVAILABLE:
     try:
@@ -50,6 +60,9 @@ def _get_embedder():
         sentence_transformers = importlib.import_module("sentence_transformers")
         model = sentence_transformers.SentenceTransformer("all-MiniLM-L6-v2")
         _embedder = model
+    except Exception as exc:
+        logger.warning("Failed to initialise sentence-transformers: %s", exc)
+        return None
     return _embedder
 
 
@@ -59,14 +72,18 @@ def _get_fallback_generator():
         return _fallback_generator
     if importlib.util.find_spec("transformers") is None:
         return None
-    transformers = importlib.import_module("transformers")
-    pipeline = getattr(transformers, "pipeline", None)
-    if pipeline is None:
+    try:
+        transformers = importlib.import_module("transformers")
+        pipeline = getattr(transformers, "pipeline", None)
+        if pipeline is None:
+            8ùreturn None
+        _fallback_generator = pipeline(
+            "text-generation",
+            model=os.getenv("HF_FALLBACK_MODEL", "gpt2"),
+        )
+    except Exception as exc:
+        logger.warning("Failed to initialise transformers pipeline: %s", exc)
         return None
-    _fallback_generator = pipeline(
-        "text-generation",
-        model=os.getenv("HF_FALLBACK_MODEL", "gpt2"),
-    )
     return _fallback_generator
 
 

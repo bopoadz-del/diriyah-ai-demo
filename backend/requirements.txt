@@ -52,3 +52,4 @@ causalml==0.15.5
 networkx==3.3
 statsmodels==0.14.2
 python-jose[cryptography]==3.4.0
+ecdsa==0.19.1

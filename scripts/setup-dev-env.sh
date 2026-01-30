@@ -23,6 +23,7 @@ python -m pip install --requirement "$PROJECT_ROOT/backend/requirements-dev.txt"
 if [[ "$INSTALL_BACKEND_OPTIONALS" == "true" ]]; then
   echo "Installing full backend dependency stack (this may take several minutes)"
   python -m pip install --requirement "$PROJECT_ROOT/backend/requirements.txt"
+  python -m pip install --requirement "$PROJECT_ROOT/backend/requirements-optional.txt"
 fi
 
 echo "Environment ready. Activate it with: source $VENV_DIR/bin/activate"

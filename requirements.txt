@@ -1,3 +1,5 @@
 # Example Requirements
 
 cryptography>=41.0.0
+-r backend/requirements.txt
+-r backend/requirements-dev.txt

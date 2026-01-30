@@ -1,11 +1,36 @@
+import importlib
 import os
-from openai import OpenAI
 from . import cad_takeoff, boq_parser, consolidated_takeoff, rag_service
 from . import admin_service, analytics_service
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+_openai_client = None
+_openai_available = True
+
+
+def _get_openai_client():
+    global _openai_client, _openai_available
+    if _openai_client is not None or not _openai_available:
+        return _openai_client
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        _openai_available = False
+        return None
+    try:
+        openai_module = importlib.import_module("openai")
+        OpenAI = getattr(openai_module, "OpenAI", None)
+        if OpenAI is None:
+            _openai_available = False
+            return None
+        _openai_client = OpenAI(api_key=api_key)
+    except Exception:
+        _openai_available = False
+        return None
+    return _openai_client
 
 def summarize(raw: str, query: str) -> str:
+    client = _get_openai_client()
+    if client is None:
+        return raw
     prompt = f"""
     User asked: {query}
 

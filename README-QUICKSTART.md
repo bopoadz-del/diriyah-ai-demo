@@ -30,6 +30,8 @@ Expected services after `docker compose ps`:
 Backend
 ```bash
 pip install -r backend/requirements.txt
+# Optional ML/NLP dependencies (torch/transformers/camel-tools, etc.)
+pip install -r backend/requirements-ml.txt
 uvicorn backend.main:app --reload --port 8000
 ```
 Workers (optional local run)

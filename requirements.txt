@@ -1,3 +1,4 @@
 # Aggregated requirements for CI and local development.
+# Canonical dependency set for CI and local development.
 -r backend/requirements.txt
 -r backend/requirements-dev.txt

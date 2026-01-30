@@ -11,5 +11,5 @@ def force_fixture_projects():
 
 @pytest.fixture()
 def client() -> Generator[TestClient, None, None]:
-    with TestClient(app) as test_client:
+    with TestClient(app, headers={"X-Tenant-ID": "test-tenant"}) as test_client:
         yield test_client

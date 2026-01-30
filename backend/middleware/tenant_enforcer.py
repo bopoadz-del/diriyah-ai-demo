@@ -6,7 +6,16 @@ from fastapi import HTTPException, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
 
-PUBLIC_ENDPOINTS = {"/health", "/healthz", "/docs", "/openapi.json", "/api/docs", "/api/openapi.json"}
+PUBLIC_ENDPOINTS = {"/", "/health", "/healthz"}
+PUBLIC_PREFIXES = (
+    "/docs",
+    "/openapi.json",
+    "/api/docs",
+    "/api/openapi.json",
+    "/static",
+    "/assets",
+    "/favicon.ico",
+)
 
 
 class TenantEnforcerMiddleware(BaseHTTPMiddleware):

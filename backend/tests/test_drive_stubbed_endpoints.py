@@ -6,7 +6,7 @@ from backend.main import app
 
 
 def test_drive_scan_returns_projects_from_drive_wrapper() -> None:
-    with TestClient(app) as client:
+    with TestClient(app, headers={"X-Tenant-ID": "test-tenant"}) as client:
         response = client.get("/api/projects/scan-drive")
         assert response.status_code == 200
         payload = response.json()
@@ -15,7 +15,7 @@ def test_drive_scan_returns_projects_from_drive_wrapper() -> None:
 
 
 def test_drive_scan_projects_include_debug_metadata() -> None:
-    with TestClient(app) as client:
+    with TestClient(app, headers={"X-Tenant-ID": "test-tenant"}) as client:
         response = client.get("/api/projects/scan-drive")
         assert response.status_code == 200
         payload = response.json()
@@ -30,7 +30,7 @@ def test_drive_scan_projects_include_debug_metadata() -> None:
 
 
 def test_drive_diagnose_reports_error_when_stubbed() -> None:
-    with TestClient(app) as client:
+    with TestClient(app, headers={"X-Tenant-ID": "test-tenant"}) as client:
         response = client.get("/api/drive/diagnose")
         assert response.status_code == 200
         payload = response.json()

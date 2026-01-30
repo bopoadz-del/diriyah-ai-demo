@@ -38,7 +38,7 @@ def client(db_session, monkeypatch):
 
     app.dependency_overrides[get_db] = override_get_db
     monkeypatch.setattr(learning_api, "_evaluate_pdp", lambda *args, **kwargs: None)
-    with TestClient(app) as client:
+    with TestClient(app, headers={"X-Tenant-ID": "test-tenant"}) as client:
         yield client
     app.dependency_overrides.clear()
 

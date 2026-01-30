@@ -5,7 +5,7 @@ This directory contains React components for the Policy Decision Point (PDP) sys
 ## Hooks and Context
 
 ### usePDP Hook
-Location: `/frontend/src/hooks/usePDP.js`
+Location: `/frontend/src/hooks/usePDP.ts`
 
 Custom React hook providing PDP operations for permission checking, access management, rate limiting, and audit trails.
 

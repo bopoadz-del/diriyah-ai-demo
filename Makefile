@@ -7,3 +7,4 @@ down:
 	docker compose down
 test:
 	pytest -q --disable-warnings --maxfail=1
+	pytest backend/tests/test_connectors.py -v

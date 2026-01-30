@@ -34,6 +34,8 @@ env: {}
   # DATABASE_URL: ""
   # REDIS_URL: ""
 
+jwtSecret: "change-me"
+
 nodeSelector: {}
 
 tolerations: []

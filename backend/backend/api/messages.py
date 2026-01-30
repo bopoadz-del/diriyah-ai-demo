@@ -1,12 +1,36 @@
+import importlib
+import os
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from ..db import get_db
-from .. import models
-from ..services.analytics_service import log_action
-import os
-from openai import OpenAI
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY")) if os.getenv("OPENAI_API_KEY") else None
+from .. import models
+from ..db import get_db
+from ..services.analytics_service import log_action
+
+_openai_client = None
+_openai_available = True
+
+
+def _get_openai_client():
+    global _openai_client, _openai_available
+    if _openai_client is not None or not _openai_available:
+        return _openai_client
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        _openai_available = False
+        return None
+    try:
+        openai_module = importlib.import_module("openai")
+        OpenAI = getattr(openai_module, "OpenAI", None)
+        if OpenAI is None:
+            _openai_available = False
+            return None
+        _openai_client = OpenAI(api_key=api_key)
+    except Exception:
+        _openai_available = False
+        return None
+    return _openai_client
 router = APIRouter()
 
 def _heuristic_title(text: str) -> str:
@@ -16,6 +40,7 @@ def _heuristic_title(text: str) -> str:
     return " ".join(txt.split()[:6])[:60].title()
 
 def _auto_title_from_first_message(content: str) -> str:
+    client = _get_openai_client()
     if client:
         try:
             prompt = f"Suggest a short, specific 3–7 word title:\n{content}\nTitle:"

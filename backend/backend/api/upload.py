@@ -1,19 +1,42 @@
+import importlib
+import os
+import shutil
+
 from fastapi import APIRouter, UploadFile, File, Depends, Query
-import shutil, os
 from sqlalchemy.orm import Session
 from ..services.extract_service import extract_text
 from ..services.rag_service import add_document
 from ..services.drive_service import upload_file_to_project
 from ..db import get_db
 from .. import models
-from openai import OpenAI
-import os as _os
 
 router = APIRouter()
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-client = OpenAI(api_key=_os.getenv("OPENAI_API_KEY")) if _os.getenv("OPENAI_API_KEY") else None
+_openai_client = None
+_openai_available = True
+
+
+def _get_openai_client():
+    global _openai_client, _openai_available
+    if _openai_client is not None or not _openai_available:
+        return _openai_client
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        _openai_available = False
+        return None
+    try:
+        openai_module = importlib.import_module("openai")
+        OpenAI = getattr(openai_module, "OpenAI", None)
+        if OpenAI is None:
+            _openai_available = False
+            return None
+        _openai_client = OpenAI(api_key=api_key)
+    except Exception:
+        _openai_available = False
+        return None
+    return _openai_client
 
 @router.post("/upload/{project_id}")
 async def upload_doc(
@@ -39,6 +62,7 @@ async def upload_doc(
     add_document(str(project_id), text, file.filename)
 
     summary = None
+    client = _get_openai_client()
     if client:
         try:
             prompt = f"Summarize this file in 5–8 bullets with key risks/actions:\n\n{text[:8000]}"

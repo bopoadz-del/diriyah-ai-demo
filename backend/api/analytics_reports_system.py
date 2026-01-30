@@ -11,6 +11,8 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
+import importlib
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 
@@ -25,24 +27,36 @@ else:  # pragma: no cover
 
 logger = logging.getLogger(__name__)
 
-try:  # pragma: no cover - optional dependency for Render deployments
-    import matplotlib
+plt = None  # type: ignore[assignment]
+sns = None  # type: ignore[assignment]
+_matplotlib_import_error: Optional[Exception] = None
+_seaborn_import_error: Optional[Exception] = None
 
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt  # type: ignore
-except Exception as exc:  # pragma: no cover - diagnostics only
-    plt = None  # type: ignore[assignment]
-    _matplotlib_import_error: Optional[Exception] = exc
-else:  # pragma: no cover - plotting available
-    _matplotlib_import_error = None
 
-try:  # pragma: no cover - optional styling
-    import seaborn as sns  # type: ignore
-except Exception as exc:  # pragma: no cover - diagnostics only
-    sns = None  # type: ignore[assignment]
-    _seaborn_import_error: Optional[Exception] = exc
-else:  # pragma: no cover
-    _seaborn_import_error = None
+def _load_matplotlib():
+    global plt, _matplotlib_import_error
+    if plt is not None or _matplotlib_import_error is not None:
+        return plt
+    try:  # pragma: no cover - optional dependency for Render deployments
+        matplotlib = importlib.import_module("matplotlib")
+        matplotlib.use("Agg")
+        plt = importlib.import_module("matplotlib.pyplot")
+    except Exception as exc:  # pragma: no cover - diagnostics only
+        _matplotlib_import_error = exc
+        plt = None
+    return plt
+
+
+def _load_seaborn():
+    global sns, _seaborn_import_error
+    if sns is not None or _seaborn_import_error is not None:
+        return sns
+    try:  # pragma: no cover - optional styling
+        sns = importlib.import_module("seaborn")
+    except Exception as exc:  # pragma: no cover - diagnostics only
+        _seaborn_import_error = exc
+        sns = None
+    return sns
 
 try:  # pragma: no cover - optional rich charts
     import plotly.graph_objects as go  # type: ignore
@@ -344,10 +358,12 @@ class AutomatedReportGenerator:
         self.output_dir = Path("./reports")
         self.output_dir.mkdir(exist_ok=True, parents=True)
 
-        if plt is not None and sns is not None:  # pragma: no cover - styling only
+        plt_local = _load_matplotlib()
+        sns_local = _load_seaborn()
+        if plt_local is not None and sns_local is not None:  # pragma: no cover - styling only
             try:
-                plt.style.use("seaborn-v0_8-darkgrid")
-                sns.set_palette("husl")
+                plt_local.style.use("seaborn-v0_8-darkgrid")
+                sns_local.set_palette("husl")
             except Exception as exc:  # pragma: no cover - diagnostics
                 logger.debug("Failed to apply seaborn styling: %s", exc)
 
@@ -510,11 +526,12 @@ class AutomatedReportGenerator:
         )
     async def _generate_charts(self, report_data: ReportData) -> Dict[str, str]:
         charts: Dict[str, str] = {}
-        if plt is None:
+        plt_local = _load_matplotlib()
+        if plt_local is None:
             return charts
 
         try:
-            fig, ax = plt.subplots(figsize=(8, 5))
+            fig, ax = plt_local.subplots(figsize=(8, 5))
             labels = [
                 "Total\nProjects",
                 "Active\nProjects",
@@ -546,7 +563,7 @@ class AutomatedReportGenerator:
             ax.spines["right"].set_visible(False)
             fig.tight_layout()
             charts["overview"] = self._fig_to_base64(fig)
-            plt.close(fig)
+            plt_local.close(fig)
         except Exception as exc:  # pragma: no cover - diagnostics only
             logger.debug("Failed to build overview chart: %s", exc)
 
@@ -573,10 +590,10 @@ class AutomatedReportGenerator:
             except Exception as exc:  # pragma: no cover - diagnostics only
                 logger.debug("Failed to build gauge chart: %s", exc)
 
-        if plt is not None and "projects" in report_data.tables:
+        if plt_local is not None and "projects" in report_data.tables:
             try:
                 table = report_data.tables["projects"]
-                fig, ax = plt.subplots(figsize=(8, 5))
+                fig, ax = plt_local.subplots(figsize=(8, 5))
                 names = [row["Name"] for row in table.rows]
                 progress = [float(row["Progress"].rstrip("%")) for row in table.rows]
                 bars = ax.barh(names, progress, color="#3B82F6")
@@ -589,13 +606,13 @@ class AutomatedReportGenerator:
                 ax.spines["right"].set_visible(False)
                 fig.tight_layout()
                 charts["project_progress"] = self._fig_to_base64(fig)
-                plt.close(fig)
+                plt_local.close(fig)
             except Exception as exc:  # pragma: no cover - diagnostics only
                 logger.debug("Failed to build project progress chart: %s", exc)
 
-        if plt is not None and report_data.metrics.get("total_alerts", 0) > 0:
+        if plt_local is not None and report_data.metrics.get("total_alerts", 0) > 0:
             try:
-                fig, ax = plt.subplots(figsize=(6, 6))
+                fig, ax = plt_local.subplots(figsize=(6, 6))
                 severities = ["Critical", "High", "Medium"]
                 counts = [
                     report_data.metrics.get("critical_alerts", 0),
@@ -609,7 +626,7 @@ class AutomatedReportGenerator:
                     ax.set_title("Alert Severity Distribution")
                     fig.tight_layout()
                     charts["alerts_pie"] = self._fig_to_base64(fig)
-                plt.close(fig)
+                plt_local.close(fig)
             except Exception as exc:  # pragma: no cover - diagnostics only
                 logger.debug("Failed to build alerts pie chart: %s", exc)
 

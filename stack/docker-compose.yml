@@ -5,7 +5,7 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
-    container_name: masterise-backend
+    container_name: diriyah-backend
     env_file: ../.env
     volumes:
       - ../backend/uploads:/app/uploads
@@ -16,7 +16,7 @@ services:
       - "8000:8000"
   frontend:
     build: ../frontend
-    container_name: masterise-frontend
+    container_name: diriyah-frontend
     env_file: ../.env
     depends_on:
       - backend

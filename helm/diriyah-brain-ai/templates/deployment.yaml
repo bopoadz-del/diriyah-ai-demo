@@ -43,6 +43,11 @@ spec:
               value: {{ $value | quote }}
             {{- end }}
             {{- end }}
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "diriyah-brain-ai.fullname" . }}-secrets
+                  key: jwt-secret
           {{- if .Values.persistence.enabled }}
           volumeMounts:
             - name: storage

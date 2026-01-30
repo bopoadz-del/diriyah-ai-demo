@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Any, Dict, List, Optional
 import logging
 
@@ -9,25 +10,30 @@ import numpy as np
 import pandas as pd
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
-from backend.services.intelligence import (
-    AlertIntelligenceSystem,
-    ConstructionCausalAnalyzer,
-    UncertaintyQuantifier,
-    UncertaintyResult,
-)
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/intelligence", tags=["Intelligence"])
-
-uncertainty_quantifier = UncertaintyQuantifier(model_type="classification")
-causal_analyzer = ConstructionCausalAnalyzer()
-alert_system = AlertIntelligenceSystem(uncertainty_quantifier, causal_analyzer)
 _alert_actions: Dict[str, str] = {}
+
+
+@lru_cache(maxsize=1)
+def _get_intelligence_stack():
+    from backend.services.intelligence import (
+        AlertIntelligenceSystem,
+        ConstructionCausalAnalyzer,
+        UncertaintyQuantifier,
+        UncertaintyResult,
+    )
+
+    uncertainty_quantifier = UncertaintyQuantifier(model_type="classification")
+    causal_analyzer = ConstructionCausalAnalyzer()
+    alert_system = AlertIntelligenceSystem(uncertainty_quantifier, causal_analyzer)
+    return uncertainty_quantifier, causal_analyzer, alert_system, UncertaintyResult
 
 
 @router.post("/predict-with-uncertainty")
 async def predict_with_uncertainty(request: Dict[str, Any]) -> Dict[str, Any]:
+    uncertainty_quantifier, _, _, _ = _get_intelligence_stack()
     features = request.get("features")
     if features is None:
         raise HTTPException(status_code=400, detail="Missing 'features' in request body")
@@ -59,6 +65,7 @@ async def predict_with_uncertainty(request: Dict[str, Any]) -> Dict[str, Any]:
 
 @router.post("/analyze-delay-causes")
 async def analyze_delay_causes(request: Dict[str, Any]) -> Dict[str, Any]:
+    _, causal_analyzer, _, _ = _get_intelligence_stack()
     project_data = request.get("project_data")
     if project_data is None:
         raise HTTPException(status_code=400, detail="Missing 'project_data' in request body")
@@ -78,6 +85,7 @@ async def analyze_delay_causes(request: Dict[str, Any]) -> Dict[str, Any]:
 
 @router.post("/process-intelligent-alert")
 async def process_intelligent_alert(event: Dict[str, Any]) -> Dict[str, Any]:
+    _, _, alert_system, _ = _get_intelligence_stack()
     alert = await alert_system.process_event(event)
     if alert is None:
         return {"alert_generated": False, "reason": "Event below alert threshold"}
@@ -125,22 +133,26 @@ async def enhanced_chat(request: Dict[str, Any]) -> Dict[str, Any]:
 
     features = extract_features_from_query(query)
     try:
+        uncertainty_quantifier, _, _, _ = _get_intelligence_stack()
         uncertainty_result = uncertainty_quantifier.predict_with_uncertainty(features)[0]
     except Exception as exc:  # pragma: no cover - fallback for unexpected runtime issues
         logger.exception("Enhanced chat uncertainty estimation failed")
-        uncertainty_result = UncertaintyResult(
-            prediction=None,
-            confidence=0.6,
-            uncertainty=0.4,
-            confidence_interval=(0.5, 0.7),
-            explanation="Uncertainty service temporarily unavailable",
-            should_escalate=False,
-        )
+
+        class _FallbackResult:
+            prediction = None
+            confidence = 0.6
+            uncertainty = 0.4
+            confidence_interval = (0.5, 0.7)
+            explanation = "Uncertainty service temporarily unavailable"
+            should_escalate = False
+
+        uncertainty_result = _FallbackResult()
 
     causal_block: Optional[Dict[str, Any]] = None
     if any(keyword in query.lower() for keyword in ["delay", "late", "overrun", "issue"]):
         project_data = get_project_data_from_context(context)
         if not project_data.empty:
+            _, causal_analyzer, _, _ = _get_intelligence_stack()
             insight = causal_analyzer.analyze_delay_causes(project_data)
             causal_block = {
                 "identified": bool(insight.root_causes),
@@ -160,6 +172,7 @@ async def enhanced_chat(request: Dict[str, Any]) -> Dict[str, Any]:
 
 @router.websocket("/alerts")
 async def websocket_alerts(websocket: WebSocket) -> None:
+    _, _, alert_system, _ = _get_intelligence_stack()
     await websocket.accept()
     alert_system.websocket_connections.append(websocket)
     try:

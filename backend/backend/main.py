@@ -1,14 +1,37 @@
+import os
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import os
 
 from .db import init_db
 from .api import projects, chats, messages, drive, upload, speech, vision, ai, admin, settings, analytics
 
-init_flag = os.getenv("INIT_DB_ON_STARTUP", "false").strip().lower()
-should_init_db = init_flag not in {"0", "false", "no"}
-if should_init_db:
+logger = logging.getLogger(__name__)
+
+_TRUE_VALUES = {"1", "true", "yes", "y", "on"}
+_FALSE_VALUES = {"0", "false", "no", "n", "off"}
+
+
+def env_flag(name: str, default: bool) -> tuple[bool, str | None]:
+    raw = os.getenv(name)
+    if raw is None:
+        return default, None
+    normalized = raw.strip().lower()
+    if normalized in _TRUE_VALUES:
+        return True, raw
+    if normalized in _FALSE_VALUES:
+        return False, raw
+    return default, raw
+
+
+enabled, raw = env_flag("INIT_DB_ON_STARTUP", False)
+logger.info("INIT_DB_ON_STARTUP raw=%r parsed=%s", raw, enabled)
+if enabled:
+    logger.info("Initialising database on startup")
     init_db()
+else:
+    logger.info("Skipping DB init on startup")
 
 app = FastAPI(title="Diriyah Brain AI")
 

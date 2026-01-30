@@ -10,7 +10,7 @@ Use the helper script to create a virtual environment that mirrors the dependenc
 ./scripts/setup-dev-env.sh
 ```
 
-Set `INSTALL_BACKEND_OPTIONALS=true` if you need the full production dependency stack (it includes large machine learning wheels and may take several minutes to download):
+Set `INSTALL_BACKEND_OPTIONALS=true` if you need the optional machine learning and translation stacks (it includes large ML wheels and may take several minutes to download):
 
 ```bash
 INSTALL_BACKEND_OPTIONALS=true ./scripts/setup-dev-env.sh
@@ -48,11 +48,11 @@ source .venv/bin/activate
 pytest -q
 ```
 
-The top-level `requirements.txt` now includes the scientific libraries (`numpy`, `pandas`, and `networkx`) that the backend imports during startup so the tests pass consistently.
+The top-level `requirements.txt` aggregates the backend runtime and development requirements to keep CI and local runs consistent.
 
 ## 5. Common troubleshooting tips
 
-- **Missing optional ML dependencies** – Some services (for example causal inference modules) rely on heavy optional packages. Enable the `INSTALL_BACKEND_OPTIONALS` flag when bootstrapping the environment to install everything.
+- **Missing optional ML/translation dependencies** – Some services rely on large optional packages. Enable the `INSTALL_BACKEND_OPTIONALS` flag when bootstrapping the environment to install them.
 - **Frontend asset mismatch** – Always run `npm run build` after editing the frontend. The backend serves files from `backend/frontend_dist/` and will warn if the directory is missing.
 - **Credential configuration** – The `/health` endpoint reports the status of Google Drive credentials and stubbed drive integrations to help verify secrets are configured correctly on Render.
 

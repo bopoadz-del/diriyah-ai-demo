@@ -1,7 +1,8 @@
 """Middleware enforcing tenant IDs for multi-tenant routing."""
 
-from fastapi import Request
-from starlette.responses import JSONResponse
+import os
+
+from fastapi import HTTPException, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
 
@@ -19,9 +20,10 @@ PUBLIC_PREFIXES = (
 
 class TenantEnforcerMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        if request.method == "OPTIONS":
+        enforce_tenant = os.getenv("REQUIRE_TENANT_ID", "true").strip().lower() not in {"0", "false", "no"}
+        if not enforce_tenant:
             return await call_next(request)
-        if request.url.path in PUBLIC_ENDPOINTS or request.url.path.startswith(PUBLIC_PREFIXES):
+        if request.url.path in PUBLIC_ENDPOINTS:
             return await call_next(request)
         tenant_id = request.headers.get("X-Tenant-ID")
         if not tenant_id:

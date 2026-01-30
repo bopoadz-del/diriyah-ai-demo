@@ -38,9 +38,10 @@ langdetect==1.0.9
 deep-translator==1.11.4
 # First release publishing Python 3.11 wheels
 camel-tools==1.5.7
-# Pin transformers below 4.44 to satisfy camel-tools' upper bound while staying compatible with sentence-transformers.
-transformers==4.43.4
-torch==2.4.1
+# Keep transformers at a patched version for security advisories.
+transformers==4.48.0
+torch==2.8.0
+ecdsa==0.19.2
 boto3==1.35.28
 PyJWT==2.9.0
 passlib[bcrypt]==1.7.4

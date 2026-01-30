@@ -2,9 +2,11 @@ from fastapi.testclient import TestClient
 
 from backend.main import app
 
+TEST_HEADERS = {"X-Tenant-ID": "test-tenant"}
+
 
 def test_parsing_extract_uses_drive_stub() -> None:
-    with TestClient(app) as client:
+    with TestClient(app, headers=TEST_HEADERS) as client:
         response = client.get("/api/parsing/extract", params={"file_id": "stub-file"})
         assert response.status_code == 200
         payload = response.json()
@@ -13,7 +15,7 @@ def test_parsing_extract_uses_drive_stub() -> None:
 
 
 def test_autocad_takeoff_returns_drive_status() -> None:
-    with TestClient(app) as client:
+    with TestClient(app, headers=TEST_HEADERS) as client:
         response = client.get("/api/autocad/takeoff", params={"file_id": "dwg-stub"})
         assert response.status_code == 200
         payload = response.json()
@@ -23,7 +25,7 @@ def test_autocad_takeoff_returns_drive_status() -> None:
 
 
 def test_connectors_endpoint_reports_stubbed_drive_sources() -> None:
-    with TestClient(app) as client:
+    with TestClient(app, headers=TEST_HEADERS) as client:
         response = client.get("/api/connectors/list")
         assert response.status_code == 200
         payload = response.json()

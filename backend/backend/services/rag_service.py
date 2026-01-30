@@ -22,6 +22,27 @@ else:
     index = faiss.IndexFlatL2(384)
     metadata = []
 
+
+def _get_openai_client():
+    global _openai_client, _openai_available
+    if _openai_client is not None or not _openai_available:
+        return _openai_client
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        _openai_available = False
+        return None
+    try:
+        openai_module = importlib.import_module("openai")
+        OpenAI = getattr(openai_module, "OpenAI", None)
+        if OpenAI is None:
+            _openai_available = False
+            return None
+        _openai_client = OpenAI(api_key=api_key)
+    except Exception:
+        _openai_available = False
+        return None
+    return _openai_client
+
 def _get_embedder():
     global _embedder
     if _embedder is None:
@@ -57,6 +78,7 @@ def add_document(project_id: str, text: str, source: str):
     with open(META_PATH, "wb") as f:
         pickle.dump(metadata, f)
 
+
 def query_rag(project_id: str, query: str, top_k: int = 3):
     if len(metadata) == 0:
         return "No documents indexed yet."
@@ -86,22 +108,3 @@ def query_rag(project_id: str, query: str, top_k: int = 3):
         if generated:
             return generated[0].get("generated_text", "No response available.")
     return "No response available."
-def _get_openai_client():
-    global _openai_client, _openai_available
-    if _openai_client is not None or not _openai_available:
-        return _openai_client
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        _openai_available = False
-        return None
-    try:
-        openai_module = importlib.import_module("openai")
-        OpenAI = getattr(openai_module, "OpenAI", None)
-        if OpenAI is None:
-            _openai_available = False
-            return None
-        _openai_client = OpenAI(api_key=api_key)
-    except Exception:
-        _openai_available = False
-        return None
-    return _openai_client

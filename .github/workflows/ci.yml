@@ -18,16 +18,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt pip-audit
+          pip install -r backend/requirements.txt -r backend/requirements-dev.txt pip-audit
       - name: Run pip-audit
-        run: pip-audit -r requirements.txt
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
+        run: pip-audit -r backend/requirements.txt -r backend/requirements-dev.txt
       - name: Run npm audit (frontend)
         working-directory: frontend
         run: npm audit --audit-level=high
@@ -66,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-test
     steps:
-      - name: Check out repository
+      - n8ame: Check out repository
         uses: actions/checkout@v4
       - name: Set up Helm
         uses: azure/setup-helm@v4

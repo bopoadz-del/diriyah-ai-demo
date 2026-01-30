@@ -11,11 +11,8 @@ PUBLIC_ENDPOINTS = {"/health", "/healthz", "/docs", "/openapi.json", "/api/docs"
 
 class TenantEnforcerMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("DISABLE_TENANT_ENFORCER", "").lower() in {
-            "1",
-            "true",
-            "yes",
-        }:
+        enforce_tenant = os.getenv("REQUIRE_TENANT_ID", "true").strip().lower() not in {"0", "false", "no"}
+        if not enforce_tenant:
             return await call_next(request)
         if request.url.path in PUBLIC_ENDPOINTS:
             return await call_next(request)

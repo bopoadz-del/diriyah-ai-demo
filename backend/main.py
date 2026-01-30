@@ -13,7 +13,7 @@ from typing import Iterable, Tuple
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 import jwt
-from jwt import InvalidTokenError
+from jwt import PyJWTError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -203,7 +203,7 @@ async def serve_frontend() -> FileResponse:
 def _decode_token(token: str) -> dict:
     try:
         return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-    except InvalidTokenError as exc:
+    except PyJWTError as exc:
         raise HTTPException(status_code=401, detail="Invalid token") from exc
 
 

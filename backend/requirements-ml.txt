@@ -1,4 +1,8 @@
-sentence-transformers==5.2.2
-transformers==4.57.6
-torch==2.10.0
+sentence-transformers==2.2.2
+# Enable contextual translation support
+deep-translator==1.11.4
+# First release publishing Python 3.11 wheels
 camel-tools==1.5.7
+# Pin transformers below 4.44 to satisfy camel-tools' upper bound while staying compatible with sentence-transformers.
+transformers==4.43.4
+torch==2.4.1

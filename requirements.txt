@@ -1,2 +1,3 @@
-# Root requirements for general dependencies
--r backend/requirements.txt
+# Example Requirements
+
+cryptography>=41.0.0

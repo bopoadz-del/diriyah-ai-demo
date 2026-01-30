@@ -51,4 +51,3 @@ dowhy==0.11.1
 causalml==0.15.5
 networkx==3.3
 statsmodels==0.14.2
-python-jose[cryptography]==3.3.0

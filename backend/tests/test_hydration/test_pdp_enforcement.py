@@ -12,7 +12,7 @@ def test_pdp_enforcement(db_session):
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
-    client = TestClient(app)
+    client = TestClient(app, headers={"X-Tenant-ID": "test-tenant"})
 
     source = WorkspaceSource(
         workspace_id="ws-1",
@@ -25,7 +25,7 @@ def test_pdp_enforcement(db_session):
 
     response = client.post(
         "/api/hydration/run-now",
-        headers={"X-User-Id": "999"},
+        headers={"X-User-Id": "999", "X-Tenant-ID": "test-tenant"},
         json={"workspace_id": "ws-1"},
     )
 

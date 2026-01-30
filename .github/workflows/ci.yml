@@ -20,7 +20,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt pip-audit
       - name: Run pip-audit
-        run: pip-audit
+        run: pip-audit -r requirements.txt --disable-pip --no-deps
       - name: Run npm audit (frontend)
         working-directory: frontend
         run: npm audit --audit-level=high

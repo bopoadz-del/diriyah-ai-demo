@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 import importlib.util
 import logging
 import os
@@ -17,6 +16,8 @@ from .models import ProhibitedPattern
 logger = logging.getLogger(__name__)
 
 _TORCH_AVAILABLE = importlib.util.find_spec("torch") is not None
+if _TORCH_AVAILABLE:
+    import torch
 
 
 # Default prohibited patterns
@@ -166,9 +167,7 @@ class ContentScanner:
         )
 
     def _load_ml_model(self) -> None:
-        """Load the optional ML scanner lazily to avoid startup overhead."""
         try:
-            torch = importlib.import_module("torch")
             self._ml_model = torch.hub.load("unitary/toxic-bert", "toxic_bert")
         except Exception as exc:
             logger.warning("Failed to load ML content scanner model: %s", exc)

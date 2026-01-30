@@ -38,8 +38,9 @@ langdetect==1.0.9
 deep-translator==1.11.4
 # First release publishing Python 3.11 wheels
 camel-tools==1.5.7
-# Pin transformers to 4.53.0 to fix security vulnerabilities while maintaining compatibility
-transformers==4.53.0
+# Pin transformers to 4.43.4 due to camel-tools requiring <4.44.0
+# NOTE: Known vulnerabilities in transformers 4.43.4 cannot be fixed without updating camel-tools
+transformers==4.43.4
 torch==2.4.1
 boto3==1.35.28
 PyJWT==2.9.0
@@ -51,4 +52,4 @@ dowhy==0.13
 causalml==0.15.5
 networkx==3.3
 statsmodels==0.14.2
-python-jose[cryptography]==3.3.0
+python-jose[cryptography]==3.4.0

@@ -40,8 +40,9 @@ jobs:
         run: |
           cd frontend
           # Run npm audit and only fail on high/critical vulnerabilities
+          exit_code=0
           npm audit --audit-level=high || exit_code=$?
-          if [ "${exit_code}" != "" ] && [ "${exit_code}" != "0" ]; then
+          if [ "${exit_code}" != "0" ]; then
             echo "❌ High or critical vulnerabilities found!"
             exit ${exit_code}
           fi

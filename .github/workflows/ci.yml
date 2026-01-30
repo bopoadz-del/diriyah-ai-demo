@@ -22,6 +22,31 @@ jobs:
       - name: Run pytest
         run: pytest
 
+  frontend-audit:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+      - name: Run npm audit (frontend)
+        run: |
+          cd frontend
+          # Run npm audit and only fail on high/critical vulnerabilities
+          npm audit --audit-level=high || exit_code=$?
+          if [ "${exit_code}" != "" ] && [ "${exit_code}" != "0" ]; then
+            echo "❌ High or critical vulnerabilities found!"
+            exit ${exit_code}
+          fi
+          echo "✅ No high or critical vulnerabilities found"
+
   helm-lint-and-package:
     runs-on: ubuntu-latest
     needs: build-and-test
@@ -38,7 +63,7 @@ jobs:
         run: helm template test-release helm/diriyah-brain-ai
 
   request-prod-approval:
-    needs: [build-and-test, helm-lint-and-package]
+    needs: [build-and-test, frontend-audit, helm-lint-and-package]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:

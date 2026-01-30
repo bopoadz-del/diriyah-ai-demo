@@ -54,7 +54,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 def _init_db_if_configured() -> None:
     """Initialise the database if startup init is enabled."""
 
-    init_flag = os.getenv("INIT_DB_ON_STARTUP", "true").strip().lower()
+    init_flag = os.getenv("INIT_DB_ON_STARTUP", "false").strip().lower()
     should_init = init_flag not in {"0", "false", "no"}
     if should_init:
         logger.info("Initialising database on startup")
@@ -82,10 +82,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Note: PDP middleware is not added here to avoid initialization issues
-# The PDP system is available via /api/pdp endpoints
-# For production, consider implementing PDP middleware with proper dependency injection
 
 _BASE_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _BASE_DIR.parent

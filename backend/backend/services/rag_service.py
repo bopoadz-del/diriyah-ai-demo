@@ -32,7 +32,55 @@ else:
     index = faiss.IndexFlatL2(384)
     metadata = []
 
+def _get_embedder():
+    global _embedder
+    if _embedder is None:
+        sentence_transformers = importlib.import_module("sentence_transformers")
+        model = sentence_transformers.SentenceTransformer("all-MiniLM-L6-v2")
+        _embedder = model
+    return _embedder
+
+
+def _get_fallback_generator():
+    global _fallback_generator
+    if _fallback_generator is not None:
+        return _fallback_generator
+    if importlib.util.find_spec("transformers") is None:
+        return None
+    transformers = importlib.import_module("transformers")
+    pipeline = getattr(transformers, "pipeline", None)
+    if pipeline is None:
+        return None
+    _fallback_generator = pipeline(
+        "text-generation",
+        model=os.getenv("HF_FALLBACK_MODEL", "gpt2"),
+    )
+    return _fallback_generator
+
+
+def _get_openai_client():
+    global _openai_client, _openai_available
+    if _openai_client is not None or not _openai_available:
+        return _openai_client
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        _openai_available = False
+        return None
+    try:
+        openai_module = importlib.import_module("openai")
+        OpenAI = getattr(openai_module, "OpenAI", None)
+        if OpenAI is None:
+            _openai_available = False
+            return None
+        _openai_client = OpenAI(api_key=api_key)
+    except Exception:
+        _openai_available = False
+        return None
+    return _openai_client
+
+
 def add_document(project_id: str, text: str, source: str):
+    embedder = _get_embedder()
     vector = embedder.encode([text])
     index.add(vector)
     metadata.append({"project": project_id, "text": text, "source": source})
@@ -43,6 +91,7 @@ def add_document(project_id: str, text: str, source: str):
 def query_rag(project_id: str, query: str, top_k: int = 3):
     if len(metadata) == 0:
         return "No documents indexed yet."
+    embedder = _get_embedder()
     qvec = embedder.encode([query])
     D, I = index.search(qvec, top_k)
     hits = [metadata[i] for i in I[0] if i < len(metadata) and metadata[i]["project"] == project_id]

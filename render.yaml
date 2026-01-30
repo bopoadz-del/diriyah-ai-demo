@@ -41,6 +41,10 @@ services:
         value: "false"
       - key: INIT_DB_ON_STARTUP
         value: "false"
+      - key: LOG_LEVEL
+        value: "DEBUG"
+      - key: PROMETHEUS_ENABLED
+        value: "true"
     healthCheckPath: /health
   - type: worker
     name: mba-hydration-worker
@@ -149,6 +153,6 @@ services:
 
 databases:
   - name: mba-postgres-main
-    databaseName: masterise_ai_main
+    databaseName: diriyah_ai_main
     plan: starter
     region: oregon

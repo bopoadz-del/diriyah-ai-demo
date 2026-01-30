@@ -5,12 +5,12 @@ import os
 from .db import init_db
 from .api import projects, chats, messages, drive, upload, speech, vision, ai, admin, settings, analytics
 
-init_flag = os.getenv("INIT_DB_ON_STARTUP", "true").strip().lower()
+init_flag = os.getenv("INIT_DB_ON_STARTUP", "false").strip().lower()
 should_init_db = init_flag not in {"0", "false", "no"}
 if should_init_db:
     init_db()
 
-app = FastAPI(title="Masterise Brain AI")
+app = FastAPI(title="Diriyah Brain AI")
 
 app.add_middleware(
     CORSMiddleware,

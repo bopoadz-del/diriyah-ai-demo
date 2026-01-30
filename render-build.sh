@@ -37,6 +37,8 @@ if [[ "${INSTALL_DEV_REQUIREMENTS:-false}" == "true" ]]; then
   pip install --no-cache-dir -r backend/requirements-dev.txt
 fi
 
+python -m spacy download en_core_web_sm
+
 # Build the frontend bundle that FastAPI serves in production
 pushd frontend
 npm ci

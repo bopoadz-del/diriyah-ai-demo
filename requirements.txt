@@ -1,3 +1,4 @@
 # Example Requirements
 
 cryptography>=41.0.0
+pytest==8.2.0

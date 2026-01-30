@@ -1,11 +1,22 @@
 """Content scanner for detecting prohibited patterns and malicious content."""
 
+from __future__ import annotations
+
+import importlib
+import importlib.util
+import logging
+import os
 import re
-from typing import List, Dict
+from typing import Dict, List, Optional
+
 from sqlalchemy.orm import Session
 
 from .schemas import ScanResult, Severity, PatternType
 from .models import ProhibitedPattern
+
+logger = logging.getLogger(__name__)
+
+_TORCH_AVAILABLE = importlib.util.find_spec("torch") is not None
 
 
 # Default prohibited patterns
@@ -58,9 +69,14 @@ class ContentScanner:
         """
         self.db = db
         self.patterns = PROHIBITED_PATTERNS.copy()
+        self._ml_model = None
+        self._ml_threshold = float(os.getenv("ML_SCANNER_THRESHOLD", "0.8"))
         
         if db:
             self.load_patterns()
+
+        if _TORCH_AVAILABLE and os.getenv("ENABLE_ML_SCANNER", "false").lower() == "true":
+            self._load_ml_model()
     
     def load_patterns(self) -> None:
         """Load additional prohibited patterns from database."""
@@ -132,6 +148,12 @@ class ContentScanner:
             violations.extend([f"Malicious: {v}" for v in malicious_violations])
             details["malicious"] = ", ".join(malicious_violations)
             max_severity = Severity.CRITICAL
+
+        ml_violation = self.check_ml(content)
+        if ml_violation:
+            violations.append(f"ML: {ml_violation['label']}")
+            details["ml"] = f"{ml_violation['label']} ({ml_violation['score']:.2f})"
+            max_severity = Severity.CRITICAL
         
         safe = len(violations) == 0
         
@@ -142,6 +164,40 @@ class ContentScanner:
             sanitized_text=None if safe else self._sanitize(content),
             details=details
         )
+
+    def _load_ml_model(self) -> None:
+        try:
+            torch = importlib.import_module("torch")
+            self._ml_model = torch.hub.load("unitary/toxic-bert", "toxic_bert")
+        except Exception as exc:
+            logger.warning("Failed to load ML content scanner model: %s", exc)
+            self._ml_model = None
+
+    def check_ml(self, content: str) -> Optional[Dict[str, float]]:
+        if not self._ml_model or not content:
+            return None
+        try:
+            results = self._ml_model(content)
+        except Exception as exc:
+            logger.warning("ML content scan failed: %s", exc)
+            return None
+
+        label = "ml_flagged"
+        score = None
+        if isinstance(results, list) and results:
+            first = results[0]
+            if isinstance(first, dict):
+                label = first.get("label", label)
+                score = first.get("score")
+            elif isinstance(first, list) and first and isinstance(first[0], dict):
+                label = first[0].get("label", label)
+                score = first[0].get("score")
+
+        if score is None:
+            return None
+        if score >= self._ml_threshold:
+            return {"label": str(label), "score": float(score)}
+        return None
     
     def check_pii(self, content: str) -> List[str]:
         """

@@ -1,5 +1,5 @@
 
-# Masterise Brain AI — Quickstart
+# Diriyah Brain AI — Quickstart
 
 ## Prereqs
 - Docker + Docker Compose

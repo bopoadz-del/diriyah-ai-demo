@@ -1,4 +1,4 @@
-# Masterise Brain AI — Backend
+# Diriyah Brain AI — Backend
 
 FastAPI backend with Google Drive, RAG, Whisper STT, YOLO vision, and analytics.
 

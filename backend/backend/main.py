@@ -10,7 +10,7 @@ should_init_db = init_flag not in {"0", "false", "no"}
 if should_init_db:
     init_db()
 
-app = FastAPI(title="Masterise Brain AI")
+app = FastAPI(title="Diriyah Brain AI")
 
 app.add_middleware(
     CORSMiddleware,

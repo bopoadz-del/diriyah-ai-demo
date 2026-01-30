@@ -1,10 +1,19 @@
 """Rate limiting implementation using sliding window counter algorithm."""
 
-from typing import Dict, Tuple
+from __future__ import annotations
+
+import importlib.util
+import os
 from datetime import datetime, timedelta
+from typing import Dict, Optional, Tuple
+
 from sqlalchemy.orm import Session
 
 from .models import RateLimit
+
+_REDIS_AVAILABLE = importlib.util.find_spec("redis") is not None
+if _REDIS_AVAILABLE:
+    import redis
 
 
 # Default rate limits per endpoint (requests per window)
@@ -34,6 +43,16 @@ class RateLimiter:
             db: Database session
         """
         self.db = db
+        self.redis = self._init_redis()
+
+    def _init_redis(self) -> Optional["redis.Redis"]:
+        use_redis = os.getenv("USE_REDIS_RATES", "false").lower() == "true"
+        if not use_redis or not _REDIS_AVAILABLE:
+            return None
+        redis_url = os.getenv("REDIS_URL", "").strip()
+        if not redis_url:
+            return None
+        return redis.from_url(redis_url, decode_responses=True)
     
     def check_limit(self, user_id: int, endpoint: str) -> Tuple[bool, int]:
         """
@@ -50,6 +69,17 @@ class RateLimiter:
         config = RATE_LIMITS.get(endpoint, RATE_LIMITS["default"])
         limit = config["limit"]
         window_seconds = config["window_seconds"]
+
+        if self.redis:
+            key = f"rate:{user_id}:{endpoint}"
+            try:
+                count = self.redis.incr(key)
+                if count == 1:
+                    self.redis.expire(key, window_seconds)
+                remaining = max(0, limit - count)
+                return count <= limit, remaining
+            except Exception:
+                pass
         
         # Get or create rate limit record
         rate_limit = self.db.query(RateLimit).filter(
@@ -102,6 +132,19 @@ class RateLimiter:
         Returns:
             Current count after increment
         """
+        config = RATE_LIMITS.get(endpoint, RATE_LIMITS["default"])
+        window_seconds = config["window_seconds"]
+
+        if self.redis:
+            key = f"rate:{user_id}:{endpoint}"
+            try:
+                count = self.redis.incr(key)
+                if count == 1:
+                    self.redis.expire(key, window_seconds)
+                return count
+            except Exception:
+                pass
+
         rate_limit = self.db.query(RateLimit).filter(
             RateLimit.user_id == user_id,
             RateLimit.endpoint == endpoint

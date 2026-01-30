@@ -10,12 +10,16 @@ from pathlib import Path
 from types import ModuleType
 from typing import Iterable, Tuple
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.backend.db import init_db
+from backend.backend.pdp.middleware import PDPMiddleware
+from backend.middleware.tenant_enforcer import TenantEnforcerMiddleware
 
 
 def _configure_logging() -> logging.Logger:
@@ -42,6 +46,10 @@ logger = _configure_logging()
 app = FastAPI(title="Diriyah Brain AI", version="v1.24")
 logger.info("FastAPI application initialised", extra={"version": app.version})
 
+JWT_SECRET = os.getenv("JWT_SECRET_KEY", "change-me")
+JWT_ALGORITHM = "HS256"
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
+
 
 def _init_db_if_configured() -> None:
     """Initialise the database if startup init is enabled."""
@@ -56,6 +64,15 @@ def _init_db_if_configured() -> None:
 
 
 _init_db_if_configured()
+
+if os.getenv("ENABLE_BERT_INTENT", "false").lower() == "true":
+    logger.info("BERT intent detection enabled")
+
+ENABLE_PDP = os.getenv("ENABLE_PDP_MIDDLEWARE", "true").lower() == "true"
+if ENABLE_PDP:
+    app.add_middleware(PDPMiddleware)
+
+app.add_middleware(TenantEnforcerMiddleware)
 
 # CORS middleware
 app.add_middleware(
@@ -109,6 +126,7 @@ def _iter_router_specs() -> Iterable[Tuple[str, str]]:
     """Yield module import paths with their associated API tags."""
 
     return (
+        ("backend.api.auth", "Auth"),
         ("backend.api.advanced_intelligence", "Advanced Intelligence"),
         ("backend.api.intelligence", "Intelligence"),
         ("backend.api.autocad", "AutoCAD"),
@@ -165,6 +183,19 @@ async def serve_frontend() -> FileResponse:
     if _INDEX_HTML is None:
         raise HTTPException(status_code=404, detail="Frontend assets are not available")
     return FileResponse(_INDEX_HTML, media_type="text/html")
+
+
+def _decode_token(token: str) -> dict:
+    try:
+        return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except JWTError as exc:
+        raise HTTPException(status_code=401, detail="Invalid token") from exc
+
+
+@app.get("/protected")
+def protected_endpoint(token: str = Depends(oauth2_scheme)) -> dict:
+    payload = _decode_token(token)
+    return {"status": "ok", "subject": payload.get("sub"), "tenant_id": payload.get("tenant_id")}
 
 
 @app.get("/health")

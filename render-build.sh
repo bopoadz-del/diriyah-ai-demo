@@ -33,6 +33,10 @@ pip install --upgrade pip
 pip install --no-cache-dir \
   -r backend/requirements.txt
 
+if [[ "${INSTALL_BACKEND_OPTIONALS:-false}" == "true" ]]; then
+  pip install --no-cache-dir -r backend/requirements-optional.txt
+fi
+
 if [[ "${INSTALL_DEV_REQUIREMENTS:-false}" == "true" ]]; then
   pip install --no-cache-dir -r backend/requirements-dev.txt
 fi

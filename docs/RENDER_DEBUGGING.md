@@ -10,7 +10,7 @@ Use the helper script to create a virtual environment that mirrors the dependenc
 ./scripts/setup-dev-env.sh
 ```
 
-Set `INSTALL_BACKEND_OPTIONALS=true` if you need the full production dependency stack (it includes large machine learning wheels and may take several minutes to download):
+Set `INSTALL_BACKEND_OPTIONALS=true` if you need the full production dependency stack (it includes large machine learning wheels and the spaCy language model and may take several minutes to download):
 
 ```bash
 INSTALL_BACKEND_OPTIONALS=true ./scripts/setup-dev-env.sh

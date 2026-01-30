@@ -1,4 +1,4 @@
-fastapi==0.115.0
+fastapi==0.115.14
 uvicorn==0.30.6
 gunicorn==23.0.0
 python-dotenv==1.0.1
@@ -16,7 +16,7 @@ faiss-cpu==1.8.0
 requests==2.32.5
 httpx==0.27.2
 aiofiles==24.1.0
-python-multipart==0.0.9
+python-multipart==0.0.22
 openpyxl==3.1.5
 reportlab==4.2.5
 PyMuPDF==1.26.0
@@ -38,15 +38,15 @@ langdetect==1.0.9
 deep-translator==1.11.4
 # First release publishing Python 3.11 wheels
 camel-tools==1.5.7
-# Pin transformers below 4.44 to satisfy camel-tools' upper bound while staying compatible with sentence-transformers.
-transformers==4.43.4
+# Pin transformers to 4.53.0 to fix security vulnerabilities while maintaining compatibility
+transformers==4.53.0
 torch==2.4.1
 boto3==1.35.28
 PyJWT==2.9.0
 passlib[bcrypt]==1.7.4
 # Maintain Python 3.11 wheel support and compatibility with scikit-learn 1.6.x
 mapie==1.1.0
-dowhy==0.14
+dowhy==0.13
 # First release publishing Python 3.11 wheels
 causalml==0.15.5
 networkx==3.3

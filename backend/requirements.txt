@@ -12,6 +12,9 @@ ezdxf==1.2.0
 spacy==3.7.5
 en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
 sentence-transformers==2.2.2
+# Pin huggingface_hub to version compatible with sentence-transformers 2.2.2
+# cached_download was removed in huggingface_hub 0.22.0
+huggingface_hub<0.22.0
 faiss-cpu==1.8.0
 requests==2.32.4
 httpx

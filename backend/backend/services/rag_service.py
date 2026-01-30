@@ -1,18 +1,28 @@
-import importlib
 import importlib.util
 import os
 import pickle
 
 import faiss
+from sentence_transformers import SentenceTransformer
+from openai import OpenAI
+
+_TRANSFORMERS_AVAILABLE = importlib.util.find_spec("transformers") is not None
+if _TRANSFORMERS_AVAILABLE:
+    from transformers import pipeline
 
 INDEX_PATH = "storage/faiss.index"
 META_PATH = "storage/meta.pkl"
 os.makedirs("storage", exist_ok=True)
 
-_openai_client = None
-_openai_available = True
-_embedder = None
+embedder = SentenceTransformer("all-MiniLM-L6-v2")
+_openai_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=_openai_key) if _openai_key else None
 _fallback_generator = None
+if _TRANSFORMERS_AVAILABLE:
+    _fallback_generator = pipeline(
+        "text-generation",
+        model=os.getenv("HF_FALLBACK_MODEL", "gpt2"),
+    )
 
 if os.path.exists(INDEX_PATH) and os.path.exists(META_PATH):
     index = faiss.read_index(INDEX_PATH)
@@ -88,7 +98,6 @@ def query_rag(project_id: str, query: str, top_k: int = 3):
     hits = [metadata[i] for i in I[0] if i < len(metadata) and metadata[i]["project"] == project_id]
     context = "\n\n".join([f"Source: {h['source']}\n{h['text']}" for h in hits])
     prompt = f"Context:\n{context}\n\nQuestion: {query}\nAnswer concisely:"
-    client = _get_openai_client()
     if client:
         try:
             resp = client.chat.completions.create(
@@ -102,9 +111,8 @@ def query_rag(project_id: str, query: str, top_k: int = 3):
         except Exception:
             pass
 
-    fallback_generator = _get_fallback_generator()
-    if fallback_generator:
-        generated = fallback_generator(prompt, max_new_tokens=200)
+    if _fallback_generator:
+        generated = _fallback_generator(prompt, max_new_tokens=200)
         if generated:
             return generated[0].get("generated_text", "No response available.")
     return "No response available."

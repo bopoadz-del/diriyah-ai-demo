@@ -18,7 +18,7 @@ class TenantEnforcerMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         tenant_id = request.headers.get("X-Tenant-ID")
         if not tenant_id:
-            raise HTTPException(status_code=403, detail="Tenant ID required")
+            return JSONResponse(status_code=403, content={"detail": "Tenant ID required"})
         request.state.tenant_id = tenant_id
         response = await call_next(request)
         return response

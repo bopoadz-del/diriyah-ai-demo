@@ -35,7 +35,7 @@ scikit-learn==1.6.1
 pytest==8.2.0
 langdetect==1.0.9
 # Enable contextual translation support
-deep-translator==1.11.6
+deep-translator==1.11.4
 # First release publishing Python 3.11 wheels
 camel-tools==1.5.7
 # Keep transformers at a patched version for security advisories.

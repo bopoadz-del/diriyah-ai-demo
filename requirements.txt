@@ -1,4 +1,2 @@
-# Example Requirements
-
- cryptography>=41.0.0
- other-dependency==1.0.0
+# Backend requirements - use backend/requirements.txt for actual dependencies
+-r backend/requirements.txt

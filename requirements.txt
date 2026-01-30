@@ -1,13 +1,5 @@
-fastapi
-uvicorn
-httpx
-pytest
-pytest-asyncio
+# Requirements
+
+# Existing dependencies
+
 python-jose[cryptography]>=3.4.0
-# Core scientific stack required by backend modules imported during tests
-numpy==1.26.4
-pandas==2.2.3
-networkx==3.3
-# Database dependencies required by backend modules
-sqlalchemy==2.0.35
-psycopg2-binary==2.9.9

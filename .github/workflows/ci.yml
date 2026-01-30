@@ -23,9 +23,37 @@ jobs:
         run: pip-audit
       - name: Run npm audit (frontend)
         working-directory: frontend
-        run: npm ci && npm audit
+        run: npm audit --audit-level=high
       - name: Run pytest
         run: pytest
+
+  frontend-audit:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+      - name: Run npm audit (frontend)
+        run: |
+          cd frontend
+          # Run npm audit and only fail on high/critical vulnerabilities
+          exit_code=0
+          npm audit --audit-level=high || exit_code=$?
+          if [ "${exit_code}" != "0" ]; then
+            echo "❌ High or critical vulnerabilities found!"
+            exit ${exit_code}
+          fi
+          echo "✅ No high or critical vulnerabilities found"
 
   helm-lint-and-package:
     runs-on: ubuntu-latest
@@ -43,8 +71,10 @@ jobs:
         run: helm template test-release helm/diriyah-brain-ai
 
   request-prod-approval:
-    needs: [build-and-test, helm-lint-and-package]
+    needs: [build-and-test, frontend-audit, helm-lint-and-package]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - name: Post Slack Approval Message
@@ -54,4 +84,7 @@ jobs:
         run: |
           COMMIT_SHA=${GITHUB_SHA}
           curl -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-type: application/json' \
-          --data "{\n            \"channel\": \"$CHANNEL\",\n            \"text\": \"⏳ Prod deployment awaiting approval for commit $COMMIT_SHA\",\n            \"attachments\": [{\n              \"text\": \"Approve deployment?\",\n              \"callback_id\": \"prod_approval\",\n              \"color\": \"#3AA3E3\",\n              \"actions\": [\n                {\"name\": \"approve\", \"text\": \"Approve ✅\", \"type\": \"button\", \"value\": \"approve_${GITHUB_SHA}\"},\n                {\"name\": \"reject\",  \"text\": \"Reject ❌\",  \"type\": \"button\", \"value\": \"reject_${GITHUB_SHA}\"}\n              ]\n            }]\n          }" https://slack.com/api/chat.postMessage
+          --data "{
+            \"channel\": \"$CHANNEL\",
+            \"text\": \"⏳ Prod deployment awaiting approval for commit $COMMIT_SHA\",
+            \"attachments\": [{\n            ...

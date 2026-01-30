@@ -3,7 +3,7 @@
 
 ## Prereqs
 - Docker + Docker Compose
-- Node 18+ (if running frontend locally)
+- Node 20.19.0+ (if running frontend locally)
 - Python 3.10+ (if running backend locally)
 
 ## 1) Environment

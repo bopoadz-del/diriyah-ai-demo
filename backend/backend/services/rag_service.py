@@ -32,27 +32,6 @@ else:
     index = faiss.IndexFlatL2(384)
     metadata = []
 
-def _get_openai_client():
-    global _openai_client, _openai_available
-    if _openai_client is not None or not _openai_available:
-        return _openai_client
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        _openai_available = False
-        return None
-    try:
-        openai_module = importlib.import_module("openai")
-        OpenAI = getattr(openai_module, "OpenAI", None)
-        if OpenAI is None:
-            _openai_available = False
-            return None
-        _openai_client = OpenAI(api_key=api_key)
-    except Exception:
-        _openai_available = False
-        return None
-    return _openai_client
-
-
 def _get_embedder():
     global _embedder
     if _embedder is None:
@@ -77,6 +56,27 @@ def _get_fallback_generator():
         model=os.getenv("HF_FALLBACK_MODEL", "gpt2"),
     )
     return _fallback_generator
+
+
+def _get_openai_client():
+    global _openai_client, _openai_available
+    if _openai_client is not None or not _openai_available:
+        return _openai_client
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        _openai_available = False
+        return None
+    try:
+        openai_module = importlib.import_module("openai")
+        OpenAI = getattr(openai_module, "OpenAI", None)
+        if OpenAI is None:
+            _openai_available = False
+            return None
+        _openai_client = OpenAI(api_key=api_key)
+    except Exception:
+        _openai_available = False
+        return None
+    return _openai_client
 
 
 def add_document(project_id: str, text: str, source: str):

@@ -1,6 +1,6 @@
-pytest
-pytest-asyncio
-black
-flake8
-mypy
-bandit
+pytest==8.3.3
+pytest-asyncio==0.23.8
+black==24.10.0
+flake8==7.1.1
+mypy==1.11.2
+bandit==1.7.9

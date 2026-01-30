@@ -37,6 +37,11 @@ if [[ "${INSTALL_DEV_REQUIREMENTS:-false}" == "true" ]]; then
   pip install --no-cache-dir -r backend/requirements-dev.txt
 fi
 
+if [[ "${INSTALL_BACKEND_OPTIONALS:-false}" == "true" ]]; then
+  pip install --no-cache-dir -r backend/requirements-ml.txt
+  pip install --no-cache-dir -r backend/requirements-translation.txt
+fi
+
 # Build the frontend bundle that FastAPI serves in production
 pushd frontend
 npm ci

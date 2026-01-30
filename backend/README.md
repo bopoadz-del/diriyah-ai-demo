@@ -6,6 +6,16 @@ FastAPI backend with Google Drive, RAG, Whisper STT, YOLO vision, and analytics.
 pip install -r backend/requirements.txt
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 
+## Optional feature packs
+Some advanced NLP, translation, and ML workflows rely on large optional dependencies. Install them only when needed:
+
+```bash
+pip install -r backend/requirements-ml.txt
+pip install -r backend/requirements-translation.txt
+```
+
+Core API routes continue to run without these extras, with graceful fallbacks where applicable.
+
 ## Connector configuration
 
 The following environment variables are consumed by the connector health
@@ -47,4 +57,3 @@ Render deployments stay deterministic while still surfacing integration points.
 | AutoCAD / CAD take-off | Drive-backed stub | ``CADTakeoffService.process_dwg`` now downloads the DWG from Drive and attempts to parse it; on stub data it returns deterministic geometry metadata so UI flows stay functional. |
 | Primavera P6 connector | Environment-aware integration with Drive stub | ``PrimaveraClient`` performs live health checks when credentials are configured and now returns Drive-backed schedule data with ``status='stubbed'`` when configuration is missing. |
 | Oracle Aconex connector | Environment-aware integration with Drive stub | ``AconexClient`` mirrors the Primavera flow, surfacing Drive-seeded transmittals when credentials are absent. |
-

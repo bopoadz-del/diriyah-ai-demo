@@ -53,7 +53,7 @@ def client(db_session):
             pass
     
     app.dependency_overrides[get_db] = override_get_db
-    client = TestClient(app)
+    client = TestClient(app, headers={"X-Tenant-ID": "test-tenant"})
     yield client
     app.dependency_overrides.clear()
 

@@ -7,7 +7,7 @@ from backend.main import app
 
 
 def test_projects_endpoint_returns_stubbed_payload() -> None:
-    with TestClient(app) as client:
+    with TestClient(app, headers={"X-Tenant-ID": "test-tenant"}) as client:
         response = client.get("/api/projects")
         assert response.status_code == 200
         payload = response.json()

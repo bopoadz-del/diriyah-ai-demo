@@ -20,12 +20,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt pip-audit
       - name: Run pip-audit
-        run: pip-audit
+        run: pip-audit -r requirements.txt
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
       - name: Run npm audit (frontend)
         working-directory: frontend
         run: npm audit --audit-level=high
       - name: Run pytest
-        run: pytest
+        run: pytest -q
 
   frontend-audit:
     runs-on: ubuntu-latest

@@ -1,28 +1,29 @@
+import importlib
 import importlib.util
 import os
 import pickle
+import logging
 
 import faiss
-from sentence_transformers import SentenceTransformer
-from openai import OpenAI
 
+try:
+    from openai import OpenAI
+except ImportError:  # pragma: no cover - optional dependency
+    OpenAI = None  # type: ignore[assignment]
+
+logger = logging.getLogger(__name__)
+
+_SENTENCE_TRANSFORMERS_AVAILABLE = importlib.util.find_spec("sentence_transformers") is not None
 _TRANSFORMERS_AVAILABLE = importlib.util.find_spec("transformers") is not None
-if _TRANSFORMERS_AVAILABLE:
-    from transformers import pipeline
 
 INDEX_PATH = "storage/faiss.index"
 META_PATH = "storage/meta.pkl"
 os.makedirs("storage", exist_ok=True)
 
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
+_embedder = None
 _openai_key = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key=_openai_key) if _openai_key else None
+client = OpenAI(api_key=_openai_key) if OpenAI is not None and _openai_key else None
 _fallback_generator = None
-if _TRANSFORMERS_AVAILABLE:
-    _fallback_generator = pipeline(
-        "text-generation",
-        model=os.getenv("HF_FALLBACK_MODEL", "gpt2"),
-    )
 
 if os.path.exists(INDEX_PATH) and os.path.exists(META_PATH):
     index = faiss.read_index(INDEX_PATH)
@@ -34,10 +35,18 @@ else:
 
 def _get_embedder():
     global _embedder
-    if _embedder is None:
+    if _embedder is not None:
+        return _embedder
+    if not _SENTENCE_TRANSFORMERS_AVAILABLE:
+        logger.warning("sentence-transformers is unavailable; RAG embeddings are disabled.")
+        return None
+    try:
         sentence_transformers = importlib.import_module("sentence_transformers")
         model = sentence_transformers.SentenceTransformer("all-MiniLM-L6-v2")
         _embedder = model
+    except Exception as exc:
+        logger.warning("Failed to initialise sentence-transformers: %s", exc)
+        return None
     return _embedder
 
 
@@ -47,14 +56,18 @@ def _get_fallback_generator():
         return _fallback_generator
     if importlib.util.find_spec("transformers") is None:
         return None
-    transformers = importlib.import_module("transformers")
-    pipeline = getattr(transformers, "pipeline", None)
-    if pipeline is None:
+    try:
+        transformers = importlib.import_module("transformers")
+        pipeline = getattr(transformers, "pipeline", None)
+        if pipeline is None:
+            return None
+        _fallback_generator = pipeline(
+            "text-generation",
+            model=os.getenv("HF_FALLBACK_MODEL", "gpt2"),
+        )
+    except Exception as exc:
+        logger.warning("Failed to initialise transformers pipeline: %s", exc)
         return None
-    _fallback_generator = pipeline(
-        "text-generation",
-        model=os.getenv("HF_FALLBACK_MODEL", "gpt2"),
-    )
     return _fallback_generator
 
 
@@ -81,6 +94,8 @@ def _get_openai_client():
 
 def add_document(project_id: str, text: str, source: str):
     embedder = _get_embedder()
+    if embedder is None:
+        raise RuntimeError("sentence-transformers is required to index documents.")
     vector = embedder.encode([text])
     index.add(vector)
     metadata.append({"project": project_id, "text": text, "source": source})
@@ -92,6 +107,8 @@ def query_rag(project_id: str, query: str, top_k: int = 3):
     if len(metadata) == 0:
         return "No documents indexed yet."
     embedder = _get_embedder()
+    if embedder is None:
+        return "Semantic search is unavailable until sentence-transformers is installed."
     qvec = embedder.encode([query])
     D, I = index.search(qvec, top_k)
     hits = [metadata[i] for i in I[0] if i < len(metadata) and metadata[i]["project"] == project_id]
@@ -110,8 +127,9 @@ def query_rag(project_id: str, query: str, top_k: int = 3):
         except Exception:
             pass
 
-    if _fallback_generator:
-        generated = _fallback_generator(prompt, max_new_tokens=200)
+    fallback_generator = _get_fallback_generator()
+    if fallback_generator:
+        generated = fallback_generator(prompt, max_new_tokens=200)
         if generated:
             return generated[0].get("generated_text", "No response available.")
     return "No response available."

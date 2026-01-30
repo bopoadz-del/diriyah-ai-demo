@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 def client():
     """Create test client."""
     from backend.main import app
-    return TestClient(app)
+    return TestClient(app, headers={"X-Tenant-ID": "test-tenant"})
 
 
 class TestExecuteEndpoint:

@@ -12,7 +12,8 @@ from typing import Iterable, Tuple
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
+import jwt
+from jwt import InvalidTokenError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -51,16 +52,34 @@ JWT_ALGORITHM = "HS256"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 
 
+_TRUE_VALUES = {"1", "true", "yes", "y", "on"}
+_FALSE_VALUES = {"0", "false", "no", "n", "off"}
+
+
+def env_flag(name: str, default: bool) -> tuple[bool, str | None]:
+    """Parse a boolean-ish environment variable with a safe default."""
+
+    raw = os.getenv(name)
+    if raw is None:
+        return default, None
+    normalized = raw.strip().lower()
+    if normalized in _TRUE_VALUES:
+        return True, raw
+    if normalized in _FALSE_VALUES:
+        return False, raw
+    return default, raw
+
+
 def _init_db_if_configured() -> None:
     """Initialise the database if startup init is enabled."""
 
-    init_flag = os.getenv("INIT_DB_ON_STARTUP", "false").strip().lower()
-    should_init = init_flag not in {"0", "false", "no"}
-    if should_init:
+    enabled, raw = env_flag("INIT_DB_ON_STARTUP", False)
+    logger.info("INIT_DB_ON_STARTUP raw=%r parsed=%s", raw, enabled)
+    if enabled:
         logger.info("Initialising database on startup")
         init_db()
     else:
-        logger.info("Skipping database init on startup", extra={"INIT_DB_ON_STARTUP": init_flag})
+        logger.info("Skipping DB init on startup")
 
 
 _init_db_if_configured()
@@ -184,7 +203,7 @@ async def serve_frontend() -> FileResponse:
 def _decode_token(token: str) -> dict:
     try:
         return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-    except JWTError as exc:
+    except InvalidTokenError as exc:
         raise HTTPException(status_code=401, detail="Invalid token") from exc
 
 

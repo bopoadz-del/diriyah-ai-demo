@@ -12,7 +12,7 @@ def test_pdp_enforcement(db_session):
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
-    client = TestClient(app)
+    client = TestClient(app, headers={"X-Tenant-ID": "test-tenant"})
 
     source = WorkspaceSource(
         workspace_id="ws-1",

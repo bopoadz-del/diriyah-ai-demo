@@ -10,7 +10,6 @@ pandas==2.2.3
 ifcopenshell==0.8.4.post1
 ezdxf==1.2.0
 spacy==3.7.5
-en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
 faiss-cpu==1.8.0
 requests==2.32.4
 httpx==0.27.2

@@ -27,8 +27,6 @@ def _safe_import(module: str, symbol: str | None = None) -> Any:
         return None
 
 
-torch = _safe_import("torch")
-transformers = _safe_import("transformers")
 camel_sentiment = _safe_import("camel_tools.sentiment", "SentimentAnalyzer")
 camel_ner = _safe_import("camel_tools.ner", "NERecognizer")
 camel_tokenizer = _safe_import("camel_tools.tokenizers.word", "simple_word_tokenize")
@@ -53,6 +51,8 @@ class ArabicNLPService:
         self._sentiment_analyzer = None
         self._ner = None
         self._token_classification_pipeline = None
+        self._torch = None
+        self._transformers = None
         self._initialise_models()
         self._keyword_intents: Dict[str, IntentPrediction] = {
             "تصميم": IntentPrediction("design_review", 0.74, ["تصميم"]),
@@ -62,14 +62,17 @@ class ArabicNLPService:
         }
 
     def _initialise_models(self) -> None:
-        if transformers is None or torch is None:
+        self._torch = _safe_import("torch")
+        self._transformers = _safe_import("transformers")
+
+        if self._transformers is None or self._torch is None:
             logger.info("Transformers or torch is unavailable; using heuristic Arabic NLP fallbacks.")
             return
 
         try:
-            AutoTokenizer = getattr(transformers, "AutoTokenizer")
+            AutoTokenizer = getattr(self._transformers, "AutoTokenizer")
             AutoModelForSequenceClassification = getattr(
-                transformers, "AutoModelForSequenceClassification"
+                self._transformers, "AutoModelForSequenceClassification"
             )
             self._tokenizer = AutoTokenizer.from_pretrained("aubmindlab/bert-base-arabertv2")
             self._token_classification_pipeline = AutoModelForSequenceClassification.from_pretrained(
@@ -106,17 +109,17 @@ class ArabicNLPService:
                 "tokens": heuristic.tokens,
             }
 
-        if self._tokenizer is None or self._token_classification_pipeline is None or torch is None:
+        if self._tokenizer is None or self._token_classification_pipeline is None or self._torch is None:
             return {"intent": "general_arabic", "confidence": 0.55, "tokens": self._tokenise(text)}
 
         try:
             tokenizer = self._tokenizer
             model = self._token_classification_pipeline
             inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
-            with torch.no_grad():
+            with self._torch.no_grad():
                 outputs = model(**inputs)
-                scores = torch.nn.functional.softmax(outputs.logits, dim=-1)
-            intent_index = int(torch.argmax(scores).item())
+                scores = self._torch.nn.functional.softmax(outputs.logits, dim=-1)
+            intent_index = int(self._torch.argmax(scores).item())
             confidence = float(scores[0][intent_index].item())
             intent = self._map_intent(intent_index)
             return {"intent": intent, "confidence": confidence, "tokens": self._tokenise(text)}

@@ -3,9 +3,10 @@
 import logging
 from typing import Optional
 from fastapi import Request, Response
+from sqlalchemy.exc import OperationalError, ProgrammingError
+from sqlalchemy.orm import Session
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
-from sqlalchemy.orm import Session
 
 from backend.backend.db import SessionLocal
 from .policy_engine import PolicyEngine
@@ -13,15 +14,12 @@ from .schemas import PolicyRequest
 
 logger = logging.getLogger(__name__)
 
+_pdp_db_warning_logged = False
+
 
 # Public endpoints that skip PDP checks
-PUBLIC_ENDPOINTS = {
-    "/health",
-    "/docs",
-    "/openapi.json",
-    "/api/docs",
-    "/api/openapi.json",
-}
+PUBLIC_ENDPOINTS = {"/health", "/", "/favicon.ico"}
+PUBLIC_PREFIXES = ("/docs", "/openapi", "/redoc", "/static", "/assets")
 
 
 class PDPMiddleware(BaseHTTPMiddleware):
@@ -49,7 +47,7 @@ class PDPMiddleware(BaseHTTPMiddleware):
             Response from next handler or error response
         """
         # Skip PDP for public endpoints
-        if request.url.path in PUBLIC_ENDPOINTS:
+        if request.url.path in PUBLIC_ENDPOINTS or request.url.path.startswith(PUBLIC_PREFIXES):
             return await call_next(request)
         
         # Extract user_id from request
@@ -64,14 +62,26 @@ class PDPMiddleware(BaseHTTPMiddleware):
         db: Session = SessionLocal()
         try:
             # Initialize policy engine
-            engine = PolicyEngine(db)
+            try:
+                engine = PolicyEngine(db)
+            except (OperationalError, ProgrammingError) as exc:
+                if self._is_missing_policies_table(exc):
+                    self._log_missing_policies_warning()
+                    return await call_next(request)
+                raise
             
             # Extract resource type from path
             resource_type = self._extract_resource_type(request.url.path)
             
             # Check rate limit first
             endpoint = self._extract_endpoint(request.url.path)
-            allowed, remaining = engine.rate_limiter.check_limit(user_id, endpoint)
+            try:
+                allowed, remaining = engine.rate_limiter.check_limit(user_id, endpoint)
+            except (OperationalError, ProgrammingError) as exc:
+                if self._is_missing_policies_table(exc):
+                    self._log_missing_policies_warning()
+                    return await call_next(request)
+                raise
             
             if not allowed:
                 logger.warning(
@@ -113,7 +123,13 @@ class PDPMiddleware(BaseHTTPMiddleware):
                 },
             )
             
-            decision = engine.evaluate(policy_request)
+            try:
+                decision = engine.evaluate(policy_request)
+            except (OperationalError, ProgrammingError) as exc:
+                if self._is_missing_policies_table(exc):
+                    self._log_missing_policies_warning()
+                    return await call_next(request)
+                raise
             
             # Log decision
             engine.audit_logger.log_decision(
@@ -156,6 +172,19 @@ class PDPMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         finally:
             db.close()
+
+    @staticmethod
+    def _is_missing_policies_table(exc: Exception) -> bool:
+        message = str(exc).lower()
+        return "no such table: policies" in message or "relation \"policies\"" in message or "does not exist" in message
+
+    @staticmethod
+    def _log_missing_policies_warning() -> None:
+        global _pdp_db_warning_logged
+        if _pdp_db_warning_logged:
+            return
+        _pdp_db_warning_logged = True
+        logger.warning("PDP disabled: policies table missing — running without policies")
     
     def _extract_user_id(self, request: Request) -> Optional[int]:
         """

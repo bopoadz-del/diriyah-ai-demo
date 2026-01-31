@@ -16,6 +16,7 @@ import {
   Tooltip,
   Cell,
 } from 'recharts';
+import { apiFetch } from '../../lib/api';
 import './styles/CausalAnalysisCard.css';
 
 const palette = ['#f97316', '#ef4444', '#eab308', '#10b981', '#6366f1'];
@@ -48,7 +49,7 @@ const CausalAnalysisCard = ({
   const simulate = async (intervention) => {
     setSelectedIntervention(intervention);
     try {
-      const response = await fetch('/api/intelligence/simulate-intervention', {
+      const response = await apiFetch('/api/intelligence/simulate-intervention', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ intervention, projectId }),

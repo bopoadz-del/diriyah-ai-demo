@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Shield, Check, X, RefreshCw } from 'lucide-react';
+import { apiFetch } from '../../lib/api';
 
 export default function PermissionsPanel({ projectId }) {
   const [users, setUsers] = useState([]);
@@ -16,7 +17,7 @@ export default function PermissionsPanel({ projectId }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/pdp/projects/${projectId}/users`);
+      const response = await apiFetch(`/api/pdp/projects/${projectId}/users`);
       if (!response.ok) throw new Error('Failed to fetch users');
       const data = await response.json();
       setUsers(data.users || []);
@@ -29,7 +30,7 @@ export default function PermissionsPanel({ projectId }) {
 
   const fetchUserPermissions = async (userId) => {
     try {
-      const response = await fetch(`/api/pdp/users/${userId}/permissions`);
+      const response = await apiFetch(`/api/pdp/users/${userId}/permissions`);
       if (!response.ok) throw new Error('Failed to fetch permissions');
       const data = await response.json();
       setPermissions(data.permissions || {});
@@ -41,7 +42,7 @@ export default function PermissionsPanel({ projectId }) {
 
   const handleGrantAccess = async (userId, resource, action) => {
     try {
-      const response = await fetch('/api/pdp/access/grant', {
+      const response = await apiFetch('/api/pdp/access/grant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, resource, action }),
@@ -55,7 +56,7 @@ export default function PermissionsPanel({ projectId }) {
 
   const handleRevokeAccess = async (userId, resource, action) => {
     try {
-      const response = await fetch('/api/pdp/access/revoke', {
+      const response = await apiFetch('/api/pdp/access/revoke', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, resource, action }),

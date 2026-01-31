@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../../lib/api';
 
 /**
  * Display list of recent code executions.
@@ -23,7 +24,7 @@ export default function ExecutionHistory({ projectId, onSelect }) {
     setError(null);
 
     try {
-      const response = await fetch(`/api/runtime/history/${projectId}?limit=20`);
+      const response = await apiFetch(`/api/runtime/history/${projectId}?limit=20`);
       if (!response.ok) throw new Error('Failed to fetch history');
       const data = await response.json();
       setHistory(data);

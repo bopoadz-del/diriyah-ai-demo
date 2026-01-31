@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { apiFetch } from '../lib/api';
 
 export const useUncertainty = (features) => {
   const [uncertainty, setUncertainty] = useState(null);
@@ -12,7 +13,7 @@ export const useUncertainty = (features) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/intelligence/predict-with-uncertainty', {
+      const response = await apiFetch('/api/intelligence/predict-with-uncertainty', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ features }),
@@ -48,7 +49,7 @@ export const useCausalAnalysis = (projectData, targetVariable = 'schedule_delay'
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/intelligence/analyze-delay-causes', {
+      const response = await apiFetch('/api/intelligence/analyze-delay-causes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ project_data: projectData, target_variable: targetVariable }),
@@ -95,7 +96,7 @@ export const useIntelligentAlerts = (projectId) => {
   }, [projectId]);
 
   const acknowledge = useCallback(async (alertId) => {
-    await fetch(`/api/intelligence/alerts/${alertId}/acknowledge`, { method: 'POST' });
+    await apiFetch(`/api/intelligence/alerts/${alertId}/acknowledge`, { method: 'POST' });
     setAlerts((previous) => previous.map((alert) => (alert.alert_id === alertId ? { ...alert, status: 'acknowledged' } : alert)));
   }, []);
 

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { apiFetch } from "../lib/api";
 
 const defaultPayload = {
   query: "Why was the foundation design changed last month?",
@@ -56,7 +57,7 @@ export default function AdvancedIntelligence() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/advanced-intelligence/analyze", {
+      const response = await apiFetch("/api/advanced-intelligence/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(inputPayload),

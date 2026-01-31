@@ -1,5 +1,6 @@
 // App.js - Main Mobile App for Diriyah Brain AI
 import React, { useState, useEffect, useRef } from 'react';
+import { apiFetch } from '../lib/api';
 import {
   SafeAreaView,
   ScrollView,
@@ -288,7 +289,7 @@ const DiriyahMobileApp = () => {
       }
 
       if (isOnline && user?.token) {
-        const response = await fetch(`${API_BASE_URL}/api/projects`, {
+        const response = await apiFetch(`${API_BASE_URL}/api/projects`, {
           headers: {
             Authorization: `Bearer ${user.token}`
           }
@@ -312,7 +313,7 @@ const DiriyahMobileApp = () => {
       }
 
       if (isOnline && user?.token) {
-        const response = await fetch(`${API_BASE_URL}/api/alerts`, {
+        const response = await apiFetch(`${API_BASE_URL}/api/alerts`, {
           headers: {
             Authorization: `Bearer ${user.token}`
           }
@@ -336,7 +337,7 @@ const DiriyahMobileApp = () => {
       }
 
       if (isOnline && user?.token) {
-        const response = await fetch(`${API_BASE_URL}/api/tasks`, {
+        const response = await apiFetch(`${API_BASE_URL}/api/tasks`, {
           headers: {
             Authorization: `Bearer ${user.token}`
           }
@@ -404,7 +405,7 @@ const DiriyahMobileApp = () => {
       formData.append('longitude', photo.location?.longitude ?? '');
       formData.append('timestamp', photo.timestamp || new Date().toISOString());
 
-      const response = await fetch(`${API_BASE_URL}/api/photos/upload`, {
+      const response = await apiFetch(`${API_BASE_URL}/api/photos/upload`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${user.token}`
@@ -507,7 +508,7 @@ const DiriyahMobileApp = () => {
       formData.append('timestamp', new Date().toISOString());
 
       if (isOnline && user?.token) {
-        const response = await fetch(`${API_BASE_URL}/api/photos/upload`, {
+        const response = await apiFetch(`${API_BASE_URL}/api/photos/upload`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${user.token}`
@@ -553,7 +554,7 @@ const DiriyahMobileApp = () => {
   const login = async (emailInput, passwordInput) => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      const response = await apiFetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

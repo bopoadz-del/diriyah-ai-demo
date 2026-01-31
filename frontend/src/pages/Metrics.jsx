@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "../lib/api";
 
 export default function Metrics() {
   const [logs, setLogs] = useState([]);
 
   useEffect(() => {
-    fetch("/api/analytics").then(r => r.json()).then(setLogs);
+    apiFetch("/api/analytics").then(r => r.json()).then(setLogs);
   }, []);
 
   const counts = logs.reduce((acc, l) => {

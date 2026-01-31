@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import UncertaintyIndicator from './UncertaintyIndicator';
 import CausalAnalysisCard from './CausalAnalysisCard';
+import { apiFetch } from '../../lib/api';
 import './styles/IntelligentAlertPanel.css';
 
 const filters = [
@@ -61,7 +62,7 @@ const IntelligentAlertPanel = ({ projectId, userId }) => {
 
   const handleAction = async (alert, action) => {
     try {
-      const response = await fetch('/api/intelligence/alert-action', {
+      const response = await apiFetch('/api/intelligence/alert-action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ alertId: alert.alert_id, action, userId }),

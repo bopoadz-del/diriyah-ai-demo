@@ -1,7 +1,9 @@
+import { apiFetch } from "../lib/api";
+
 export default function MessageActions({ msg, index, onRefresh }) {
   const action = async (type) => {
     if (type === "refresh" && onRefresh) return onRefresh();
-    const response = await fetch(`/api/workspace/messages/${msg.id}/action`, {
+    const response = await apiFetch(`/api/workspace/messages/${msg.id}/action`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: type }),

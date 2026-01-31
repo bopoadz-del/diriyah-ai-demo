@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { apiFetch } from '../lib/api';
 
 /**
  * Hook for fetching document links from the ULE API.
@@ -22,7 +23,7 @@ export const useDocumentLinks = (documentId, options = {}) => {
         max_links: maxLinks,
       });
 
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/reasoning/links/${documentId}?${params}`
       );
 
@@ -62,7 +63,7 @@ export const useFindLinks = () => {
     setError(null);
 
     try {
-      const response = await fetch('/api/reasoning/link', {
+      const response = await apiFetch('/api/reasoning/link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -107,7 +108,7 @@ export const useKnowledgeGraph = (projectId) => {
     setError(null);
 
     try {
-      const response = await fetch(`/api/reasoning/graph/${projectId}`);
+      const response = await apiFetch(`/api/reasoning/graph/${projectId}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch knowledge graph');
@@ -149,7 +150,7 @@ export const useLinkEvidence = (linkId) => {
     setError(null);
 
     try {
-      const response = await fetch(`/api/reasoning/evidence/${linkId}`);
+      const response = await apiFetch(`/api/reasoning/evidence/${linkId}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch link evidence');

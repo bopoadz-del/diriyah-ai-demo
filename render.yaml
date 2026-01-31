@@ -51,6 +51,10 @@ services:
         value: "DEBUG"
       - key: PROMETHEUS_ENABLED
         value: "true"
+      - key: VITE_WORKSPACE_ID
+        value: "demo"
+      - key: VITE_USER_ID
+        value: "demo"
     healthCheckPath: /health
   - type: worker
     name: mba-hydration-worker

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Plus, RefreshCw, Search, ToggleLeft, ToggleRight } from 'lucide-react';
+import { apiFetch } from '../../lib/api';
 
 export default function PolicyList({ onEdit, onCreate }) {
   const [policies, setPolicies] = useState([]);
@@ -15,7 +16,7 @@ export default function PolicyList({ onEdit, onCreate }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/pdp/policies');
+      const response = await apiFetch('/api/pdp/policies');
       if (!response.ok) throw new Error('Failed to fetch policies');
       const data = await response.json();
       setPolicies(data.policies || []);
@@ -28,7 +29,7 @@ export default function PolicyList({ onEdit, onCreate }) {
 
   const handleToggleEnabled = async (policy) => {
     try {
-      const response = await fetch(`/api/pdp/policies/${policy.id}`, {
+      const response = await apiFetch(`/api/pdp/policies/${policy.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...policy, enabled: !policy.enabled }),

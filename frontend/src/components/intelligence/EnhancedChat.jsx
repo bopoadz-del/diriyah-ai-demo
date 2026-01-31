@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle, Brain, Send, TrendingUp } from 'lucide-react';
 import UncertaintyIndicator from './UncertaintyIndicator';
+import { apiFetch } from '../../lib/api';
 import './styles/EnhancedChat.css';
 
 const EnhancedChat = ({ projectId }) => {
@@ -28,7 +29,7 @@ const EnhancedChat = ({ projectId }) => {
     setInput('');
     setLoading(true);
     try {
-      const response = await fetch('/api/intelligence/enhanced-chat', {
+      const response = await apiFetch('/api/intelligence/enhanced-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: userMessage.content, context: { projectId } }),

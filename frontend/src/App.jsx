@@ -5,6 +5,7 @@ import Sidebar from "./components/Sidebar";
 import ChatUI from "./components/ChatUI";
 import HydrationDashboard from "./components/hydration/HydrationDashboard";
 import { PDPProvider } from "./contexts/PDPContext";
+import { apiFetch } from "./lib/api";
 import "./App.css";
 
 function HydrationRoute() {
@@ -47,7 +48,7 @@ function MainShell() {
 
   const loadWorkspace = useCallback(async () => {
     try {
-      const response = await fetch("/api/workspace/shell");
+      const response = await apiFetch("/api/workspace/shell");
       if (!response.ok) {
         throw new Error(`Failed to load workspace: ${response.status}`);
       }
@@ -78,7 +79,7 @@ function MainShell() {
     setError(null);
     setActiveProjectId(projectId);
     try {
-      const response = await fetch("/api/workspace/active-project", {
+      const response = await apiFetch("/api/workspace/active-project", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId }),
@@ -97,7 +98,7 @@ function MainShell() {
     setError(null);
     setActiveChatId(chatId);
     try {
-      const response = await fetch(`/api/workspace/chats/${chatId}/read`, { method: "POST" });
+      const response = await apiFetch(`/api/workspace/chats/${chatId}/read`, { method: "POST" });
       if (!response.ok) {
         throw new Error("Unable to open conversation");
       }
@@ -112,7 +113,7 @@ function MainShell() {
     if (!activeProjectId) return;
     setError(null);
     try {
-      const response = await fetch("/api/workspace/chats", {
+      const response = await apiFetch("/api/workspace/chats", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId: activeProjectId }),
@@ -131,7 +132,7 @@ function MainShell() {
   const handleMessageSubmit = async (chatId, body) => {
     setError(null);
     try {
-      const response = await fetch(`/api/workspace/chats/${chatId}/messages`, {
+      const response = await apiFetch(`/api/workspace/chats/${chatId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body, projectId: activeProjectId }),
@@ -149,7 +150,7 @@ function MainShell() {
   const handleAttachmentUpload = async (chatId, fileName) => {
     setError(null);
     try {
-      const response = await fetch(`/api/workspace/chats/${chatId}/attachments`, {
+      const response = await apiFetch(`/api/workspace/chats/${chatId}/attachments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileName }),
@@ -171,7 +172,7 @@ function MainShell() {
   const handleMicrophoneToggle = async () => {
     setError(null);
     try {
-      const response = await fetch("/api/workspace/microphone", {
+      const response = await apiFetch("/api/workspace/microphone", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: !microphoneEnabled }),
@@ -189,7 +190,7 @@ function MainShell() {
   const handleMessageAction = async (chatId, messageId, action) => {
     setError(null);
     try {
-      const response = await fetch(`/api/workspace/messages/${messageId}/action`, {
+      const response = await apiFetch(`/api/workspace/messages/${messageId}/action`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),

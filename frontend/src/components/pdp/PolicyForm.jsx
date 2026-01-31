@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Save, X, AlertCircle } from 'lucide-react';
+import { apiFetch } from '../../lib/api';
 
 export default function PolicyForm({ policy, onSave, onCancel }) {
   const [formData, setFormData] = useState({
@@ -68,7 +69,7 @@ export default function PolicyForm({ policy, onSave, onCancel }) {
       const url = policy?.id ? `/api/pdp/policies/${policy.id}` : '/api/pdp/policies';
       const method = policy?.id ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

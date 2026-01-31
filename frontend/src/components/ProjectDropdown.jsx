@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { apiFetch } from "../lib/api";
 
 const ProjectDropdown = ({ onSelect }) => {
   const [options, setOptions] = useState([]);
@@ -8,7 +9,7 @@ const ProjectDropdown = ({ onSelect }) => {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("/api/projects/scan-drive");
+        const res = await apiFetch("/api/projects/scan-drive");
         if (!res.ok) throw new Error(`Scan failed (${res.status})`);
         const data = await res.json();
         const projects = Array.isArray(data.projects) ? data.projects : [];

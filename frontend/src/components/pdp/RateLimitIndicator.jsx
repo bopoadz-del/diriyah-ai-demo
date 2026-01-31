@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, AlertTriangle, RefreshCw } from 'lucide-react';
+import { apiFetch } from '../../lib/api';
 
 export default function RateLimitIndicator({ userId, endpoint }) {
   const [rateLimit, setRateLimit] = useState(null);
@@ -19,7 +20,7 @@ export default function RateLimitIndicator({ userId, endpoint }) {
     }
 
     try {
-      const response = await fetch(`/api/pdp/rate-limit/${userId}/${endpoint}`);
+      const response = await apiFetch(`/api/pdp/rate-limit/${userId}/${endpoint}`);
       if (!response.ok) throw new Error('Failed to fetch rate limit');
       const data = await response.json();
       setRateLimit(data);

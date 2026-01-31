@@ -16,6 +16,10 @@ def health():
 def protected():
     return {"data": "secret"}
 
+@app.get("/docs")
+def docs_stub():
+    return {"docs": "ok"}
+
 
 @pytest.mark.asyncio
 async def test_health_no_tenant():
@@ -49,7 +53,7 @@ async def test_protected_no_tenant_403():
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         r = await client.get("/api/protected")
         assert r.status_code == 403
-        assert "Tenant ID required" in r.text
+        assert r.json() == {"detail": "Tenant ID required"}
 
 
 @pytest.mark.asyncio
@@ -57,4 +61,20 @@ async def test_protected_with_tenant_not_403():
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         r = await client.get("/api/protected", headers={"X-Tenant-ID": "test"})
+        assert r.status_code != 403
+
+
+@pytest.mark.asyncio
+async def test_docs_no_tenant_not_403():
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        r = await client.get("/docs")
+        assert r.status_code != 403
+
+
+@pytest.mark.asyncio
+async def test_protected_with_workspace_header_not_403():
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        r = await client.get("/api/protected", headers={"X-Workspace-ID": "workspace"})
         assert r.status_code != 403

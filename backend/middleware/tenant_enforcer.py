@@ -24,8 +24,8 @@ class TenantEnforcerMiddleware:
             return
 
         # Bypass health + landing + docs + static
-        bypass_exact = {"/health", "/", "/favicon.ico"}
-        bypass_prefixes = ("/docs", "/openapi", "/openapi.json", "/redoc", "/static", "/assets")
+        bypass_exact = {"/", "/favicon.ico", "/health"}
+        bypass_prefixes = ("/assets", "/docs", "/openapi", "/openapi.json", "/redoc", "/static")
 
         if path in bypass_exact or path.startswith(bypass_prefixes):
             await self.app(scope, receive, send)

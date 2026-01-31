@@ -25,13 +25,13 @@ class TenantEnforcerMiddleware:
 
         # Bypass health + landing + docs + static
         bypass_exact = {"/health", "/", "/favicon.ico"}
-        bypass_prefixes = ("/docs", "/openapi", "/redoc", "/static", "/assets")
+        bypass_prefixes = ("/docs", "/openapi", "/openapi.json", "/redoc", "/static", "/assets")
 
         if path in bypass_exact or path.startswith(bypass_prefixes):
             await self.app(scope, receive, send)
             return
 
-        tenant_id = request.headers.get("X-Tenant-ID")
+        tenant_id = request.headers.get("X-Tenant-ID") or request.headers.get("X-Workspace-ID")
         if not tenant_id:
             resp = JSONResponse(status_code=403, content={"detail": "Tenant ID required"})
             await resp(scope, receive, send)

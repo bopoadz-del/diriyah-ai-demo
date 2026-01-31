@@ -19,7 +19,7 @@ _pdp_db_warning_logged = False
 
 # Public endpoints that skip PDP checks
 PUBLIC_ENDPOINTS = {"/health", "/", "/favicon.ico"}
-PUBLIC_PREFIXES = ("/docs", "/openapi", "/redoc", "/static", "/assets")
+PUBLIC_PREFIXES = ("/docs", "/openapi", "/openapi.json", "/redoc", "/static", "/assets")
 
 
 class PDPMiddleware(BaseHTTPMiddleware):
@@ -47,6 +47,8 @@ class PDPMiddleware(BaseHTTPMiddleware):
             Response from next handler or error response
         """
         # Skip PDP for public endpoints
+        if request.method.upper() == "OPTIONS":
+            return await call_next(request)
         if request.url.path in PUBLIC_ENDPOINTS or request.url.path.startswith(PUBLIC_PREFIXES):
             return await call_next(request)
         

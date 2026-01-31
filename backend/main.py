@@ -104,27 +104,6 @@ app.add_middleware(
 
 _BASE_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _BASE_DIR.parent
-_FRONTEND_DIST_DIR = _BASE_DIR / "frontend_dist"
-_FRONTEND_PUBLIC_DIR = _PROJECT_ROOT / "frontend" / "public"
-
-if _FRONTEND_PUBLIC_DIR.exists():
-    app.mount("/static", StaticFiles(directory=_FRONTEND_PUBLIC_DIR), name="static")
-else:
-    logger.warning("frontend public assets directory %s is missing", _FRONTEND_PUBLIC_DIR)
-
-if _FRONTEND_DIST_DIR.exists():
-    app.mount(
-        "/assets",
-        StaticFiles(directory=_FRONTEND_DIST_DIR / "assets", check_dir=False),
-        name="assets",
-    )
-    _INDEX_HTML = _FRONTEND_DIST_DIR / "index.html"
-else:
-    _INDEX_HTML = _FRONTEND_PUBLIC_DIR / "index.html"
-
-if not _INDEX_HTML.exists():
-    logger.warning("frontend index file %s is missing", _INDEX_HTML)
-    _INDEX_HTML = None
 
 
 def _load_module(path: str) -> ModuleType | None:
@@ -193,6 +172,54 @@ for module_path, tag in _iter_router_specs():
     _include_router_if_available(_load_module(module_path), tag)
 
 
+def _iter_frontend_candidates() -> Iterable[Path]:
+    env_override = os.getenv("FRONTEND_DIST_DIR")
+    if env_override:
+        yield Path(env_override)
+    yield Path("/app/frontend/dist")
+    yield Path("/app/frontend/build")
+    yield _PROJECT_ROOT / "frontend" / "dist"
+    yield _PROJECT_ROOT / "frontend" / "build"
+    yield _BASE_DIR / "frontend_dist"
+
+
+def _resolve_frontend_dir() -> Path | None:
+    for candidate in _iter_frontend_candidates():
+        index_file = candidate / "index.html"
+        if index_file.exists():
+            return candidate
+    return None
+
+
+def _configure_frontend_assets() -> tuple[Path | None, Path | None]:
+    frontend_dir = _resolve_frontend_dir()
+    if frontend_dir is None:
+        logger.warning("Frontend build directory not found; SPA assets are unavailable")
+        return None, None
+    assets_dir = frontend_dir / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=assets_dir, check_dir=False), name="assets")
+    index_file = frontend_dir / "index.html"
+    return frontend_dir, index_file
+
+
+_FRONTEND_DIR, _INDEX_HTML = _configure_frontend_assets()
+
+
+def _is_reserved_path(path: str) -> bool:
+    if path == "":
+        return False
+    if path == "api" or path.startswith("api/"):
+        return True
+    if path in {"health", "healthz", "openapi.json"}:
+        return True
+    if path == "docs" or path.startswith("docs/"):
+        return True
+    if path == "redoc" or path.startswith("redoc/"):
+        return True
+    return False
+
+
 @app.get("/", include_in_schema=False)
 async def serve_frontend() -> FileResponse:
     if _INDEX_HTML is None:
@@ -223,3 +250,15 @@ def health_check():
 @app.get("/healthz")
 def health_check_alias():
     return health_check()
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def serve_frontend_spa(full_path: str) -> FileResponse:
+    if _INDEX_HTML is None or _FRONTEND_DIR is None:
+        raise HTTPException(status_code=404, detail="Frontend assets are not available")
+    if _is_reserved_path(full_path):
+        raise HTTPException(status_code=404, detail="Not found")
+    candidate = _FRONTEND_DIR / full_path
+    if full_path and candidate.exists() and candidate.is_file():
+        return FileResponse(candidate)
+    return FileResponse(_INDEX_HTML, media_type="text/html")

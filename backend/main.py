@@ -106,6 +106,7 @@ _BASE_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _BASE_DIR.parent
 _FRONTEND_DIST_DIR = _BASE_DIR / "frontend_dist"
 _FRONTEND_PUBLIC_DIR = _PROJECT_ROOT / "frontend" / "public"
+_FRONTEND_ROOT = _FRONTEND_DIST_DIR if _FRONTEND_DIST_DIR.exists() else _FRONTEND_PUBLIC_DIR
 
 if _FRONTEND_PUBLIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=_FRONTEND_PUBLIC_DIR), name="static")
@@ -197,6 +198,18 @@ for module_path, tag in _iter_router_specs():
 async def serve_frontend() -> FileResponse:
     if _INDEX_HTML is None:
         raise HTTPException(status_code=404, detail="Frontend assets are not available")
+    return FileResponse(_INDEX_HTML, media_type="text/html")
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def serve_frontend_routes(full_path: str) -> FileResponse:
+    if _INDEX_HTML is None or _FRONTEND_ROOT is None:
+        raise HTTPException(status_code=404, detail="Frontend assets are not available")
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API route not found")
+    candidate = _FRONTEND_ROOT / full_path
+    if candidate.exists() and candidate.is_file():
+        return FileResponse(candidate)
     return FileResponse(_INDEX_HTML, media_type="text/html")
 
 

@@ -47,6 +47,18 @@ npm install
 npm run dev
 ```
 
+### Frontend Build (Production)
+```bash
+cd frontend
+npm install
+npm run build
+```
+
+Render Deployment
+
+The Render build uses `render-build.sh`, which installs Node, runs `npm run build`,
+and copies the Vite output into `backend/frontend_dist` for FastAPI to serve.
+
 ## 4) Event Flow Verification
 1. Trigger a hydration/learning event (for example: POST to `/api/hydration/run-now` or `/api/learning/feedback`).
 2. Check that events appear in the global stream:

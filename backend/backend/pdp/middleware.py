@@ -47,6 +47,8 @@ class PDPMiddleware(BaseHTTPMiddleware):
             Response from next handler or error response
         """
         # Skip PDP for public endpoints
+        if request.method.upper() == "OPTIONS":
+            return await call_next(request)
         if request.url.path in PUBLIC_ENDPOINTS or request.url.path.startswith(PUBLIC_PREFIXES):
             return await call_next(request)
         

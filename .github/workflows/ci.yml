@@ -23,9 +23,6 @@ jobs:
         run: pip-audit -r requirements.txt
       - name: Run compileall
         run: python -m compileall backend
-      - name: Run npm audit (frontend)
-        working-directory: frontend
-        run: npm audit --audit-level=high
       - name: Run pytest
         run: python -m pytest -q
 
@@ -42,20 +39,14 @@ jobs:
         with:
           node-version: "20"
       - name: Install frontend dependencies
-        run: |
-          cd frontend
-          npm ci
+        working-directory: frontend
+        run: npm ci
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
       - name: Run npm audit (frontend)
-        run: |
-          cd frontend
-          # Run npm audit and only fail on high/critical vulnerabilities
-          exit_code=0
-          npm audit --audit-level=high || exit_code=$?
-          if [ "${exit_code}" != "0" ]; then
-            echo "❌ High or critical vulnerabilities found!"
-            exit ${exit_code}
-          fi
-          echo "✅ No high or critical vulnerabilities found"
+        working-directory: frontend
+        run: npm audit
 
   helm-lint-and-package:
     runs-on: ubuntu-latest

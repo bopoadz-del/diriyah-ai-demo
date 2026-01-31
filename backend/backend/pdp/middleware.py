@@ -19,7 +19,7 @@ _pdp_db_warning_logged = False
 
 # Public endpoints that skip PDP checks
 PUBLIC_ENDPOINTS = {"/health", "/", "/favicon.ico"}
-PUBLIC_PREFIXES = ("/docs", "/openapi", "/redoc", "/static", "/assets")
+PUBLIC_PREFIXES = ("/docs", "/openapi", "/openapi.json", "/redoc", "/static", "/assets")
 
 
 class PDPMiddleware(BaseHTTPMiddleware):

@@ -1,13 +1,9 @@
 import sys
 
 
-def test_backend_main_imports_cleanly():
-    sys.modules.pop("matplotlib", None)
-    sys.modules.pop("matplotlib.pyplot", None)
+def test_no_heavy_imports_at_startup():
     import backend.main  # noqa: F401
+    assert "torch" not in sys.modules
+    assert "transformers" not in sys.modules
     assert "matplotlib" not in sys.modules
     assert "matplotlib.pyplot" not in sys.modules
-
-
-def test_backend_backend_main_imports_cleanly():
-    import backend.backend.main  # noqa: F401

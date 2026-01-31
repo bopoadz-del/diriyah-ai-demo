@@ -60,15 +60,24 @@ curl http://localhost:8000/api/events/global?limit=10
 - `CHROMA_PORT` (default: `8000`)
 - `DATABASE_URL` (example: `sqlite:///./app.db` for local, or Postgres in Render)
 
-## 6) Model Weights
+## 6) Initialize DB explicitly
+```bash
+python -m backend.jobs.init_db_once
+```
+Notes:
+- `DATABASE_URL` is preferred for Postgres or Render-managed databases.
+- Use `SQLITE_PATH` for disk-backed SQLite (for example `/var/data/app.db` on Render disk).
+- Without Postgres or a disk-backed SQLite volume, redeploys reset tables.
+
+## 7) Model Weights
 Place YOLO weights into `backend/models/` (replace the `.pt.placeholder` files).
 
-## 7) Health Check
+## 8) Health Check
 ```bash
 API_BASE_URL=http://localhost:8000 python3 scripts/health_check.py
 ```
 
-## 8) Demo flow
+## 9) Demo flow
 1. Open http://localhost:5173.
 2. Click a chat thread.
 3. Send a message and confirm the assistant reply appears.

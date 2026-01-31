@@ -1,33 +1,41 @@
-"""Middleware enforcing tenant IDs for multi-tenant routing."""
+from fastapi import Request
+from starlette.responses import JSONResponse
+import logging
 
-import os
-
-from fastapi import HTTPException, Request
-from starlette.middleware.base import BaseHTTPMiddleware
-
-
-PUBLIC_ENDPOINTS = {"/", "/health", "/healthz"}
-PUBLIC_PREFIXES = (
-    "/docs",
-    "/openapi.json",
-    "/api/docs",
-    "/api/openapi.json",
-    "/static",
-    "/assets",
-    "/favicon.ico",
-)
+logger = logging.getLogger(__name__)
 
 
-class TenantEnforcerMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        enforce_tenant = os.getenv("REQUIRE_TENANT_ID", "true").strip().lower() not in {"0", "false", "no"}
-        if not enforce_tenant:
-            return await call_next(request)
-        if request.url.path in PUBLIC_ENDPOINTS:
-            return await call_next(request)
+class TenantEnforcerMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request = Request(scope, receive=receive)
+        path = request.url.path
+        method = request.method.upper()
+
+        # Bypass CORS preflight
+        if method == "OPTIONS":
+            await self.app(scope, receive, send)
+            return
+
+        # Bypass health + landing + docs + static
+        bypass_exact = {"/health", "/", "/favicon.ico"}
+        bypass_prefixes = ("/docs", "/openapi", "/redoc", "/static", "/assets")
+
+        if path in bypass_exact or path.startswith(bypass_prefixes):
+            await self.app(scope, receive, send)
+            return
+
         tenant_id = request.headers.get("X-Tenant-ID")
         if not tenant_id:
-            return JSONResponse(status_code=403, content={"detail": "Tenant ID required"})
-        request.state.tenant_id = tenant_id
-        response = await call_next(request)
-        return response
+            resp = JSONResponse(status_code=403, content={"detail": "Tenant ID required"})
+            await resp(scope, receive, send)
+            return
+
+        scope["tenant_id"] = tenant_id
+        await self.app(scope, receive, send)

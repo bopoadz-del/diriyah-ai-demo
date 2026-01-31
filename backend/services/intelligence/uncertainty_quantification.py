@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, List, Optional, Sequence, Tuple
+import importlib
+import importlib.util
 import logging
 import math
 import os
@@ -18,19 +20,24 @@ try:  # pragma: no cover - optional dependency
 except Exception:  # pragma: no cover - handled gracefully
     MAPIE_AVAILABLE = False
 
-try:  # pragma: no cover - optional dependency
-    import torch
-    from torch import nn
-    from torch.nn import functional as F
-
-    TORCH_AVAILABLE = True
-except Exception:  # pragma: no cover - handled gracefully
-    TORCH_AVAILABLE = False
-    torch = None  # type: ignore
-    nn = object  # type: ignore
-    F = object  # type: ignore
+TORCH_AVAILABLE = importlib.util.find_spec("torch") is not None
+_TORCH_MODULE = None
 
 logger = logging.getLogger(__name__)
+
+
+def _load_torch():
+    global _TORCH_MODULE
+    if _TORCH_MODULE is not None:
+        return _TORCH_MODULE
+    if not TORCH_AVAILABLE:
+        return None
+    try:
+        _TORCH_MODULE = importlib.import_module("torch")
+        return _TORCH_MODULE
+    except Exception:  # pragma: no cover - optional dependency
+        logger.warning("PyTorch is unavailable; deep learning uncertainty disabled.")
+        return None
 
 
 @dataclass
@@ -240,35 +247,43 @@ class UncertaintyQuantifier:
         return explanation
 
 
-class BayesianUncertaintyNet(nn.Module if TORCH_AVAILABLE else object):
+class BayesianUncertaintyNet:
     """Simple Bayesian neural network using Monte Carlo dropout."""
 
     def __init__(self, input_dim: int, hidden_dim: int, output_dim: int, dropout_rate: float = 0.2) -> None:
-        if not TORCH_AVAILABLE:  # pragma: no cover - guard for optional dependency
+        torch = _load_torch()
+        if torch is None:  # pragma: no cover - guard for optional dependency
             raise RuntimeError("PyTorch is required to instantiate BayesianUncertaintyNet")
 
-        super().__init__()
-        self.fc1 = nn.Linear(input_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-        self.fc3 = nn.Linear(hidden_dim, output_dim)
-        self.dropout = nn.Dropout(dropout_rate)
+        self._torch = torch
+        nn = torch.nn
+        F = torch.nn.functional
+
+        class _BayesianModel(nn.Module):
+            def __init__(self) -> None:
+                super().__init__()
+                self.fc1 = nn.Linear(input_dim, hidden_dim)
+                self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+                self.fc3 = nn.Linear(hidden_dim, output_dim)
+                self.dropout = nn.Dropout(dropout_rate)
+
+            def forward(self, x: "torch.Tensor", training: bool = True) -> "torch.Tensor":
+                x = F.relu(self.fc1(x))
+                if training:
+                    x = self.dropout(x)
+                x = F.relu(self.fc2(x))
+                if training:
+                    x = self.dropout(x)
+                return self.fc3(x)
+
+        self._model = _BayesianModel()
 
     def forward(self, x: "torch.Tensor", training: bool = True) -> "torch.Tensor":
-        if not TORCH_AVAILABLE:  # pragma: no cover
-            raise RuntimeError("PyTorch is required to run BayesianUncertaintyNet")
-        x = F.relu(self.fc1(x))
-        if training:
-            x = self.dropout(x)
-        x = F.relu(self.fc2(x))
-        if training:
-            x = self.dropout(x)
-        return self.fc3(x)
+        return self._model.forward(x, training=training)
 
     def predict_with_uncertainty(self, x: "torch.Tensor", n_samples: int = 100) -> Tuple["torch.Tensor", "torch.Tensor"]:
-        if not TORCH_AVAILABLE:  # pragma: no cover
-            raise RuntimeError("PyTorch is required to run BayesianUncertaintyNet")
-
-        self.train()
+        torch = self._torch
+        self._model.train()
         predictions = []
         with torch.no_grad():
             for _ in range(n_samples):

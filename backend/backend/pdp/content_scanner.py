@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
 import logging
 import os
@@ -16,8 +17,21 @@ from .models import ProhibitedPattern
 logger = logging.getLogger(__name__)
 
 _TORCH_AVAILABLE = importlib.util.find_spec("torch") is not None
-if _TORCH_AVAILABLE:
-    import torch
+_TORCH_MODULE = None
+
+
+def _get_torch():
+    global _TORCH_MODULE
+    if _TORCH_MODULE is not None:
+        return _TORCH_MODULE
+    if not _TORCH_AVAILABLE:
+        return None
+    try:
+        _TORCH_MODULE = importlib.import_module("torch")
+        return _TORCH_MODULE
+    except Exception:  # pragma: no cover - optional dependency
+        logger.warning("PyTorch is unavailable; ML content scanning disabled.")
+        return None
 
 
 # Default prohibited patterns
@@ -167,6 +181,10 @@ class ContentScanner:
         )
 
     def _load_ml_model(self) -> None:
+        torch = _get_torch()
+        if torch is None:
+            logger.warning("ML scanner requested but PyTorch is not available.")
+            return
         try:
             self._ml_model = torch.hub.load("unitary/toxic-bert", "toxic_bert")
         except Exception as exc:

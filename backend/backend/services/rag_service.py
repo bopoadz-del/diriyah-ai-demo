@@ -53,10 +53,12 @@ else:
 
 def _get_embedder():
     global _embedder
-    if _embedder is None:
-        if SentenceTransformer is None:
-            logger.warning("sentence-transformers not installed; embeddings disabled.")
-            return None
+    if _embedder is not None:
+        return _embedder
+    if SentenceTransformer is None:
+        logger.warning("sentence-transformers not installed; embeddings disabled.")
+        return None
+    try:
         sentence_transformers = importlib.import_module("sentence_transformers")
         model = sentence_transformers.SentenceTransformer("all-MiniLM-L6-v2")
         _embedder = model
@@ -76,7 +78,7 @@ def _get_fallback_generator():
         transformers = importlib.import_module("transformers")
         pipeline = getattr(transformers, "pipeline", None)
         if pipeline is None:
-            8ùreturn None
+            return None
         _fallback_generator = pipeline(
             "text-generation",
             model=os.getenv("HF_FALLBACK_MODEL", "gpt2"),

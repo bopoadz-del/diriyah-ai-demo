@@ -31,6 +31,14 @@ async def test_health_no_tenant():
 
 
 @pytest.mark.asyncio
+async def test_docs_no_tenant_not_403():
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        r = await client.get("/docs")
+        assert r.status_code != 403
+
+
+@pytest.mark.asyncio
 async def test_root_no_tenant_not_403():
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
@@ -42,7 +50,7 @@ async def test_root_no_tenant_not_403():
 async def test_options_bypass_not_blocked_by_tenant():
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-        r = await client.options("/api/protected")
+        r = await client.options("/api/anything")
         # FastAPI may return 405; key is middleware must NOT return 403
         assert r.status_code != 403
 
@@ -65,6 +73,8 @@ async def test_protected_with_tenant_not_403():
 
 
 @pytest.mark.asyncio
+
+
 async def test_docs_no_tenant_not_403():
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:

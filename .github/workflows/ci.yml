@@ -39,17 +39,14 @@ jobs:
         with:
           node-version: "20"
       - name: Install frontend dependencies
-        run: |
-          cd frontend
-          npm ci
+        working-directory: frontend
+        run: npm ci
       - name: Build frontend
-        run: |
-          cd frontend
-          npm run build
+        working-directory: frontend
+        run: npm run build
       - name: Run npm audit (frontend)
-        run: |
-          cd frontend
-          npm audit
+        working-directory: frontend
+        run: npm audit
 
   helm-lint-and-package:
     runs-on: ubuntu-latest

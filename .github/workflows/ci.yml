@@ -18,16 +18,16 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt -r requirements-dev.txt
+          pip install -r requirements.txt
       - name: Run pip-audit
-        run: pip-audit -r requirements.txt || true
+        run: pip-audit -r requirements.txt
       - name: Run compileall
         run: python -m compileall backend
       - name: Run npm audit (frontend)
         working-directory: frontend
         run: npm audit --audit-level=high
       - name: Run pytest
-        run: pytest -q
+        run: python -m pytest -q
 
   frontend-audit:
     runs-on: ubuntu-latest

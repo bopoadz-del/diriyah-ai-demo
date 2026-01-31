@@ -47,6 +47,15 @@ npm install
 npm run dev
 ```
 
+### Frontend build & serving in production
+```bash
+cd frontend
+npm ci
+npm run build
+```
+- The backend serves the built SPA automatically when `frontend/dist` (Vite) or `frontend/build` (CRA) exists.
+- Render builds the frontend during deploy via `render.yaml`/`render-build.sh` before starting the FastAPI app.
+
 ## 4) Event Flow Verification
 1. Trigger a hydration/learning event (for example: POST to `/api/hydration/run-now` or `/api/learning/feedback`).
 2. Check that events appear in the global stream:

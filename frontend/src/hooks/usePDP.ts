@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { apiFetch } from '../lib/api';
 
 interface PDPDecision {
   allowed: boolean;
@@ -47,7 +48,7 @@ export const usePDP = () => {
       setError(null);
 
       try {
-        const response = await fetch('/api/pdp/evaluate', {
+        const response = await apiFetch('/api/pdp/evaluate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -98,7 +99,7 @@ export const usePDP = () => {
           params.append('expires_at', expiryDate);
         }
 
-        const response = await fetch(`/api/pdp/access/grant?${params.toString()}`, {
+        const response = await apiFetch(`/api/pdp/access/grant?${params.toString()}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -131,7 +132,7 @@ export const usePDP = () => {
         project_id: String(projectId),
       });
 
-      const response = await fetch(`/api/pdp/access/revoke?${params.toString()}`, {
+      const response = await apiFetch(`/api/pdp/access/revoke?${params.toString()}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -158,7 +159,7 @@ export const usePDP = () => {
 
     try {
       const encodedEndpoint = encodeURIComponent(endpoint);
-      const response = await fetch(`/api/pdp/rate-limit/${userId}/${encodedEndpoint}`);
+      const response = await apiFetch(`/api/pdp/rate-limit/${userId}/${encodedEndpoint}`);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -199,7 +200,7 @@ export const usePDP = () => {
       const queryString = params.toString();
       const url = `/api/pdp/audit-trail${queryString ? `?${queryString}` : ''}`;
 
-      const response = await fetch(url);
+      const response = await apiFetch(url);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

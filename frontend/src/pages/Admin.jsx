@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "../lib/api";
 
 export default function Admin() {
   const [users, setUsers] = useState([]);
@@ -6,11 +7,11 @@ export default function Admin() {
   const [email, setEmail] = useState("");
 
   useEffect(() => {
-    fetch("/api/users").then(r => r.json()).then(setUsers);
+    apiFetch("/api/users").then(r => r.json()).then(setUsers);
   }, []);
 
   const addUser = async () => {
-    const res = await fetch("/api/users", {
+    const res = await apiFetch("/api/users", {
       method: "POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({name, email})

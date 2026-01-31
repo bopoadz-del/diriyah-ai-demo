@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import { apiFetch } from "../lib/api";
 
 const fetchJson = async (url, options = {}) => {
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
   });

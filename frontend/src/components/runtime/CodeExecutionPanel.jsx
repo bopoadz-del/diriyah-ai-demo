@@ -4,6 +4,7 @@ import ExecutionResult from './ExecutionResult';
 import ExecutionHistory from './ExecutionHistory';
 import FunctionLibrary from './FunctionLibrary';
 import { useCodeExecution } from '../../hooks/useCodeExecution';
+import { apiFetch } from '../../lib/api';
 
 /**
  * Main panel for code generation and execution.
@@ -25,7 +26,7 @@ export default function CodeExecutionPanel({ projectId }) {
   const handleHistorySelect = async (item) => {
     // Fetch full execution details
     try {
-      const response = await fetch(`/api/runtime/execution/${item.id}`);
+      const response = await apiFetch(`/api/runtime/execution/${item.id}`);
       if (response.ok) {
         const data = await response.json();
         // Update state with historical result

@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { apiFetch } from '../lib/api';
 
 /**
  * React hook for code execution API.
@@ -24,7 +25,7 @@ export function useCodeExecution() {
     setResult(null);
 
     try {
-      const response = await fetch('/api/runtime/execute', {
+      const response = await apiFetch('/api/runtime/execute', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -65,7 +66,7 @@ export function useCodeExecution() {
     setError(null);
 
     try {
-      const response = await fetch('/api/runtime/generate', {
+      const response = await apiFetch('/api/runtime/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -101,7 +102,7 @@ export function useCodeExecution() {
    */
   const validate = useCallback(async (code) => {
     try {
-      const response = await fetch('/api/runtime/validate', {
+      const response = await apiFetch('/api/runtime/validate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -128,7 +129,7 @@ export function useCodeExecution() {
    */
   const getHistory = useCallback(async (projectId, limit = 50) => {
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/runtime/history/${projectId}?limit=${limit}`
       );
 
@@ -148,7 +149,7 @@ export function useCodeExecution() {
    */
   const getFunctions = useCallback(async () => {
     try {
-      const response = await fetch('/api/runtime/functions');
+      const response = await apiFetch('/api/runtime/functions');
 
       if (!response.ok) {
         throw new Error('Failed to fetch functions');

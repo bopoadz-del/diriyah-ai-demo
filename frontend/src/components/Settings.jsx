@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { apiFetch } from "../lib/api";
 
 const securityControls = [
   {
@@ -133,7 +134,7 @@ export default function Settings() {
     setBackendStatus((prev) => ({ ...prev, state: "checking", message: "Pinging health endpoint..." }));
 
     try {
-      const response = await fetch("/api/health", { cache: "no-store" });
+      const response = await apiFetch("/api/health", { cache: "no-store" });
 
       if (!response.ok) {
         throw new Error(`Received status ${response.status}`);

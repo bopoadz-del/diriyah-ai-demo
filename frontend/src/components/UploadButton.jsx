@@ -1,3 +1,5 @@
+import { apiFetch } from "../lib/api";
+
 export default function UploadButton({ projectId, driveFolderId, chatId }) {
   const onPickDoc = async (e) => {
     const f = e.target.files?.[0];
@@ -7,7 +9,7 @@ export default function UploadButton({ projectId, driveFolderId, chatId }) {
     const qs = new URLSearchParams();
     if (chatId) qs.set("chat_id", String(chatId));
     if (driveFolderId) qs.set("drive_folder_id", String(driveFolderId));
-    const res = await fetch(`/api/upload/${projectId}?${qs.toString()}`, {
+    const res = await apiFetch(`/api/upload/${projectId}?${qs.toString()}`, {
       method: "POST",
       body: form
     });

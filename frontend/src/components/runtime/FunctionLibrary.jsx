@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../../lib/api';
 
 /**
  * Display grid of approved analytical functions.
@@ -15,7 +16,7 @@ export default function FunctionLibrary({ onSelectFunction }) {
 
   const fetchFunctions = async () => {
     try {
-      const response = await fetch('/api/runtime/functions');
+      const response = await apiFetch('/api/runtime/functions');
       if (!response.ok) throw new Error('Failed to fetch functions');
       const data = await response.json();
       setFunctions(data);

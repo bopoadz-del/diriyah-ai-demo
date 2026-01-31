@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "../lib/api";
 
 export default function ProjectSettings({ projectId }) {
   const [project, setProject] = useState(null);
@@ -6,7 +7,7 @@ export default function ProjectSettings({ projectId }) {
 
   useEffect(() => {
     if (projectId) {
-      fetch(`/api/projects/${projectId}/settings`).then(r => r.json()).then(data => {
+      apiFetch(`/api/projects/${projectId}/settings`).then(r => r.json()).then(data => {
         setProject(data);
         setName(data.name);
       });
@@ -14,7 +15,7 @@ export default function ProjectSettings({ projectId }) {
   }, [projectId]);
 
   const save = async () => {
-    await fetch(`/api/projects/${projectId}/settings?name=${encodeURIComponent(name)}`, { method: "PUT" });
+    await apiFetch(`/api/projects/${projectId}/settings?name=${encodeURIComponent(name)}`, { method: "PUT" });
     alert("Updated project name!");
   };
 

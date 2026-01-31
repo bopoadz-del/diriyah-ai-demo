@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { apiFetch } from '../lib/api';
 
 /**
  * Context for managing PDP (Policy Decision Point) state globally.
@@ -71,7 +72,7 @@ export const PDPProvider = ({
       const queryString = params.toString();
       const url = `/api/pdp/users/${fetchUserId}/permissions${queryString ? `?${queryString}` : ''}`;
       
-      const response = await fetch(url);
+      const response = await apiFetch(url);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -138,7 +139,7 @@ export const PDPProvider = ({
     }
 
     try {
-      const response = await fetch('/api/pdp/evaluate', {
+      const response = await apiFetch('/api/pdp/evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -176,7 +177,7 @@ export const PDPProvider = ({
 
     try {
       const encodedEndpoint = encodeURIComponent(endpoint);
-      const response = await fetch(`/api/pdp/rate-limit/${userId}/${encodedEndpoint}`);
+      const response = await apiFetch(`/api/pdp/rate-limit/${userId}/${encodedEndpoint}`);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

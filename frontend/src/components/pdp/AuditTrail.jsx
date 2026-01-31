@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Filter, Download, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
+import { apiFetch } from '../../lib/api';
 
 export default function AuditTrail({ userId, startDate, endDate }) {
   const [logs, setLogs] = useState([]);
@@ -23,7 +24,7 @@ export default function AuditTrail({ userId, startDate, endDate }) {
       if (startDate) params.append('start_date', startDate);
       if (endDate) params.append('end_date', endDate);
 
-      const response = await fetch(`/api/pdp/audit-trail?${params}`);
+      const response = await apiFetch(`/api/pdp/audit-trail?${params}`);
       if (!response.ok) throw new Error('Failed to fetch audit logs');
       const data = await response.json();
       setLogs(data.logs || []);

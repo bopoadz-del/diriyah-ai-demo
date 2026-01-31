@@ -42,4 +42,4 @@ dowhy==0.12
 causalml==0.15.5
 networkx==3.3
 statsmodels==0.14.2
-cryptography==42.0.8
+cryptography==46.0.4

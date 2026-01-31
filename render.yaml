@@ -45,6 +45,8 @@ services:
         value: "false"
       - key: MPLCONFIGDIR
         value: "/tmp/matplotlib"
+      - key: NODE_VERSION
+        value: "20"
       - key: LOG_LEVEL
         value: "DEBUG"
       - key: PROMETHEUS_ENABLED

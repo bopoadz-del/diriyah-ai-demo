@@ -10,11 +10,9 @@ import jwt
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-_DEV_ENVIRONMENTS = {"dev", "development", "local", "test"}
-
-
-def _is_dev_environment() -> bool:
-    return os.getenv("ENV", "").lower() in _DEV_ENVIRONMENTS
+# Environment detection: default to production for security
+ENV = os.getenv("ENV", "production").lower()
+IS_PROD = ENV in ("prod", "production")
 
 
 def _get_jwt_secret() -> str:
@@ -22,9 +20,9 @@ def _get_jwt_secret() -> str:
     secret = os.getenv("JWT_SECRET_KEY")
     if secret:
         return secret
-    if _is_dev_environment():
-        return "insecure-dev-secret-do-not-use-in-prod"
-    raise ValueError("JWT_SECRET_KEY must be set in production")
+    if IS_PROD:
+        raise ValueError("JWT_SECRET_KEY must be set in production")
+    return "dev-only-secret"
 
 
 def _get_admin_credentials() -> tuple[str, str]:
@@ -35,14 +33,11 @@ def _get_admin_credentials() -> tuple[str, str]:
     if user and password:
         return user, password
 
-    if _is_dev_environment():
-        logger.warning("Using insecure dev admin credentials - do NOT use in production")
-        return "dev-admin", "dev-password-insecure"
+    if IS_PROD:
+        raise ValueError("AUTH_ADMIN_USER and AUTH_ADMIN_PASSWORD must be set in production")
 
-    raise ValueError(
-        "AUTH_ADMIN_USER and AUTH_ADMIN_PASSWORD must be set in production. "
-        "Set ENV=development for local dev without credentials."
-    )
+    logger.warning("Using insecure dev admin credentials - do NOT use in production")
+    return user or "admin", password or "dev-secret"
 
 
 JWT_SECRET = _get_jwt_secret()

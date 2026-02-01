@@ -51,9 +51,9 @@ class AccessControlList(Base):
 class RateLimit(Base):
     """Rate limit tracking per user and endpoint."""
     __tablename__ = "rate_limits"
-    
+
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # nullable for anonymous requests
     endpoint = Column(String, nullable=False)
     limit_count = Column(Integer, nullable=False)
     window_seconds = Column(Integer, nullable=False)

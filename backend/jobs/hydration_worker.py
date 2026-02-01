@@ -52,7 +52,11 @@ def _next_run_time(now: datetime, tz: ZoneInfo, hour: int, minute: int) -> datet
     return scheduled.astimezone(timezone.utc)
 
 
-def _evaluate_pdp(db: Session, user_id: int, workspace_id: str) -> tuple[bool, str]:
+def _evaluate_pdp(db: Session, user_id: int | None, workspace_id: str) -> tuple[bool, str]:
+    """Evaluate PDP policy for hydration. If user_id is None, allow by default."""
+    if user_id is None:
+        # No service user configured - skip PDP check, allow hydration
+        return True, "no_service_user"
     engine = PolicyEngine(db)
     request = PolicyRequest(
         user_id=user_id,
@@ -86,7 +90,9 @@ def run_worker() -> None:
     minute = _env_int("HYDRATION_MINUTE", 0)
     max_files = os.getenv("HYDRATION_MAX_FILES_PER_RUN")
     max_files_val = int(max_files) if max_files else None
-    user_id = _env_int("HYDRATION_SERVICE_USER_ID", 0)
+    # Use service user_id if configured, otherwise None (skip PDP user checks)
+    user_id_env = os.getenv("HYDRATION_SERVICE_USER_ID")
+    user_id = int(user_id_env) if user_id_env else None
 
     tz = ZoneInfo(tz_name)
 

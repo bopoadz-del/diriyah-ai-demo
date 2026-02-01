@@ -54,10 +54,10 @@ class PDPMiddleware(BaseHTTPMiddleware):
         
         # Extract user_id from request
         user_id = self._extract_user_id(request)
-        if not user_id:
-            logger.warning(f"No user_id found for request to {request.url.path}")
-            # For now, allow anonymous access to non-public endpoints
-            # In production, you may want to deny access here
+        if user_id is None:
+            logger.debug(f"No user_id found for request to {request.url.path}, skipping PDP")
+            # No user_id means unauthenticated - let downstream handlers decide
+            # (e.g., endpoints can require auth via Depends)
             return await call_next(request)
         
         # Get database session
@@ -191,18 +191,16 @@ class PDPMiddleware(BaseHTTPMiddleware):
     def _extract_user_id(self, request: Request) -> Optional[int]:
         """
         Extract user_id from request headers or session.
-        
+
         Priority:
         1. X-User-ID header
-        2. Authorization header (extract from JWT)
-        3. Session cookie
-        4. Request state
-        
+        2. Request state (set by auth middleware)
+
         Args:
             request: HTTP request
-            
+
         Returns:
-            User ID or None
+            User ID or None if unauthenticated
         """
         # Try X-User-ID header
         user_id_header = request.headers.get("X-User-ID")
@@ -211,14 +209,13 @@ class PDPMiddleware(BaseHTTPMiddleware):
                 return int(user_id_header)
             except ValueError:
                 pass
-        
+
         # Try request state (set by auth middleware)
         if hasattr(request.state, "user_id"):
             return request.state.user_id
-        
-        # For testing/development, return a default user
-        # Remove this in production
-        return 1
+
+        # No user_id found - return None (do NOT invent a default user_id)
+        return None
     
     def _extract_resource_type(self, path: str) -> str:
         """

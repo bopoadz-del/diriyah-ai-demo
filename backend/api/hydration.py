@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
+import traceback
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -24,6 +26,7 @@ from backend.hydration.models import (
     HydrationRunItem,
     HydrationState,
     HydrationStatus,
+    SourceType,
     WorkspaceSource,
 )
 from backend.hydration.schemas import (
@@ -37,6 +40,8 @@ from backend.hydration.schemas import (
     WorkspaceSourceUpdate,
 )
 from backend.redisx.queue import RedisQueue
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/hydration", tags=["Hydration"])
 
@@ -126,54 +131,106 @@ def run_now(
     x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
     x_correlation_id: Optional[str] = Header(default=None, alias="X-Correlation-Id"),
 ):
+    """Trigger a hydration run for the specified workspace.
+
+    Returns 202 on success with job_id, or appropriate error codes:
+    - 400: No hydration sources configured
+    - 403: PDP policy denied
+    - 500: Unexpected server error (logged with traceback)
+    - 503: Redis/queue unavailable
+    """
     user_id = _parse_user_id(x_user_id)
-    try:
-        _evaluate_pdp(db, user_id, "hydrate_run_now", request.workspace_id)
-    except HTTPException as exc:
-        AlertManager(db).create_alert(
-            request.workspace_id,
-            AlertSeverity.WARN,
-            AlertCategory.AUTH,
-            f"Manual hydration denied: {exc.detail}",
-        )
-        raise
-
-    # Check that at least one enabled source exists for this workspace
-    enabled_sources_query = db.query(WorkspaceSource).filter(
-        WorkspaceSource.workspace_id == request.workspace_id,
-        WorkspaceSource.is_enabled == True,
-    )
-    if request.source_ids:
-        enabled_sources_query = enabled_sources_query.filter(
-            WorkspaceSource.id.in_(request.source_ids)
-        )
-    enabled_sources = enabled_sources_query.all()
-
-    if not enabled_sources:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"No hydration sources configured for workspace {request.workspace_id}",
-        )
-
     correlation_id = x_correlation_id or os.getenv("CORRELATION_ID") or str(uuid.uuid4())
-    queue = RedisQueue()
-    payload = {
-        "workspace_id": request.workspace_id,
-        "source_ids": request.source_ids,
-        "force_full_scan": request.force_full_scan,
-        "max_files": request.max_files,
-        "dry_run": request.dry_run,
-    }
-    headers = {
-        "correlation_id": correlation_id,
-        "workspace_id": request.workspace_id,
-        "user_id": user_id,
-    }
+
     try:
-        job_id = queue.enqueue("hydration", payload, headers, db=db)
-    except RuntimeError as exc:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
-    return {"job_id": job_id, "status": "queued"}
+        # PDP authorization check
+        try:
+            _evaluate_pdp(db, user_id, "hydrate_run_now", request.workspace_id)
+        except HTTPException as exc:
+            AlertManager(db).create_alert(
+                request.workspace_id,
+                AlertSeverity.WARN,
+                AlertCategory.AUTH,
+                f"Manual hydration denied: {exc.detail}",
+            )
+            raise
+
+        # Check that at least one enabled source exists for this workspace
+        def _get_enabled_sources():
+            query = db.query(WorkspaceSource).filter(
+                WorkspaceSource.workspace_id == request.workspace_id,
+                WorkspaceSource.is_enabled == True,
+            )
+            if request.source_ids:
+                query = query.filter(WorkspaceSource.id.in_(request.source_ids))
+            return query.all()
+
+        enabled_sources = _get_enabled_sources()
+
+        # Auto-seed demo source for "demo" workspace if no sources exist
+        if not enabled_sources and request.workspace_id == DEMO_WORKSPACE_ID:
+            logger.info("No sources for demo workspace, auto-seeding demo source")
+            try:
+                seed_demo_source(db)
+                enabled_sources = _get_enabled_sources()
+            except Exception as seed_exc:
+                logger.warning("Failed to auto-seed demo source: %s", seed_exc)
+
+        if not enabled_sources:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"No hydration sources configured for workspace {request.workspace_id}",
+            )
+
+        # Enqueue the hydration job
+        queue = RedisQueue()
+        payload = {
+            "workspace_id": request.workspace_id,
+            "source_ids": request.source_ids,
+            "force_full_scan": request.force_full_scan,
+            "max_files": request.max_files,
+            "dry_run": request.dry_run,
+        }
+        headers = {
+            "correlation_id": correlation_id,
+            "workspace_id": request.workspace_id,
+            "user_id": user_id,
+        }
+        try:
+            job_id = queue.enqueue("hydration", payload, headers, db=db)
+        except RuntimeError as exc:
+            logger.error(
+                "Redis queue unavailable for hydration run: %s",
+                exc,
+                extra={"correlation_id": correlation_id, "workspace_id": request.workspace_id},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Queue service unavailable: {exc}",
+            ) from exc
+
+        return {"job_id": job_id, "status": "queued"}
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is (400, 403, 503)
+        raise
+    except Exception as exc:
+        # Catch-all for unexpected errors - log with traceback and return 500
+        tb = traceback.format_exc()
+        logger.error(
+            "Unexpected error in run-now endpoint: %s\n%s",
+            exc,
+            tb,
+            extra={
+                "correlation_id": correlation_id,
+                "workspace_id": request.workspace_id,
+                "user_id": user_id,
+            },
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {type(exc).__name__}: {exc}",
+        ) from exc
 
 
 @router.get("/runs", response_model=List[HydrationRunOut])

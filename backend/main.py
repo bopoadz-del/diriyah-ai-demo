@@ -47,7 +47,9 @@ logger = _configure_logging()
 app = FastAPI(title="Diriyah Brain AI", version="v1.24")
 logger.info("FastAPI application initialised", extra={"version": app.version})
 
-_DEV_ENVIRONMENTS = {"dev", "development", "local", "test"}
+# Environment detection: default to production for security
+ENV = os.getenv("ENV", "production").lower()
+IS_PROD = ENV in ("prod", "production")
 
 
 def _get_jwt_secret() -> str:
@@ -56,15 +58,11 @@ def _get_jwt_secret() -> str:
     if secret:
         return secret
 
-    env = os.getenv("ENV", "").lower()
-    if env in _DEV_ENVIRONMENTS:
-        logger.warning("Using insecure dev JWT secret - do NOT use in production")
-        return "insecure-dev-secret-do-not-use-in-prod"
+    if IS_PROD:
+        raise ValueError("JWT_SECRET_KEY must be set in production")
 
-    raise ValueError(
-        "JWT_SECRET_KEY must be set in production. "
-        "Set ENV=development for local dev without a secret."
-    )
+    logger.warning("Using insecure dev JWT secret - do NOT use in production")
+    return "dev-only-secret"
 
 
 JWT_SECRET = _get_jwt_secret()
@@ -146,11 +144,17 @@ if ENABLE_PDP:
 
 app.add_middleware(TenantEnforcerMiddleware)
 
-# CORS middleware
+# CORS middleware - secure configuration for production
+_cors_origins_raw = os.getenv("CORS_ALLOW_ORIGINS", "").strip()
+_cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()] if _cors_origins_raw else ["*"]
+# In production with wildcard origins, disable credentials for security
+_cors_allow_credentials = not (IS_PROD and _cors_origins == ["*"])
+if IS_PROD and _cors_origins == ["*"]:
+    logger.warning("CORS: wildcard origins in production - credentials disabled for security")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_cors_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )

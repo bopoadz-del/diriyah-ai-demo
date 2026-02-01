@@ -1,13 +1,17 @@
 """Audit logging for PDP decisions and access events."""
 
+import logging
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from .models import PDPAuditLog
 from .schemas import AuditLog
 from backend.backend.models import User
+
+logger = logging.getLogger(__name__)
 
 
 class AuditLogger:
@@ -33,48 +37,53 @@ class AuditLogger:
         decision: str,
         metadata: Optional[Dict[str, Any]] = None,
         ip_address: Optional[str] = None
-    ) -> AuditLog:
+    ) -> Optional[AuditLog]:
         """
         Log a policy decision.
-        
+
         Args:
-            user_id: User ID making the request
+            user_id: User ID making the request (None for anonymous)
             action: Action being performed
             resource_type: Type of resource being accessed
             resource_id: ID of resource being accessed
             decision: Decision result ("allow" or "deny")
             metadata: Additional metadata about the decision
             ip_address: IP address of the request
-            
+
         Returns:
-            AuditLog entry
+            AuditLog entry, or None if logging failed
         """
-        audit_entry = PDPAuditLog(
-            user_id=user_id,
-            action=action,
-            resource_type=resource_type,
-            resource_id=resource_id,
-            decision=decision,
-            metadata_json=metadata or {},
-            ip_address=ip_address,
-            timestamp=datetime.now()
-        )
-        
-        self.db.add(audit_entry)
-        self.db.commit()
-        self.db.refresh(audit_entry)
-        
-        return AuditLog(
-            id=audit_entry.id,
-            user_id=audit_entry.user_id,
-            action=audit_entry.action,
-            resource_type=audit_entry.resource_type,
-            resource_id=audit_entry.resource_id,
-            decision=audit_entry.decision,
-            timestamp=audit_entry.timestamp,
-            metadata=audit_entry.metadata_json,
-            ip_address=audit_entry.ip_address
-        )
+        try:
+            audit_entry = PDPAuditLog(
+                user_id=user_id,
+                action=action,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                decision=decision,
+                metadata_json=metadata or {},
+                ip_address=ip_address,
+                timestamp=datetime.now()
+            )
+
+            self.db.add(audit_entry)
+            self.db.commit()
+            self.db.refresh(audit_entry)
+
+            return AuditLog(
+                id=audit_entry.id,
+                user_id=audit_entry.user_id,
+                action=audit_entry.action,
+                resource_type=audit_entry.resource_type,
+                resource_id=audit_entry.resource_id,
+                decision=audit_entry.decision,
+                timestamp=audit_entry.timestamp,
+                metadata=audit_entry.metadata_json,
+                ip_address=audit_entry.ip_address
+            )
+        except (IntegrityError, OperationalError) as exc:
+            logger.warning("AuditLogger.log_decision DB error, rolling back: %s", exc)
+            self.db.rollback()
+            return None
     
     def log_access(
         self,

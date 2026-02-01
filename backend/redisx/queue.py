@@ -172,7 +172,7 @@ class RedisQueue:
         redis_client = self.redis
 
         if hasattr(redis_client, "xautoclaim"):
-            _, messages = redis_client.xautoclaim(
+            _, messages, _ = redis_client.xautoclaim(
                 stream,
                 group,
                 consumer_name,

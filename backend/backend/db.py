@@ -76,6 +76,7 @@ logger.info(
 def _import_models() -> None:
     """Import all SQLAlchemy models so metadata is populated."""
 
+    from backend.backend import models as _core_models  # noqa: F401
     from backend.backend.pdp import models as _pdp_models  # noqa: F401
     from backend.events import models as _event_models  # noqa: F401
     from backend.hydration import models as _hydration_models  # noqa: F401
@@ -92,7 +93,10 @@ def init_db() -> None:
     """Ensure all tables exist for the current metadata."""
 
     _import_models()
+    table_names = list(Base.metadata.tables.keys())
+    logger.info("init_db: %d tables registered in metadata: %s", len(table_names), table_names)
     Base.metadata.create_all(bind=engine)
+    logger.info("init_db: create_all completed")
 
 
 def get_db():

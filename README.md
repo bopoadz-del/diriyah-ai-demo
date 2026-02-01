@@ -40,6 +40,14 @@ Set `INSTALL_BACKEND_OPTIONALS=true` when you need the full machine-learning dep
 - Builds install only the runtime dependencies by default; set the Render environment variable `INSTALL_DEV_REQUIREMENTS=true` before triggering a deploy when you need linting or test tools in the Render Shell for debugging.
 - After opening a Render Shell, activate the environment with `source /opt/render/project/.venv/bin/activate` before running management or debugging commands.
 
+### Render: Required Environment Variables (Web + Worker)
+- `DATABASE_URL` (**same value on both services**) = Render Postgres **Internal Database URL**
+- `REDIS_URL` = Render Key Value internal URL
+- `JOB_STREAM_NAME` (optional, must match on both; example: `jobs:main`)
+
+Why Postgres is required:
+- SQLite files on Render Disk are not safely shareable across separate services; web + worker diverge.
+
 ### Project Mode
 - Default **Fixture Mode** (no Google Drive): `USE_FIXTURE_PROJECTS=true`
 - Live Google Drive Mode: set `USE_FIXTURE_PROJECTS=false` (requires Drive creds)

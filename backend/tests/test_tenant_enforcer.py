@@ -12,6 +12,11 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
+
+
 @app.get("/api/protected")
 def protected():
     return {"data": "secret"}
@@ -88,3 +93,13 @@ async def test_protected_with_workspace_header_not_403():
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         r = await client.get("/api/protected", headers={"X-Workspace-ID": "workspace"})
         assert r.status_code != 403
+
+
+@pytest.mark.asyncio
+async def test_healthz_no_tenant():
+    """Verify /healthz behaves like /health (no tenant header required)."""
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        r = await client.get("/healthz")
+        assert r.status_code == 200
+        assert r.json() == {"status": "ok"}

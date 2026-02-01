@@ -7,6 +7,17 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 logger = logging.getLogger(__name__)
 
+RENDER_REQUIRED_MESSAGE = (
+    "Render requires Postgres. Set DATABASE_URL to your Render Postgres Internal URL on BOTH web and worker services."
+)
+
+
+def _is_render_environment() -> bool:
+    return any(
+        os.getenv(key)
+        for key in ("RENDER", "RENDER_SERVICE_ID", "RENDER_SERVICE_NAME")
+    )
+
 
 def _normalize_database_url(raw_url: str) -> str:
     if raw_url.startswith("postgres://"):
@@ -21,6 +32,13 @@ def _sqlite_url_for_path(path: str) -> str:
 
 def _resolve_database_url() -> tuple[str, bool, str | None]:
     raw_database_url = os.getenv("DATABASE_URL")
+    if _is_render_environment():
+        if not raw_database_url:
+            raise RuntimeError(RENDER_REQUIRED_MESSAGE)
+        normalized_url = _normalize_database_url(raw_database_url)
+        if normalized_url.startswith("sqlite:"):
+            raise RuntimeError(RENDER_REQUIRED_MESSAGE)
+        return normalized_url, True, None
     if raw_database_url:
         return _normalize_database_url(raw_database_url), True, None
 

@@ -56,6 +56,14 @@ npm run build
 - The backend serves the built SPA automatically when `frontend/dist` (Vite) or `frontend/build` (CRA) exists.
 - Render builds the frontend during deploy via `render.yaml`/`render-build.sh` before starting the FastAPI app.
 
+## Render: Required Environment Variables (Web + Worker)
+- `DATABASE_URL` (**same value on both services**) = Render Postgres **Internal Database URL**
+- `REDIS_URL` = Render Key Value internal URL
+- `JOB_STREAM_NAME` (optional, must match on both; example: `jobs:main`)
+
+Why Postgres is required:
+- SQLite files on Render Disk are not safely shareable across separate services; web + worker diverge.
+
 ## 4) Event Flow Verification
 1. Trigger a hydration/learning event (for example: POST to `/api/hydration/run-now` or `/api/learning/feedback`).
 2. Check that events appear in the global stream:

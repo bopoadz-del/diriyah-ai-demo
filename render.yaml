@@ -35,6 +35,10 @@ services:
         fromService:
           name: mba-redis
           property: connectionString
+      # Render: Required Environment Variables (Web + Worker)
+      # - DATABASE_URL must be the Render Postgres Internal URL and identical across web/worker services.
+      # - REDIS_URL should point at the Render Key Value Internal URL.
+      # - JOB_STREAM_NAME (optional) must match across services when set.
       - key: CHROMA_HOST
         sync: false
       - key: CHROMA_PORT
@@ -80,6 +84,10 @@ services:
         fromService:
           name: mba-redis
           property: connectionString
+      # Render: Required Environment Variables (Web + Worker)
+      # - DATABASE_URL must be the Render Postgres Internal URL and identical across web/worker services.
+      # - REDIS_URL should point at the Render Key Value Internal URL.
+      # - JOB_STREAM_NAME (optional) must match across services when set.
       - key: CHROMA_HOST
         sync: false
       - key: CHROMA_PORT
@@ -124,6 +132,10 @@ services:
         fromService:
           name: mba-redis
           property: connectionString
+      # Render: Required Environment Variables (Web + Worker)
+      # - DATABASE_URL must be the Render Postgres Internal URL and identical across web/worker services.
+      # - REDIS_URL should point at the Render Key Value Internal URL.
+      # - JOB_STREAM_NAME (optional) must match across services when set.
       - key: CHROMA_HOST
         sync: false
       - key: CHROMA_PORT
@@ -152,6 +164,10 @@ services:
         fromService:
           name: mba-redis
           property: connectionString
+      # Render: Required Environment Variables (Web + Worker)
+      # - DATABASE_URL must be the Render Postgres Internal URL and identical across web/worker services.
+      # - REDIS_URL should point at the Render Key Value Internal URL.
+      # - JOB_STREAM_NAME (optional) must match across services when set.
       - key: CHROMA_HOST
         sync: false
       - key: CHROMA_PORT

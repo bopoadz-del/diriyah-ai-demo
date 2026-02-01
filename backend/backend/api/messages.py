@@ -1,7 +1,7 @@
 import importlib
 import os
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from .. import models
@@ -63,30 +63,42 @@ def list_messages(chat_id: int, db: Session = Depends(get_db)):
 @router.post("/chats/{chat_id}/messages")
 def create_message(chat_id: int, role: str, content: str, db: Session = Depends(get_db)):
     msg = models.Message(chat_id=chat_id, role=role, content=content)
-    db.add(msg); db.commit(); db.refresh(msg)
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
 
     if role == "user":
         cnt = db.query(models.Message).filter(models.Message.chat_id == chat_id).count()
         if cnt == 1:
-            chat = db.query(models.Chat).get(chat_id)
-            chat.title = _auto_title_from_first_message(content)
-            db.commit()
+            chat = db.get(models.Chat, chat_id)
+            if chat:
+                chat.title = _auto_title_from_first_message(content)
+                db.commit()
     return msg
 
 @router.put("/messages/{msg_id}/action")
 def message_action(msg_id: int, action: str, user_id: int = 1, db: Session = Depends(get_db)):
-    msg = db.query(models.Message).get(msg_id)
-    if action == "like": msg.liked = True
-    elif action == "dislike": msg.disliked = True
-    elif action == "copy": msg.copied = True
-    elif action == "read": msg.read = True
+    msg = db.get(models.Message, msg_id)
+    if msg is None:
+        raise HTTPException(status_code=404, detail="Message not found")
+    if action == "like":
+        msg.liked = True
+    elif action == "dislike":
+        msg.disliked = True
+    elif action == "copy":
+        msg.copied = True
+    elif action == "read":
+        msg.read = True
     log_action(db, user_id=user_id, action=action, message_id=msg_id)
     db.commit()
     return msg
 
+
 @router.put("/messages/{msg_id}")
 def update_message(msg_id: int, content: str, db: Session = Depends(get_db)):
-    msg = db.query(models.Message).get(msg_id)
+    msg = db.get(models.Message, msg_id)
+    if msg is None:
+        raise HTTPException(status_code=404, detail="Message not found")
     msg.content = content
     db.commit()
     return msg

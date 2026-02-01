@@ -84,6 +84,36 @@ def _init_db_if_configured() -> None:
 
 _init_db_if_configured()
 
+
+def _seed_demo_sources_if_configured() -> None:
+    """Seed demo hydration sources if DEMO_SEED_SOURCES is enabled."""
+    enabled, raw = env_flag("DEMO_SEED_SOURCES", False)
+    logger.info("DEMO_SEED_SOURCES raw=%r parsed=%s", raw, enabled)
+    if not enabled:
+        return
+
+    try:
+        from backend.backend.db import SessionLocal
+        from backend.api.hydration import seed_demo_source
+
+        db = SessionLocal()
+        try:
+            source = seed_demo_source(db)
+            if source:
+                logger.info(
+                    "Demo source seeded: id=%s name=%s workspace=%s",
+                    source.id,
+                    source.name,
+                    source.workspace_id,
+                )
+        finally:
+            db.close()
+    except Exception as exc:
+        logger.warning("Failed to seed demo sources: %s", exc)
+
+
+_seed_demo_sources_if_configured()
+
 if os.getenv("ENABLE_BERT_INTENT", "false").lower() == "true":
     logger.info("BERT intent detection enabled")
 

@@ -24,7 +24,7 @@ class TenantEnforcerMiddleware:
             return
 
         # Bypass health + landing + docs + static
-        bypass_exact = {"/", "/favicon.ico", "/health"}
+        bypass_exact = {"/", "/favicon.ico", "/health", "/healthz"}
         bypass_prefixes = ("/assets", "/docs", "/openapi", "/openapi.json", "/redoc", "/static")
 
         if path in bypass_exact or path.startswith(bypass_prefixes):

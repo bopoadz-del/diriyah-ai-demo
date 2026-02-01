@@ -138,6 +138,23 @@ def run_now(
         )
         raise
 
+    # Check that at least one enabled source exists for this workspace
+    enabled_sources_query = db.query(WorkspaceSource).filter(
+        WorkspaceSource.workspace_id == request.workspace_id,
+        WorkspaceSource.is_enabled == True,
+    )
+    if request.source_ids:
+        enabled_sources_query = enabled_sources_query.filter(
+            WorkspaceSource.id.in_(request.source_ids)
+        )
+    enabled_sources = enabled_sources_query.all()
+
+    if not enabled_sources:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No hydration sources configured for workspace {request.workspace_id}",
+        )
+
     correlation_id = x_correlation_id or os.getenv("CORRELATION_ID") or str(uuid.uuid4())
     queue = RedisQueue()
     payload = {
@@ -255,3 +272,46 @@ def acknowledge_alert(
     if not alert:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
     return HydrationAlertOut.model_validate(alert)
+
+
+# Demo source seeding constants
+DEMO_WORKSPACE_ID = "demo"
+DEMO_SOURCE_NAME = "Demo FS"
+DEMO_SOURCE_CONFIG = {"root_path": "/app"}
+
+
+def seed_demo_source(db: Session) -> Optional[WorkspaceSource]:
+    """Seed a demo hydration source for the demo workspace. Idempotent."""
+    existing = (
+        db.query(WorkspaceSource)
+        .filter(
+            WorkspaceSource.workspace_id == DEMO_WORKSPACE_ID,
+            WorkspaceSource.name == DEMO_SOURCE_NAME,
+        )
+        .first()
+    )
+    if existing:
+        return existing
+
+    source = WorkspaceSource(
+        workspace_id=DEMO_WORKSPACE_ID,
+        source_type=SourceType.SERVER_FS,
+        name=DEMO_SOURCE_NAME,
+        config_json=json.dumps(DEMO_SOURCE_CONFIG),
+        is_enabled=True,
+    )
+    db.add(source)
+    db.commit()
+    db.refresh(source)
+    return source
+
+
+@router.post("/sources/seed-demo", response_model=WorkspaceSourceOut)
+def seed_demo_endpoint(db: Session = Depends(get_db)):
+    """Seed a demo hydration source for the demo workspace. Idempotent.
+
+    Creates a server_fs source for workspace 'demo' with root_path '/app'.
+    If the source already exists, returns the existing source.
+    """
+    source = seed_demo_source(db)
+    return WorkspaceSourceOut.model_validate(source)

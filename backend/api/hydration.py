@@ -46,16 +46,22 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/hydration", tags=["Hydration"])
 
 
-def _parse_user_id(x_user_id: Optional[str]) -> int:
+def _parse_user_id(x_user_id: Optional[str]) -> Optional[int]:
+    """Parse X-User-Id header, returning None for anonymous requests."""
     if not x_user_id:
-        return 0
+        return None
     try:
         return int(x_user_id)
     except ValueError:
-        return 0
+        return None
 
 
-def _evaluate_pdp(db: Session, user_id: int, action: str, workspace_id: str) -> None:
+def _evaluate_pdp(db: Session, user_id: Optional[int], action: str, workspace_id: str) -> None:
+    """Evaluate PDP policy. If user_id is None, skip PDP (anonymous allowed)."""
+    if user_id is None:
+        # Anonymous request - skip PDP evaluation, allow by default
+        logger.debug("Anonymous request to %s for workspace %s - skipping PDP", action, workspace_id)
+        return
     engine = PolicyEngine(db)
     request = PolicyRequest(
         user_id=user_id,

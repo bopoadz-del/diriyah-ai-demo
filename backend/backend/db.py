@@ -91,16 +91,25 @@ _import_models()
 
 def _apply_postgres_schema_hotfixes(connection) -> None:
     """Apply schema migrations for existing Postgres databases."""
+    # Make rate_limits.user_id nullable (was NOT NULL, now nullable for anonymous requests)
     try:
-        # Make rate_limits.user_id nullable (was NOT NULL, now nullable for anonymous requests)
         connection.execute(
             text("ALTER TABLE rate_limits ALTER COLUMN user_id DROP NOT NULL")
         )
         logger.info("init_db: Applied hotfix - rate_limits.user_id now nullable")
     except Exception as exc:
-        # Column may already be nullable or table may not exist yet
-        if "does not exist" not in str(exc) and "column" not in str(exc).lower():
+        if "does not exist" not in str(exc).lower():
             logger.debug("init_db: rate_limits hotfix skipped: %s", exc)
+
+    # Make pdp_audit_logs.user_id nullable (for anonymous audit logging)
+    try:
+        connection.execute(
+            text("ALTER TABLE pdp_audit_logs ALTER COLUMN user_id DROP NOT NULL")
+        )
+        logger.info("init_db: Applied hotfix - pdp_audit_logs.user_id now nullable")
+    except Exception as exc:
+        if "does not exist" not in str(exc).lower():
+            logger.debug("init_db: pdp_audit_logs hotfix skipped: %s", exc)
 
 
 def init_db() -> None:

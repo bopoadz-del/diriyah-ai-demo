@@ -45,8 +45,13 @@ services:
         sync: false
       - key: INSTALL_DEV_REQUIREMENTS
         value: "false"
+      # INIT_DB_ON_STARTUP: Create DB tables on startup (required for first deploy)
+      # Default is true in code; set false only for environments with external migrations
       - key: INIT_DB_ON_STARTUP
-        value: "false"
+        value: "true"
+      # DEMO_SEED_SOURCES: Seed demo hydration source for workspace "demo" on startup
+      - key: DEMO_SEED_SOURCES
+        value: "true"
       - key: MPLCONFIGDIR
         value: "/tmp/matplotlib"
       - key: NODE_VERSION

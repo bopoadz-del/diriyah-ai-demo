@@ -71,9 +71,12 @@ def env_flag(name: str, default: bool) -> tuple[bool, str | None]:
 
 
 def _init_db_if_configured() -> None:
-    """Initialise the database if startup init is enabled."""
+    """Initialise the database if startup init is enabled.
 
-    enabled, raw = env_flag("INIT_DB_ON_STARTUP", False)
+    Defaults to True for production/Render deployments to ensure tables exist.
+    Set INIT_DB_ON_STARTUP=false to disable (e.g., for tests with fixtures).
+    """
+    enabled, raw = env_flag("INIT_DB_ON_STARTUP", True)
     logger.info("INIT_DB_ON_STARTUP raw=%r parsed=%s", raw, enabled)
     if enabled:
         logger.info("Initialising database on startup")

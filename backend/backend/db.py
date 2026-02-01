@@ -2,7 +2,7 @@ import logging
 import os
 from pathlib import Path
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 logger = logging.getLogger(__name__)
@@ -89,6 +89,20 @@ def _import_models() -> None:
 _import_models()
 
 
+def _apply_postgres_schema_hotfixes(connection) -> None:
+    """Apply schema migrations for existing Postgres databases."""
+    try:
+        # Make rate_limits.user_id nullable (was NOT NULL, now nullable for anonymous requests)
+        connection.execute(
+            text("ALTER TABLE rate_limits ALTER COLUMN user_id DROP NOT NULL")
+        )
+        logger.info("init_db: Applied hotfix - rate_limits.user_id now nullable")
+    except Exception as exc:
+        # Column may already be nullable or table may not exist yet
+        if "does not exist" not in str(exc) and "column" not in str(exc).lower():
+            logger.debug("init_db: rate_limits hotfix skipped: %s", exc)
+
+
 def init_db() -> None:
     """Ensure all tables exist for the current metadata."""
 
@@ -97,6 +111,12 @@ def init_db() -> None:
     logger.info("init_db: %d tables registered in metadata: %s", len(table_names), table_names)
     Base.metadata.create_all(bind=engine)
     logger.info("init_db: create_all completed")
+
+    # Apply schema hotfixes for existing Postgres databases
+    if DATABASE_URL.startswith("postgresql"):
+        with engine.connect() as conn:
+            _apply_postgres_schema_hotfixes(conn)
+            conn.commit()
 
 
 def get_db():

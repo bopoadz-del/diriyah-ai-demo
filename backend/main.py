@@ -47,7 +47,27 @@ logger = _configure_logging()
 app = FastAPI(title="Diriyah Brain AI", version="v1.24")
 logger.info("FastAPI application initialised", extra={"version": app.version})
 
-JWT_SECRET = os.getenv("JWT_SECRET_KEY", "change-me")
+_DEV_ENVIRONMENTS = {"dev", "development", "local", "test"}
+
+
+def _get_jwt_secret() -> str:
+    """Get JWT secret, requiring it in production environments."""
+    secret = os.getenv("JWT_SECRET_KEY")
+    if secret:
+        return secret
+
+    env = os.getenv("ENV", "").lower()
+    if env in _DEV_ENVIRONMENTS:
+        logger.warning("Using insecure dev JWT secret - do NOT use in production")
+        return "insecure-dev-secret-do-not-use-in-prod"
+
+    raise ValueError(
+        "JWT_SECRET_KEY must be set in production. "
+        "Set ENV=development for local dev without a secret."
+    )
+
+
+JWT_SECRET = _get_jwt_secret()
 JWT_ALGORITHM = "HS256"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 

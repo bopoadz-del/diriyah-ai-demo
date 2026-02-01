@@ -11,10 +11,14 @@ import socket
 import uuid
 from typing import Any, Dict, Iterable, List, Optional
 
+from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import Session
 
 from backend.backend.db import SessionLocal
 from backend.ops.models import BackgroundJob, BackgroundJobEvent
+
+# Track whether we've already logged the missing table warning
+_db_mirror_warning_logged = False
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +100,33 @@ class RedisQueue:
             "attempt": "0",
             "created_at": created_at,
         }
+
+        # Try to mirror job to DB (resilient to missing tables)
+        db_mirror_success = self._try_mirror_to_db(
+            job_id, job_type, workspace_id, headers, payload, db
+        )
+
+        # Enqueue to Redis (this is the critical path)
+        self.ensure_group()
+        entry_id = self.redis.xadd(STREAM_NAME, fields)
+
+        # Update DB entry with Redis entry ID if mirroring succeeded
+        if db_mirror_success:
+            self._try_update_db_entry(job_id, entry_id, db)
+
+        return job_id
+
+    def _try_mirror_to_db(
+        self,
+        job_id: str,
+        job_type: str,
+        workspace_id: Optional[int],
+        headers: Dict[str, Any],
+        payload: Dict[str, Any],
+        db: Optional[Session] = None,
+    ) -> bool:
+        """Try to mirror job to DB. Returns True on success, False if tables missing."""
+        global _db_mirror_warning_logged
         manage_session = db is None
         session = db or self._db_factory()
         try:
@@ -120,25 +151,55 @@ class RedisQueue:
                     created_at=_utc_now(),
                 )
             )
-
-            self.ensure_group()
-            entry_id = self.redis.xadd(STREAM_NAME, fields)
-            job.redis_entry_id = entry_id
-            job.updated_at = _utc_now()
             session.commit()
-            return job_id
-        except Exception as exc:
+            return True
+        except (OperationalError, ProgrammingError) as exc:
             session.rollback()
-            if "job" in locals():
-                job.status = "failed"
-                job.last_error = str(exc)
-                job.updated_at = _utc_now()
-                session.add(job)
-                session.commit()
+            if self._is_missing_table_error(exc):
+                if not _db_mirror_warning_logged:
+                    _db_mirror_warning_logged = True
+                    logger.warning(
+                        "Job DB mirroring disabled: background_jobs table missing — "
+                        "jobs will only be tracked in Redis"
+                    )
+                return False
+            raise
+        except Exception:
+            session.rollback()
             raise
         finally:
             if manage_session:
                 session.close()
+
+    def _try_update_db_entry(
+        self, job_id: str, entry_id: str, db: Optional[Session] = None
+    ) -> None:
+        """Try to update DB entry with Redis entry ID. Silently fails if tables missing."""
+        manage_session = db is None
+        session = db or self._db_factory()
+        try:
+            job = session.query(BackgroundJob).filter_by(job_id=job_id).first()
+            if job:
+                job.redis_entry_id = entry_id
+                job.updated_at = _utc_now()
+                session.commit()
+        except (OperationalError, ProgrammingError):
+            session.rollback()
+        except Exception:
+            session.rollback()
+        finally:
+            if manage_session:
+                session.close()
+
+    @staticmethod
+    def _is_missing_table_error(exc: Exception) -> bool:
+        """Check if exception is due to missing table."""
+        msg = str(exc).lower()
+        return (
+            "no such table" in msg
+            or "does not exist" in msg
+            or 'relation "' in msg
+        )
 
     def read(
         self,

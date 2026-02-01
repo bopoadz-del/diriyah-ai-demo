@@ -26,6 +26,7 @@ from backend.hydration.models import (
     HydrationRunItem,
     HydrationState,
     HydrationStatus,
+    SourceType,
     WorkspaceSource,
 )
 from backend.hydration.schemas import (
@@ -155,15 +156,25 @@ def run_now(
             raise
 
         # Check that at least one enabled source exists for this workspace
-        enabled_sources_query = db.query(WorkspaceSource).filter(
-            WorkspaceSource.workspace_id == request.workspace_id,
-            WorkspaceSource.is_enabled == True,
-        )
-        if request.source_ids:
-            enabled_sources_query = enabled_sources_query.filter(
-                WorkspaceSource.id.in_(request.source_ids)
+        def _get_enabled_sources():
+            query = db.query(WorkspaceSource).filter(
+                WorkspaceSource.workspace_id == request.workspace_id,
+                WorkspaceSource.is_enabled == True,
             )
-        enabled_sources = enabled_sources_query.all()
+            if request.source_ids:
+                query = query.filter(WorkspaceSource.id.in_(request.source_ids))
+            return query.all()
+
+        enabled_sources = _get_enabled_sources()
+
+        # Auto-seed demo source for "demo" workspace if no sources exist
+        if not enabled_sources and request.workspace_id == DEMO_WORKSPACE_ID:
+            logger.info("No sources for demo workspace, auto-seeding demo source")
+            try:
+                seed_demo_source(db)
+                enabled_sources = _get_enabled_sources()
+            except Exception as seed_exc:
+                logger.warning("Failed to auto-seed demo source: %s", seed_exc)
 
         if not enabled_sources:
             raise HTTPException(

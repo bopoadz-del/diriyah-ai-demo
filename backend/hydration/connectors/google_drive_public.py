@@ -28,27 +28,40 @@ class GoogleDrivePublicConnector(BaseConnector):
 
         folder_id = self.config.get("folder_id") or self.config.get("root_folder_id")
         service = get_drive_service()
-        page_token = (cursor_json or {}).get("page_token")
-        response = (
-            service.files()
-            .list(
-                q=f"'{folder_id}' in parents and trashed=false",
-                fields="nextPageToken,files(id,name,mimeType,modifiedTime,size,md5Checksum,trashed,parents)",
-                pageSize=200,
-                pageToken=page_token,
-            )
-            .execute()
-        )
-        files = response.get("files", [])
         items: List[Dict[str, Any]] = []
-        for file_data in files:
-            items.append({
-                "id": file_data.get("id"),
-                "removed": file_data.get("trashed", False),
-                "file": file_data,
-            })
+        page_token = (cursor_json or {}).get("page_token")
+        page_size = self.config.get("page_size", 200)
+        try:
+            page_size = int(page_size)
+        except (TypeError, ValueError):
+            page_size = 200
+        page_size = max(1, min(page_size, 1000))
+        logger.debug("Listing Google Drive files with page_size=%s page_token=%s", page_size, page_token)
 
-        next_token = response.get("nextPageToken")
+        next_token = page_token
+        while True:
+            response = (
+                service.files()
+                .list(
+                    q=f"'{folder_id}' in parents and trashed=false",
+                    fields="nextPageToken,files(id,name,mimeType,modifiedTime,size,md5Checksum,trashed,parents)",
+                    pageSize=page_size,
+                    pageToken=next_token,
+                )
+                .execute()
+            )
+            files = response.get("files", [])
+            for file_data in files:
+                items.append({
+                    "id": file_data.get("id"),
+                    "removed": file_data.get("trashed", False),
+                    "file": file_data,
+                })
+            next_token = response.get("nextPageToken")
+            if not next_token:
+                break
+            logger.debug("Google Drive pagination continuing with next_token=%s", next_token)
+
         return items, {"page_token": next_token} if next_token else {}
 
     def get_metadata(self, item: Dict[str, Any]) -> Dict[str, Any]:

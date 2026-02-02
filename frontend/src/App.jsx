@@ -213,6 +213,8 @@ function MainShell() {
     setIsContextPanelOpen((current) => !current);
   };
 
+  const shouldShowChat = Boolean(activeProject && activeConversation);
+
   return (
     <PDPProvider>
       <div className="app">
@@ -228,18 +230,26 @@ function MainShell() {
           error={error}
           t={t}
         />
-        <ChatUI
-          activeProject={activeProject}
-          activeConversation={activeConversation}
-          onMessageSubmit={handleMessageSubmit}
-          onAttachmentUpload={handleAttachmentUpload}
-          onMessageAction={handleMessageAction}
-          microphoneEnabled={microphoneEnabled}
-          onMicrophoneToggle={handleMicrophoneToggle}
-          isContextPanelOpen={isContextPanelOpen}
-          onToggleContextPanel={handleToggleContextPanel}
-          t={t}
-        />
+        {shouldShowChat ? (
+          <ChatUI
+            project={activeProject}
+            conversation={activeConversation}
+            onSubmitMessage={handleMessageSubmit}
+            onUploadAttachment={handleAttachmentUpload}
+            onToggleMicrophone={handleMicrophoneToggle}
+            onMessageAction={handleMessageAction}
+            microphoneEnabled={microphoneEnabled}
+            isContextPanelOpen={isContextPanelOpen}
+            onToggleContextPanel={handleToggleContextPanel}
+          />
+        ) : (
+          <div className="chat" role="main">
+            <div className="chat__empty">
+              <h2>{t("chat.empty.title", "Select a chat to get started")}</h2>
+              <p>{t("chat.empty.body", "Choose a project and conversation from the sidebar.")}</p>
+            </div>
+          </div>
+        )}
       </div>
     </PDPProvider>
   );

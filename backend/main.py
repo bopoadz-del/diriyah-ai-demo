@@ -250,8 +250,13 @@ def _resolve_frontend_dir() -> Path | None:
 def _configure_frontend_assets() -> tuple[Path | None, Path | None]:
     frontend_dir = _resolve_frontend_dir()
     if frontend_dir is None:
-        logger.warning("Frontend build directory not found; SPA assets are unavailable")
+        candidates = [str(path) for path in _iter_frontend_candidates()]
+        logger.warning(
+            "Frontend build directory not found; SPA assets are unavailable. Tried: %s",
+            candidates,
+        )
         return None, None
+    logger.info("Frontend assets resolved", extra={"frontend_dir": str(frontend_dir)})
     assets_dir = frontend_dir / "assets"
     if assets_dir.exists():
         app.mount("/assets", StaticFiles(directory=assets_dir, check_dir=False), name="assets")

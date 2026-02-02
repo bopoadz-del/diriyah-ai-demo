@@ -13,15 +13,20 @@ services:
         source /opt/render/project/.venv/bin/activate
       fi
       PORT_VALUE=\"${PORT:-8000}\" && \
+      GUNICORN_LOG_LEVEL=\"${GUNICORN_LOG_LEVEL:-${LOG_LEVEL:-info}}\" && \
       echo \"PORT=${PORT} resolved_port=${PORT_VALUE}\" && \
       echo \"INIT_DB_ON_STARTUP=${INIT_DB_ON_STARTUP}\" && \
       echo \"MPLCONFIGDIR=${MPLCONFIGDIR}\" && \
-      echo \"Launching gunicorn with: -w 1 -t 180 --graceful-timeout 180\" && \
+      echo \"GUNICORN_LOG_LEVEL=${GUNICORN_LOG_LEVEL}\" && \
+      echo \"Launching gunicorn with: -w 1 -t 180 --graceful-timeout 180 --log-level ${GUNICORN_LOG_LEVEL}\" && \
       exec gunicorn \
         -k uvicorn.workers.UvicornWorker \
         -w 1 \
         -t 180 \
         --graceful-timeout 180 \
+        --log-level \"${GUNICORN_LOG_LEVEL}\" \
+        --access-logfile \"-\" \
+        --error-logfile \"-\" \
         -b 0.0.0.0:\"${PORT_VALUE}\" \
         backend.main:app"
     envVars:
@@ -54,6 +59,8 @@ services:
         value: "true"
       - key: MPLCONFIGDIR
         value: "/tmp/matplotlib"
+      - key: PYTHONUNBUFFERED
+        value: "1"
       - key: NODE_VERSION
         value: "20"
       - key: LOG_LEVEL
@@ -97,6 +104,8 @@ services:
         sync: false
       - key: CHROMA_PORT
         sync: false
+      - key: PYTHONUNBUFFERED
+        value: "1"
       - key: HYDRATION_ENABLED
         value: "true"
       - key: HYDRATION_TZ
@@ -145,6 +154,8 @@ services:
         sync: false
       - key: CHROMA_PORT
         sync: false
+      - key: PYTHONUNBUFFERED
+        value: "1"
   - type: worker
     name: mba-event-projector
     env: python
@@ -177,6 +188,8 @@ services:
         sync: false
       - key: CHROMA_PORT
         sync: false
+      - key: PYTHONUNBUFFERED
+        value: "1"
   - type: redis
     name: mba-redis
     plan: starter

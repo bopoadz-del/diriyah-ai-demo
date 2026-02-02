@@ -9,6 +9,7 @@ apt-get install -y --no-install-recommends \
   build-essential \
   ca-certificates \
   curl \
+  git \
   libreoffice \
   libmagic1 \
   poppler-utils \

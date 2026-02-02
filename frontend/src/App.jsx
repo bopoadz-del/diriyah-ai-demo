@@ -6,11 +6,11 @@ import ChatUI from "./components/ChatUI";
 import HydrationDashboard from "./components/hydration/HydrationDashboard";
 import { PDPProvider } from "./contexts/PDPContext";
 import { apiFetch } from "./lib/api";
-import SplitLayout from "./layout/SplitLayout";
-import Analytics from "./pages/Analytics";
-import ChatWindow from "./pages/ChatWindow";
-import ProjectDashboard from "./pages/ProjectDashboard";
-import Settings from "./pages/Settings";
+import Analytics from "./components/Analytics";
+import ChatWindow from "./components/ChatWindow";
+import ProjectDashboard from "./components/ProjectDashboard";
+import Settings from "./components/Settings";
+import SplitLayout from "./components/SplitLayout";
 import "./App.css";
 
 function HydrationRoute() {

@@ -59,8 +59,6 @@ services:
         value: "true"
       - key: MPLCONFIGDIR
         value: "/tmp/matplotlib"
-      - key: PYTHONUNBUFFERED
-        value: "1"
       - key: NODE_VERSION
         value: "20"
       - key: LOG_LEVEL
@@ -108,8 +106,6 @@ services:
         sync: false
       - key: CHROMA_PORT
         sync: false
-      - key: PYTHONUNBUFFERED
-        value: "1"
       - key: HYDRATION_ENABLED
         value: "true"
       - key: HYDRATION_TZ
@@ -166,6 +162,10 @@ services:
         sync: false
       - key: PYTHONUNBUFFERED
         value: "1"
+      - key: LOG_LEVEL
+        value: "DEBUG"
+      - key: PYTHONFAULTHANDLER
+        value: "1"
   - type: worker
     name: mba-event-projector
     env: python
@@ -199,6 +199,10 @@ services:
       - key: CHROMA_PORT
         sync: false
       - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: LOG_LEVEL
+        value: "DEBUG"
+      - key: PYTHONFAULTHANDLER
         value: "1"
   - type: redis
     name: mba-redis

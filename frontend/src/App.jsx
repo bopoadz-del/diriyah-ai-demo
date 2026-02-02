@@ -251,13 +251,14 @@ export default function App() {
       <Routes>
         <Route path="/hydration/:workspaceId" element={<HydrationRoute />} />
         <Route path="/app" element={<MainShell />} />
-        <Route element={<SplitLayout />}>
+        <Route path="/" element={<SplitLayout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<ProjectDashboard />} />
           <Route path="/chat" element={<ChatWindow />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
   );

@@ -20,6 +20,12 @@ apt-get install -y --no-install-recommends \
   sqlite3 \
   libboost-all-dev \
   tesseract-ocr
+if git --version; then
+  echo "Git installed successfully after apt-get install."
+else
+  echo "git missing after install"
+  exit 1
+fi
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt-get install -y --no-install-recommends nodejs
 rm -rf /var/lib/apt/lists/*

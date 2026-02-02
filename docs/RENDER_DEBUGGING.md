@@ -56,5 +56,6 @@ The top-level `requirements.txt` aggregates the backend runtime and development 
 - **Missing optional ML/translation dependencies** – Some services rely on large optional packages. Enable the `INSTALL_BACKEND_OPTIONALS` flag when bootstrapping the environment to install them.
 - **Frontend asset mismatch** – Always run `npm run build` after editing the frontend. The backend serves files from `backend/frontend_dist/` and will warn if the directory is missing.
 - **Credential configuration** – The `/health` endpoint reports the status of Google Drive credentials and stubbed drive integrations to help verify secrets are configured correctly on Render.
+- **Render shell missing git** – If the Render shell shows `git` is unavailable, use **Clear build cache & deploy** so the updated `render-build.sh` provisions git in the next build.
 
 Following these steps provides a reproducible Render-like environment for debugging issues before pushing changes.

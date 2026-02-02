@@ -65,6 +65,10 @@ services:
         value: "20"
       - key: LOG_LEVEL
         value: "DEBUG"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PYTHONFAULTHANDLER
+        value: "1"
       - key: PROMETHEUS_ENABLED
         value: "true"
       - key: VITE_WORKSPACE_ID
@@ -122,6 +126,12 @@ services:
         value: "false"
       - key: HYDRATION_FORCE_FULL_SCAN
         value: "false"
+      - key: LOG_LEVEL
+        value: "DEBUG"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PYTHONFAULTHANDLER
+        value: "1"
   - type: worker
     name: mba-queue-worker
     env: python

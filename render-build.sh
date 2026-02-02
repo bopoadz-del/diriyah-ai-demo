@@ -47,3 +47,12 @@ pushd frontend
 npm ci
 npm run build
 popd
+
+# Ensure the backend serves a stable frontend path on Render.
+FRONTEND_DIST_PATH="frontend/dist"
+BACKEND_DIST_PATH="backend/frontend_dist"
+if [[ -d "$FRONTEND_DIST_PATH" ]]; then
+  rm -rf "$BACKEND_DIST_PATH"
+  mkdir -p "$BACKEND_DIST_PATH"
+  cp -R "$FRONTEND_DIST_PATH"/. "$BACKEND_DIST_PATH/"
+fi

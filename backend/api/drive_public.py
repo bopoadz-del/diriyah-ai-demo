@@ -23,7 +23,11 @@ def _serialize_metadata(metadata: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @router.get("/list")
-def list_drive_public_files(folder_id: str = Query(...)) -> Dict[str, List[Dict[str, Any]]]:
+def list_drive_public_files(
+    folder_id: str = Query(...),
+    page_size: int = Query(200, ge=1, le=1000),
+    max_pages: int = Query(10, ge=1, le=100),
+) -> Dict[str, List[Dict[str, Any]]]:
     """List files in a public Drive folder."""
 
     if drive_stubbed():
@@ -32,10 +36,30 @@ def list_drive_public_files(folder_id: str = Query(...)) -> Dict[str, List[Dict[
     if not GoogleDrivePublicConnector.is_valid_folder_id(folder_id):
         raise HTTPException(status_code=400, detail="Invalid folder id")
 
-    connector = GoogleDrivePublicConnector({"folder_id": folder_id})
+    connector = GoogleDrivePublicConnector(
+        {
+            "folder_id": folder_id,
+            "page_size": page_size,
+        }
+    )
     try:
         connector.validate_config()
-        items, _ = connector.list_changes({})
+        items: List[Dict[str, Any]] = []
+        cursor: Dict[str, Any] = {}
+        page_count = 0
+        while True:
+            page_items, cursor = connector.list_changes(cursor)
+            items.extend(page_items)
+            page_count += 1
+            page_token = cursor.get("page_token")
+            if not page_token:
+                break
+            if page_count >= max_pages:
+                logger.warning(
+                    "Drive public listing stopped after max pages",
+                    extra={"folder_id": folder_id, "page_count": page_count},
+                )
+                break
         files = [_serialize_metadata(connector.get_metadata(item)) for item in items]
     except ValueError as exc:
         logger.info("Rejected invalid Drive folder id", extra={"folder_id": folder_id})

@@ -1,11 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BrowserRouter, Route, Routes, useParams } from "react-router-dom";
-import Sidebar from "./components/Sidebar";
+import ChatSidebar from "./components/ChatSidebar";
 import ChatUI from "./components/ChatUI";
 import HydrationDashboard from "./components/hydration/HydrationDashboard";
 import { PDPProvider } from "./contexts/PDPContext";
 import { apiFetch } from "./lib/api";
+import Analytics from "./pages/Analytics";
+import ChatWindow from "./pages/ChatWindow";
+import ProjectDashboard from "./pages/ProjectDashboard";
+import Settings from "./pages/Settings";
+import SplitLayout from "./layout/SplitLayout";
 import "./App.css";
 
 function HydrationRoute() {
@@ -211,7 +216,7 @@ function MainShell() {
   return (
     <PDPProvider>
       <div className="app">
-        <Sidebar
+        <ChatSidebar
           projects={workspace.projects}
           chatGroups={workspace.chatGroups}
           activeProjectId={activeProjectId}
@@ -246,6 +251,38 @@ export default function App() {
       <Routes>
         <Route path="/" element={<MainShell />} />
         <Route path="/hydration/:workspaceId" element={<HydrationRoute />} />
+        <Route
+          path="/dashboard"
+          element={(
+            <SplitLayout>
+              <ProjectDashboard />
+            </SplitLayout>
+          )}
+        />
+        <Route
+          path="/chat"
+          element={(
+            <SplitLayout>
+              <ChatWindow />
+            </SplitLayout>
+          )}
+        />
+        <Route
+          path="/analytics"
+          element={(
+            <SplitLayout>
+              <Analytics />
+            </SplitLayout>
+          )}
+        />
+        <Route
+          path="/settings"
+          element={(
+            <SplitLayout>
+              <Settings />
+            </SplitLayout>
+          )}
+        />
       </Routes>
     </BrowserRouter>
   );

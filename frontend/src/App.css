@@ -77,6 +77,35 @@ input {
   gap: 0.5rem;
 }
 
+.sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.sidebar__nav-link {
+  border-radius: 12px;
+  color: #5c4c3d;
+  display: flex;
+  justify-content: space-between;
+  padding: 0.65rem 0.85rem;
+  text-decoration: none;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.sidebar__nav-link:hover,
+.sidebar__nav-link:focus {
+  background: rgba(200, 161, 101, 0.2);
+  color: #3f2f23;
+}
+
+.sidebar__nav-link.is-active {
+  background: rgba(200, 161, 101, 0.32);
+  color: #3f2f23;
+  font-weight: 600;
+}
+
 .language-switcher {
   margin-top: 0.25rem;
   padding: 0.5rem 0.75rem;

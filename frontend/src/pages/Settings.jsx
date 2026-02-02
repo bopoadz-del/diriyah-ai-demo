@@ -73,44 +73,6 @@ const STATUS_STYLES = {
   },
 };
 
-const securityControls = [
-  {
-    title: "RBAC Enhancements",
-    description: "Assign granular permissions down to individual drawings, documents, and even specific data fields to keep teams focused on the work that matters to them.",
-  },
-  {
-    title: "Audit Trail",
-    description: "Capture every view, download, and update with immutable timestamps to satisfy contractual and regulatory compliance reviews.",
-  },
-  {
-    title: "Data Encryption",
-    description: "Protect sensitive submissions with end-to-end encryption covering data in transit between job sites and at rest in the workspace vault.",
-  },
-  {
-    title: "SOC 2 / ISO 27001",
-    description: "Operate against enterprise-grade controls, backed by third-party certifications and continuous monitoring of policy adherence.",
-  },
-  {
-    title: "Watermarking",
-    description: "Automatically watermark high-risk drawings and exports so downstream sharing remains traceable across contractors and consultants.",
-  },
-];
-
-const privacyFeatures = [
-  {
-    title: "PII Detection",
-    description: "Locate personal data inside uploaded photos, RFIs, and reports, then mask or redact it before it reaches broader project channels.",
-  },
-  {
-    title: "Data Retention Policies",
-    description: "Automate archival schedules and defensible deletion workflows aligned to client and regulatory obligations.",
-  },
-  {
-    title: "GDPR Compliance",
-    description: "Deliver right-to-be-forgotten, consent management, and data portability tooling for European partners and residents.",
-  },
-];
-
 export default function Settings() {
   const [backendStatus, setBackendStatus] = useState({
     state: "checking",
@@ -140,10 +102,7 @@ export default function Settings() {
         throw new Error(`Received status ${response.status}`);
       }
 
-      const payload = await response
-        .json()
-        .catch(() => ({ status: "ok" }));
-
+      const payload = await response.json().catch(() => ({ status: "ok" }));
       const detailMessage = payload.status || payload.message || "Backend responded successfully.";
 
       setBackendStatus({
@@ -167,10 +126,11 @@ export default function Settings() {
   const statusMeta = STATUS_STYLES[backendStatus.state] ?? STATUS_STYLES.checking;
 
   return (
-    <section className="mx-auto w-full max-w-4xl px-6 py-10 space-y-6">
+    <section className="space-y-6">
       <header>
-        <h2 className="text-2xl font-semibold text-gray-900">Settings</h2>
-        <p className="mt-2 text-gray-600">Manage your profile, security posture, and data governance policies.</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#a67c52]">Settings</p>
+        <h2 className="text-2xl font-semibold text-gray-900">Workspace preferences</h2>
+        <p className="mt-2 text-sm text-gray-600">Manage your profile, security posture, and data governance policies.</p>
       </header>
 
       <div className="rounded-xl border border-gray-200 bg-white/90 p-6 shadow-sm">
@@ -270,7 +230,6 @@ export default function Settings() {
           ))}
         </div>
       </section>
-      codex/enhance-rbac-with-granular-permissions
 
       <section className="space-y-4">
         <header>
@@ -288,6 +247,7 @@ export default function Settings() {
             </article>
           ))}
         </div>
-      </section>  main
+      </section>
     </section>
-  )
+  );
+}

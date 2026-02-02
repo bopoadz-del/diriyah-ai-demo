@@ -23,13 +23,14 @@ def _serialize_metadata(metadata: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @router.get("/list")
-def list_drive_public_files(folder_id: str = Query(...)) -> Dict[str, List[Dict[str, Any]]]:
+def list_drive_public_files(folder_id: str = Query(...)) -> Dict[str, Any]:
     """List files in a public Drive folder."""
 
     if drive_stubbed():
         return {"files": [], "status": "stubbed"}
 
     if not GoogleDrivePublicConnector.is_valid_folder_id(folder_id):
+        logger.info("Rejected invalid Drive folder id", extra={"folder_id": folder_id})
         raise HTTPException(status_code=400, detail="Invalid folder id")
 
     connector = GoogleDrivePublicConnector({"folder_id": folder_id})

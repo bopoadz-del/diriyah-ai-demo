@@ -1,7 +1,5 @@
 import React, { useState } from "react";
-import { apiFetch } from "../lib/api";
-
-const WORKSPACE_ID = "demo";
+import { apiFetch, getWorkspaceId } from "../lib/api";
 
 export default function Files() {
   const [folderId, setFolderId] = useState("");
@@ -10,6 +8,7 @@ export default function Files() {
   const [hydrationStatus, setHydrationStatus] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const workspaceId = getWorkspaceId();
 
   const handleList = async (event) => {
     event.preventDefault();
@@ -44,7 +43,7 @@ export default function Files() {
     try {
       const response = await apiFetch("/api/hydration/run-now", {
         method: "POST",
-        body: JSON.stringify({ workspace_id: WORKSPACE_ID, dry_run: false }),
+        body: JSON.stringify({ workspace_id: workspaceId, dry_run: false }),
       });
       if (!response.ok) {
         throw new Error(`Failed to start hydration (${response.status})`);
@@ -62,7 +61,8 @@ export default function Files() {
         <p className="text-xs font-semibold uppercase tracking-wide text-[#a67c52]">Files</p>
         <h2 className="text-2xl font-semibold text-gray-900">Drive Public ingest</h2>
         <p className="text-sm text-gray-600">
-          List files in a public Drive folder and trigger a hydration run for workspace {WORKSPACE_ID}.
+          List files in a public Drive folder and trigger a hydration run for the active workspace{" "}
+          <span className="font-semibold text-gray-900">{workspaceId}</span>.
         </p>
       </header>
 

@@ -43,7 +43,7 @@ def list_drive_public_files(folder_id: str = Query(...)) -> Dict[str, Any]:
         raise HTTPException(status_code=400, detail="Invalid folder id") from exc
     except Exception as exc:  # pragma: no cover - defensive API guard
         logger.exception("Drive public listing failed")
-        raise HTTPException(status_code=500, detail="Internal server error") from exc
+        raise HTTPException(status_code=500, detail="Failed to list public Drive files") from exc
 
     return {"files": files, "status": "ok"}
 

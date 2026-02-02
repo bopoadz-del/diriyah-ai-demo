@@ -1,1 +1,1 @@
-# Placeholder for frontend/src/components/Analytics.jsx
+export { default } from "../pages/Analytics.jsx";

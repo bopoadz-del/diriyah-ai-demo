@@ -1,1 +1,1 @@
-# Placeholder for frontend/src/components/SplitLayout.jsx
+export { default } from "../layout/SplitLayout.jsx";

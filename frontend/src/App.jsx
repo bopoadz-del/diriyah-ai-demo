@@ -1,11 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BrowserRouter, Route, Routes, useParams } from "react-router-dom";
-import Sidebar from "./components/Sidebar";
+import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
+import Sidebar from "./components/Sidebar.jsx";
 import ChatUI from "./components/ChatUI";
 import HydrationDashboard from "./components/hydration/HydrationDashboard";
 import { PDPProvider } from "./contexts/PDPContext";
 import { apiFetch } from "./lib/api";
+import SplitLayout from "./layout/SplitLayout";
+import Analytics from "./pages/Analytics";
+import ChatWindow from "./pages/ChatWindow";
+import ProjectDashboard from "./pages/ProjectDashboard";
+import Settings from "./pages/Settings";
 import "./App.css";
 
 function HydrationRoute() {
@@ -244,8 +249,15 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<MainShell />} />
         <Route path="/hydration/:workspaceId" element={<HydrationRoute />} />
+        <Route path="/app" element={<MainShell />} />
+        <Route element={<SplitLayout />}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<ProjectDashboard />} />
+          <Route path="/chat" element={<ChatWindow />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/settings" element={<Settings />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   );

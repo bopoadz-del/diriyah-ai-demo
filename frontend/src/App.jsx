@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
-import Sidebar from "./components/Sidebar.jsx";
+import Sidebar from "./components/Sidebar";
 import ChatUI from "./components/ChatUI";
 import HydrationDashboard from "./components/hydration/HydrationDashboard";
 import { PDPProvider } from "./contexts/PDPContext";

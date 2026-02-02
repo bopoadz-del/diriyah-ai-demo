@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, HTTPException, Query
@@ -10,6 +11,7 @@ from backend.hydration.connectors.google_drive_public import GoogleDrivePublicCo
 from backend.services.google_drive import drive_stubbed
 
 router = APIRouter(prefix="/drive/public")
+logger = logging.getLogger(__name__)
 
 
 def _serialize_metadata(metadata: Dict[str, Any]) -> Dict[str, Any]:
@@ -27,13 +29,20 @@ def list_drive_public_files(folder_id: str = Query(...)) -> Dict[str, List[Dict[
     if drive_stubbed():
         return {"files": [], "status": "stubbed"}
 
+    if not GoogleDrivePublicConnector.is_valid_folder_id(folder_id):
+        raise HTTPException(status_code=400, detail="Invalid folder id")
+
     connector = GoogleDrivePublicConnector({"folder_id": folder_id})
     try:
         connector.validate_config()
         items, _ = connector.list_changes({})
         files = [_serialize_metadata(connector.get_metadata(item)) for item in items]
+    except ValueError as exc:
+        logger.info("Rejected invalid Drive folder id", extra={"folder_id": folder_id})
+        raise HTTPException(status_code=400, detail="Invalid folder id") from exc
     except Exception as exc:  # pragma: no cover - defensive API guard
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        logger.exception("Drive public listing failed")
+        raise HTTPException(status_code=500, detail="Internal server error") from exc
 
     return {"files": files, "status": "ok"}
 

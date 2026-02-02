@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import logging
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -16,10 +17,18 @@ logger = logging.getLogger(__name__)
 class GoogleDrivePublicConnector(BaseConnector):
     """Connector for publicly shared Google Drive folders."""
 
+    _FOLDER_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{10,200}$")
+
+    @classmethod
+    def is_valid_folder_id(cls, folder_id: Optional[str]) -> bool:
+        if not folder_id:
+            return False
+        return bool(cls._FOLDER_ID_PATTERN.fullmatch(folder_id))
+
     def validate_config(self) -> None:
         folder_id = self.config.get("folder_id") or self.config.get("root_folder_id")
-        if not folder_id:
-            raise ValueError("Google Drive public connector requires folder_id")
+        if not self.is_valid_folder_id(folder_id):
+            raise ValueError("Invalid Google Drive folder id")
 
     def list_changes(self, cursor_json: Optional[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         if drive_stubbed():

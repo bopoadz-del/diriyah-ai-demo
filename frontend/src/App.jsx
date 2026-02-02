@@ -8,6 +8,7 @@ import { PDPProvider } from "./contexts/PDPContext";
 import { apiFetch } from "./lib/api";
 import Analytics from "./pages/Analytics";
 import ChatWindow from "./pages/ChatWindow";
+import Files from "./pages/Files";
 import ProjectDashboard from "./pages/ProjectDashboard";
 import Settings from "./pages/Settings";
 import SplitLayout from "./layout/SplitLayout";
@@ -290,6 +291,14 @@ export default function App() {
           element={(
             <SplitLayout>
               <Settings />
+            </SplitLayout>
+          )}
+        />
+        <Route
+          path="/files"
+          element={(
+            <SplitLayout>
+              <Files />
             </SplitLayout>
           )}
         />

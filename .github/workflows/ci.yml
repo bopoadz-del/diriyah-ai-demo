@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-test
     steps:
-      - n8ame: Check out repository
+      - name: Check out repository
         uses: actions/checkout@v4
       - name: Set up Helm
         uses: azure/setup-helm@v4

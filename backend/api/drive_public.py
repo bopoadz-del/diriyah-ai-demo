@@ -34,6 +34,7 @@ def list_drive_public_files(
         return {"files": [], "status": "stubbed"}
 
     if not GoogleDrivePublicConnector.is_valid_folder_id(folder_id):
+        logger.info("Rejected invalid Drive folder id", extra={"folder_id": folder_id})
         raise HTTPException(status_code=400, detail="Invalid folder id")
 
     connector = GoogleDrivePublicConnector(

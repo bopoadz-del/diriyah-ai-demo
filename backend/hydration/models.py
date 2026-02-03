@@ -24,6 +24,7 @@ from backend.backend.db import Base
 
 class SourceType(str, Enum):
     GOOGLE_DRIVE = "google_drive"
+    GOOGLE_DRIVE_PUBLIC = "google_drive_public"
     SERVER_FS = "server_fs"
 
 

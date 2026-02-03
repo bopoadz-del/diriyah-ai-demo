@@ -29,10 +29,10 @@ const EnhancedChat = ({ projectId }) => {
     setInput('');
     setLoading(true);
     try {
-      const response = await apiFetch('/api/intelligence/enhanced-chat', {
+      const response = await apiFetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: userMessage.content, context: { projectId } }),
+        body: JSON.stringify({ message: userMessage.content }),
       });
       if (!response.ok) {
         throw new Error('Chat request failed');
@@ -43,6 +43,7 @@ const EnhancedChat = ({ projectId }) => {
         type: 'ai',
         content: data.response,
         timestamp: new Date().toISOString(),
+        citations: data.context_docs || [],
         confidence: data.confidence,
         uncertaintyBounds: data.uncertainty_bounds,
         confidenceExplanation: data.confidence_explanation,
@@ -134,6 +135,16 @@ const EnhancedChat = ({ projectId }) => {
             <AlertCircle size={16} />
             <span>{message.actionableInsight}</span>
           </div>
+        )}
+        {message.citations && message.citations.length > 0 && (
+          <ul className="citations">
+            {message.citations.map((citation, idx) => (
+              <li key={`${message.id}-citation-${idx}`}>
+                <span className="citation-index">[{idx + 1}]</span>
+                <span>{citation}</span>
+              </li>
+            ))}
+          </ul>
         )}
         <time>{new Date(message.timestamp).toLocaleTimeString()}</time>
       </div>

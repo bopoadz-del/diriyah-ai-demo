@@ -7,9 +7,7 @@ import HydrationDashboard from "./components/hydration/HydrationDashboard";
 import { PDPProvider } from "./contexts/PDPContext";
 import { apiFetch } from "./lib/api";
 import Analytics from "./pages/Analytics";
-import ChatWindow from "./pages/ChatWindow";
 import Files from "./pages/Files";
-import ProjectDashboard from "./pages/ProjectDashboard";
 import Settings from "./pages/Settings";
 import SplitLayout from "./layout/SplitLayout";
 import "./App.css";
@@ -263,22 +261,8 @@ export default function App() {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/app" element={<MainShell />} />
         <Route path="/hydration/:workspaceId" element={<HydrationRoute />} />
-        <Route
-          path="/dashboard"
-          element={(
-            <SplitLayout>
-              <ProjectDashboard />
-            </SplitLayout>
-          )}
-        />
-        <Route
-          path="/chat"
-          element={(
-            <SplitLayout>
-              <ChatWindow />
-            </SplitLayout>
-          )}
-        />
+        <Route path="/dashboard" element={<MainShell />} />
+        <Route path="/chat" element={<MainShell />} />
         <Route
           path="/analytics"
           element={(

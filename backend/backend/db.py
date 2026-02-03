@@ -111,6 +111,31 @@ def _apply_postgres_schema_hotfixes(connection) -> None:
         if "does not exist" not in str(exc).lower():
             logger.debug("init_db: pdp_audit_logs hotfix skipped: %s", exc)
 
+    # Add google_drive_public to hydration SourceType enum (Render/Postgres hotfix)
+    try:
+        connection.execute(
+            text(
+                """
+                DO $$
+                BEGIN
+                  IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'sourcetype') THEN
+                    IF NOT EXISTS (
+                      SELECT 1
+                      FROM pg_type t
+                      JOIN pg_enum e ON t.oid = e.enumtypid
+                      WHERE t.typname = 'sourcetype' AND e.enumlabel = 'google_drive_public'
+                    ) THEN
+                      ALTER TYPE sourcetype ADD VALUE 'google_drive_public';
+                    END IF;
+                  END IF;
+                END $$;
+                """
+            )
+        )
+        logger.info("init_db: Applied hotfix - sourcetype includes google_drive_public")
+    except Exception as exc:
+        logger.debug("init_db: sourcetype hotfix skipped: %s", exc)
+
 
 def init_db() -> None:
     """Ensure all tables exist for the current metadata."""

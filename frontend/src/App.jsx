@@ -261,23 +261,9 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<MainShell />} />
+        <Route path="/chat" element={<MainShell />} />
+        <Route path="/dashboard" element={<MainShell />} />
         <Route path="/hydration/:workspaceId" element={<HydrationRoute />} />
-        <Route
-          path="/dashboard"
-          element={(
-            <SplitLayout>
-              <ProjectDashboard />
-            </SplitLayout>
-          )}
-        />
-        <Route
-          path="/chat"
-          element={(
-            <SplitLayout>
-              <ChatWindow />
-            </SplitLayout>
-          )}
-        />
         <Route
           path="/analytics"
           element={(

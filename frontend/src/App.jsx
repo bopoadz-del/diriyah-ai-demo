@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BrowserRouter, Route, Routes, useParams } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
 import ChatSidebar from "./components/ChatSidebar";
 import ChatUI from "./components/ChatUI";
 import HydrationDashboard from "./components/hydration/HydrationDashboard";
@@ -260,7 +260,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<MainShell />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/app" element={<MainShell />} />
         <Route path="/hydration/:workspaceId" element={<HydrationRoute />} />
         <Route
           path="/dashboard"

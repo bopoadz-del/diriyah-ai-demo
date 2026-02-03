@@ -2,22 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch, getWorkspaceId } from "../lib/api";
 
-const FOLDER_STORAGE_KEY = "gdrive_public_folder_id";
-
-const extractFolderId = (input) => {
-  const trimmed = input.trim();
-  if (!trimmed) return "";
-  const foldersIndex = trimmed.indexOf("/folders/");
-  if (foldersIndex !== -1) {
-    const after = trimmed.slice(foldersIndex + "/folders/".length);
-    return after.split(/[/?#]/)[0];
-  }
-  const idMatch = trimmed.match(/[?&]id=([^&#]+)/);
-  if (idMatch) {
-    return idMatch[1];
-  }
-  return trimmed;
-};
+const FOLDER_STORAGE_KEY = "diriyah.publicDriveFolderId";
 
 const readStoredFolderId = () => {
   try {
@@ -37,7 +22,6 @@ export default function Files() {
   const [loading, setLoading] = useState(false);
   const [ingesting, setIngesting] = useState(false);
   const [error, setError] = useState(null);
-  const [connectMessage, setConnectMessage] = useState(null);
   const workspaceId = useMemo(() => getWorkspaceId(), []);
 
   useEffect(() => {

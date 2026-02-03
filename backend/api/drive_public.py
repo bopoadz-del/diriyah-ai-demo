@@ -1,25 +1,84 @@
-"""Public Google Drive list endpoints for demo ingestion."""
+"""Public Google Drive list + ingest endpoints."""
 
 from __future__ import annotations
 
 import logging
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
+from backend.backend.db import get_db
 from backend.hydration.connectors.google_drive_public import GoogleDrivePublicConnector
-from backend.services.google_drive import drive_stubbed
+from backend.hydration.models import SourceType, WorkspaceSource
+from backend.redisx.queue import RedisQueue
 
 router = APIRouter(prefix="/drive/public")
 logger = logging.getLogger(__name__)
 
+router = APIRouter(prefix="/drive/public", tags=["Drive Public"])
 
-def _serialize_metadata(metadata: Dict[str, Any]) -> Dict[str, Any]:
-    payload = dict(metadata)
-    modified = payload.get("modified_time")
-    if modified is not None:
-        payload["modified_time"] = modified.isoformat()
-    return payload
+
+class DrivePublicIngestRequest(BaseModel):
+    workspace_id: str
+    folder_id: str
+    dry_run: bool = False
+    force_full_scan: bool = False
+    max_files: Optional[int] = None
+
+
+def _serialize_file_data(file_data: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "id": file_data.get("id"),
+        "name": file_data.get("name"),
+        "mimeType": file_data.get("mimeType"),
+        "modifiedTime": file_data.get("modifiedTime"),
+        "size": file_data.get("size"),
+    }
+
+
+def _upsert_public_source(db: Session, workspace_id: str, folder_id: str) -> WorkspaceSource:
+    existing_sources = (
+        db.query(WorkspaceSource)
+        .filter(
+            WorkspaceSource.workspace_id == workspace_id,
+            WorkspaceSource.source_type == SourceType.GOOGLE_DRIVE_PUBLIC,
+        )
+        .all()
+    )
+
+    target_source = None
+    for source in existing_sources:
+        try:
+            config = json.loads(source.config_json or "{}")
+        except json.JSONDecodeError:
+            config = {}
+        if config.get("folder_id") == folder_id:
+            target_source = source
+            break
+
+    name = f"GDrive Public {folder_id}"
+    config_json = json.dumps({"folder_id": folder_id})
+    if target_source:
+        target_source.name = name
+        target_source.config_json = config_json
+        target_source.is_enabled = True
+        db.commit()
+        db.refresh(target_source)
+        return target_source
+
+    source = WorkspaceSource(
+        workspace_id=workspace_id,
+        source_type=SourceType.GOOGLE_DRIVE_PUBLIC,
+        name=name,
+        config_json=config_json,
+        is_enabled=True,
+    )
+    db.add(source)
+    db.commit()
+    db.refresh(source)
+    return source
 
 
 @router.get("/list")
@@ -69,7 +128,38 @@ def list_drive_public_files(
         logger.exception("Drive public listing failed")
         raise HTTPException(status_code=500, detail="Failed to list public Drive files") from exc
 
-    return {"files": files, "status": "ok"}
+    return {"files": files, "next_page_token": cursor.get("page_token")}
+
+
+@router.post("/ingest", status_code=status.HTTP_202_ACCEPTED)
+def ingest_drive_public_files(
+    payload: DrivePublicIngestRequest,
+    db: Session = Depends(get_db),
+    x_correlation_id: Optional[str] = Header(default=None, alias="X-Correlation-Id"),
+) -> Dict[str, Any]:
+    """Upsert a public Drive source and enqueue a hydration run."""
+
+    try:
+        source = _upsert_public_source(db, payload.workspace_id, payload.folder_id)
+
+        queue = RedisQueue()
+        correlation_id = x_correlation_id or os.getenv("CORRELATION_ID") or str(uuid.uuid4())
+        job_payload = {
+            "workspace_id": payload.workspace_id,
+            "source_ids": [source.id],
+            "force_full_scan": payload.force_full_scan,
+            "max_files": payload.max_files,
+            "dry_run": payload.dry_run,
+        }
+        headers = {"correlation_id": correlation_id, "workspace_id": payload.workspace_id}
+        job_id = queue.enqueue("hydration", job_payload, headers, db=db)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Failed to enqueue public Drive hydration: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return {"job_id": job_id, "source_id": source.id, "status": "queued"}
 
 
 __all__ = ["router"]

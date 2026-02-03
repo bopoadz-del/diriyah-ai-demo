@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
-import io
 import logging
 import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+import requests
+
 from backend.hydration.connectors.base import BaseConnector
-from backend.services.google_drive import drive_stubbed, get_drive_service
 
 logger = logging.getLogger(__name__)
+
+_DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files"
 
 
 class GoogleDrivePublicConnector(BaseConnector):
@@ -31,10 +33,6 @@ class GoogleDrivePublicConnector(BaseConnector):
             raise ValueError("Invalid Google Drive folder id")
 
     def list_changes(self, cursor_json: Optional[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
-        if drive_stubbed():
-            logger.info("Google Drive stubbed; returning empty changes")
-            return [], cursor_json or {}
-
         folder_id = self.config.get("folder_id") or self.config.get("root_folder_id")
         service = get_drive_service()
         items: List[Dict[str, Any]] = []
@@ -84,45 +82,57 @@ class GoogleDrivePublicConnector(BaseConnector):
 
         modified = file_data.get("modifiedTime")
         modified_dt = datetime.fromisoformat(modified.replace("Z", "+00:00")) if modified else None
+        checksum = file_data.get("md5Checksum") or modified
         return {
             "source_document_id": item.get("id") or file_data.get("id"),
             "name": name,
             "mime_type": mime_type,
             "modified_time": modified_dt,
             "size_bytes": int(file_data.get("size")) if file_data.get("size") else None,
-            "checksum": file_data.get("md5Checksum"),
+            "checksum": checksum,
             "path": f"drive-public://{item.get('id') or file_data.get('id')}",
             "removed": item.get("removed", False),
         }
 
     def download(self, item: Dict[str, Any]) -> bytes:
-        if drive_stubbed():
-            return b""
-        service = get_drive_service()
         file_data = item.get("file", {})
         file_id = item.get("id") or file_data.get("id")
         mime_type = file_data.get("mimeType")
+        api_key = self._api_key()
+        timeout = self._timeout_seconds()
+
+        if not file_id:
+            raise ValueError("Missing file id for Google Drive public download")
 
         if mime_type and mime_type.startswith("application/vnd.google-apps"):
-            request = service.files().export(fileId=file_id, mimeType="application/pdf")
+            url = f"{_DRIVE_FILES_URL}/{file_id}/export"
+            params = {"key": api_key, "mimeType": "application/pdf"}
         else:
-            request = service.files().get_media(fileId=file_id)
+            url = f"{_DRIVE_FILES_URL}/{file_id}"
+            params = {"key": api_key, "alt": "media"}
 
-        buffer = io.BytesIO()
-        downloader = getattr(request, "execute", None)
-        if callable(downloader):
-            data = request.execute()
-            if isinstance(data, bytes):
-                return data
-            return bytes(data)
+        response = requests.get(url, params=params, timeout=timeout)
+        response.raise_for_status()
+        return response.content
 
-        from googleapiclient.http import MediaIoBaseDownload  # type: ignore
+    def _api_key(self) -> str:
+        return os.getenv("GDRIVE_PUBLIC_API_KEY", "")
 
-        downloader = MediaIoBaseDownload(buffer, request)
-        done = False
-        while not done:
-            _, done = downloader.next_chunk()
-        return buffer.getvalue()
+    def _timeout_seconds(self) -> float:
+        raw_timeout = os.getenv("GDRIVE_PUBLIC_TIMEOUT_SECONDS", "60")
+        try:
+            timeout_value = float(raw_timeout)
+        except (TypeError, ValueError):
+            timeout_value = 60.0
+        return max(1.0, timeout_value)
+
+    def _page_size(self) -> int:
+        page_size = self.config.get("page_size", 1000)
+        try:
+            page_size_value = int(page_size)
+        except (TypeError, ValueError):
+            page_size_value = 1000
+        return max(1, min(page_size_value, 1000))
 
 
 __all__ = ["GoogleDrivePublicConnector"]

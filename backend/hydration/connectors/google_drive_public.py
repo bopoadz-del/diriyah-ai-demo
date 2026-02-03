@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-import os
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -19,57 +19,55 @@ _DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files"
 class GoogleDrivePublicConnector(BaseConnector):
     """Connector for publicly shared Google Drive folders."""
 
+    _FOLDER_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{10,200}$")
+
+    @classmethod
+    def is_valid_folder_id(cls, folder_id: Optional[str]) -> bool:
+        if not folder_id:
+            return False
+        return bool(cls._FOLDER_ID_PATTERN.fullmatch(folder_id))
+
     def validate_config(self) -> None:
         folder_id = self.config.get("folder_id") or self.config.get("root_folder_id")
-        if not folder_id:
-            raise ValueError("Google Drive public connector requires folder_id")
-        if not self._api_key():
-            raise ValueError("GDRIVE_PUBLIC_API_KEY is required for Google Drive public access")
+        if not self.is_valid_folder_id(folder_id):
+            raise ValueError("Invalid Google Drive folder id")
 
     def list_changes(self, cursor_json: Optional[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         folder_id = self.config.get("folder_id") or self.config.get("root_folder_id")
-        api_key = self._api_key()
-        timeout = self._timeout_seconds()
-
-        page_token = (cursor_json or {}).get("page_token")
-        page_size = self._page_size()
-        logger.debug(
-            "Listing public Drive files folder_id=%s page_size=%s page_token=%s",
-            folder_id,
-            page_size,
-            page_token,
-        )
-
+        service = get_drive_service()
         items: List[Dict[str, Any]] = []
+        page_token = (cursor_json or {}).get("page_token")
+        page_size = self.config.get("page_size", 200)
+        try:
+            page_size = int(page_size)
+        except (TypeError, ValueError):
+            page_size = 200
+        page_size = max(1, min(page_size, 1000))
+        logger.debug("Listing Google Drive files with page_size=%s page_token=%s", page_size, page_token)
+
         next_token = page_token
         while True:
-            params = {
-                "key": api_key,
-                "q": f"'{folder_id}' in parents and trashed=false",
-                "fields": "nextPageToken,files(id,name,mimeType,modifiedTime,size,md5Checksum)",
-                "pageSize": page_size,
-                "includeItemsFromAllDrives": "true",
-                "supportsAllDrives": "true",
-                "orderBy": "modifiedTime desc",
-            }
-            if next_token:
-                params["pageToken"] = next_token
-
-            response = requests.get(_DRIVE_FILES_URL, params=params, timeout=timeout)
-            response.raise_for_status()
-            payload = response.json()
-            files = payload.get("files", [])
+            response = (
+                service.files()
+                .list(
+                    q=f"'{folder_id}' in parents and trashed=false",
+                    fields="nextPageToken,files(id,name,mimeType,modifiedTime,size,md5Checksum,trashed,parents)",
+                    pageSize=page_size,
+                    pageToken=next_token,
+                )
+                .execute()
+            )
+            files = response.get("files", [])
             for file_data in files:
                 items.append({
                     "id": file_data.get("id"),
-                    "removed": False,
+                    "removed": file_data.get("trashed", False),
                     "file": file_data,
                 })
-
-            next_token = payload.get("nextPageToken")
+            next_token = response.get("nextPageToken")
             if not next_token:
                 break
-            logger.debug("Continuing public Drive pagination next_token=%s", next_token)
+            logger.debug("Google Drive pagination continuing with next_token=%s", next_token)
 
         return items, {"page_token": next_token} if next_token else {}
 

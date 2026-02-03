@@ -1,16 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState } from "react";
 import { apiFetch, getWorkspaceId } from "../lib/api";
-
-const FOLDER_STORAGE_KEY = "gdrive_public_folder_id";
-
-const readStoredFolderId = () => {
-  try {
-    return localStorage.getItem(FOLDER_STORAGE_KEY) || "";
-  } catch {
-    return "";
-  }
-};
 
 export default function Files() {
   const [folderId, setFolderId] = useState(readStoredFolderId);
@@ -21,6 +10,17 @@ export default function Files() {
   const [loading, setLoading] = useState(false);
   const [ingesting, setIngesting] = useState(false);
   const [error, setError] = useState(null);
+  const workspaceId = getWorkspaceId();
+
+  const workspaceId = useMemo(() => getWorkspaceId(), []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(FOLDER_STORAGE_KEY, folderId);
+    } catch {
+      // Ignore storage failures (private mode, etc.)
+    }
+  }, [folderId]);
 
   const workspaceId = useMemo(() => getWorkspaceId(), []);
 
@@ -77,11 +77,7 @@ export default function Files() {
     try {
       const response = await apiFetch("/api/drive/public/ingest", {
         method: "POST",
-        body: JSON.stringify({
-          workspace_id: workspaceId,
-          folder_id: trimmedFolderId,
-          dry_run: false,
-        }),
+        body: JSON.stringify({ workspace_id: workspaceId, dry_run: false }),
       });
       if (!response.ok) {
         throw new Error(`Failed to start ingestion (${response.status})`);
@@ -101,7 +97,8 @@ export default function Files() {
         <p className="text-xs font-semibold uppercase tracking-wide text-[#a67c52]">Files</p>
         <h2 className="text-2xl font-semibold text-gray-900">Public Google Drive</h2>
         <p className="text-sm text-gray-600">
-          List files in a public Drive folder and trigger a hydration run for workspace {workspaceId}.
+          List files in a public Drive folder and trigger a hydration run for the active workspace{" "}
+          <span className="font-semibold text-gray-900">{workspaceId}</span>.
         </p>
       </header>
 

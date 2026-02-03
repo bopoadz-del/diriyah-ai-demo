@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import json
 import logging
-import os
-import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel
@@ -17,6 +14,7 @@ from backend.hydration.connectors.google_drive_public import GoogleDrivePublicCo
 from backend.hydration.models import SourceType, WorkspaceSource
 from backend.redisx.queue import RedisQueue
 
+router = APIRouter(prefix="/drive/public")
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/drive/public", tags=["Drive Public"])
@@ -86,17 +84,49 @@ def _upsert_public_source(db: Session, workspace_id: str, folder_id: str) -> Wor
 @router.get("/list")
 def list_drive_public_files(
     folder_id: str = Query(...),
-    page_token: Optional[str] = Query(default=None),
-) -> Dict[str, Any]:
+    page_size: int = Query(200, ge=1, le=1000),
+    max_pages: int = Query(10, ge=1, le=100),
+) -> Dict[str, List[Dict[str, Any]]]:
     """List files in a public Drive folder."""
 
-    connector = GoogleDrivePublicConnector({"folder_id": folder_id})
+    if drive_stubbed():
+        return {"files": [], "status": "stubbed"}
+
+    if not GoogleDrivePublicConnector.is_valid_folder_id(folder_id):
+        logger.info("Rejected invalid Drive folder id", extra={"folder_id": folder_id})
+        raise HTTPException(status_code=400, detail="Invalid folder id")
+
+    connector = GoogleDrivePublicConnector(
+        {
+            "folder_id": folder_id,
+            "page_size": page_size,
+        }
+    )
     try:
         connector.validate_config()
-        items, cursor = connector.list_changes({"page_token": page_token} if page_token else {})
-        files = [_serialize_file_data(item.get("file", {})) for item in items]
+        items: List[Dict[str, Any]] = []
+        cursor: Dict[str, Any] = {}
+        page_count = 0
+        while True:
+            page_items, cursor = connector.list_changes(cursor)
+            items.extend(page_items)
+            page_count += 1
+            page_token = cursor.get("page_token")
+            if not page_token:
+                break
+            if page_count >= max_pages:
+                logger.warning(
+                    "Drive public listing stopped after max pages",
+                    extra={"folder_id": folder_id, "page_count": page_count},
+                )
+                break
+        files = [_serialize_metadata(connector.get_metadata(item)) for item in items]
+    except ValueError as exc:
+        logger.info("Rejected invalid Drive folder id", extra={"folder_id": folder_id})
+        raise HTTPException(status_code=400, detail="Invalid folder id") from exc
     except Exception as exc:  # pragma: no cover - defensive API guard
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        logger.exception("Drive public listing failed")
+        raise HTTPException(status_code=500, detail="Failed to list public Drive files") from exc
 
     return {"files": files, "next_page_token": cursor.get("page_token")}
 

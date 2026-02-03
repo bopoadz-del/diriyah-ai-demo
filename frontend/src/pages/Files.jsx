@@ -2,34 +2,50 @@ import React, { useMemo, useState } from "react";
 import { apiFetch, getWorkspaceId } from "../lib/api";
 
 export default function Files() {
-  const [folderId, setFolderId] = useState("");
+  const [folderId, setFolderId] = useState(readStoredFolderId);
   const [files, setFiles] = useState([]);
+  const [nextPageToken, setNextPageToken] = useState(null);
   const [status, setStatus] = useState(null);
   const [hydrationStatus, setHydrationStatus] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [ingesting, setIngesting] = useState(false);
   const [error, setError] = useState(null);
   const workspaceId = useMemo(() => getWorkspaceId(), []);
+
+  const workspaceId = useMemo(() => getWorkspaceId(), []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(FOLDER_STORAGE_KEY, folderId);
+    } catch {
+      // Ignore storage failures (private mode, etc.)
+    }
+  }, [folderId]);
 
   const handleList = async (event) => {
     event.preventDefault();
     setError(null);
     setStatus(null);
+    setHydrationStatus(null);
     setFiles([]);
+    setNextPageToken(null);
 
-    if (!folderId.trim()) {
+    const trimmedFolderId = folderId.trim();
+    if (!trimmedFolderId) {
       setError("Enter a folder ID to list files.");
       return;
     }
 
     setLoading(true);
     try {
-      const response = await apiFetch(`/api/drive/public/list?folder_id=${encodeURIComponent(folderId.trim())}`);
+      const response = await apiFetch(`/api/drive/public/list?folder_id=${encodeURIComponent(trimmedFolderId)}`);
       if (!response.ok) {
         throw new Error(`Failed to list files (${response.status})`);
       }
       const data = await response.json();
       setFiles(data.files ?? []);
-      setStatus(data.status ?? "ok");
+      setNextPageToken(data.next_page_token ?? null);
+      setStatus("ok");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -37,21 +53,31 @@ export default function Files() {
     }
   };
 
-  const handleHydration = async () => {
-    setHydrationStatus(null);
+  const handleIngest = async () => {
     setError(null);
+    setHydrationStatus(null);
+
+    const trimmedFolderId = folderId.trim();
+    if (!trimmedFolderId) {
+      setError("Enter a folder ID to ingest.");
+      return;
+    }
+
+    setIngesting(true);
     try {
-      const response = await apiFetch("/api/hydration/run-now", {
+      const response = await apiFetch("/api/drive/public/ingest", {
         method: "POST",
         body: JSON.stringify({ workspace_id: workspaceId, dry_run: false }),
       });
       if (!response.ok) {
-        throw new Error(`Failed to start hydration (${response.status})`);
+        throw new Error(`Failed to start ingestion (${response.status})`);
       }
       const data = await response.json();
-      setHydrationStatus(`Hydration queued (job ${data.job_id ?? "unknown"})`);
+      setHydrationStatus(`Hydration queued (job ${data.job_id ?? "unknown"}).`);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setIngesting(false);
     }
   };
 
@@ -59,7 +85,7 @@ export default function Files() {
     <section className="space-y-6">
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-[#a67c52]">Files</p>
-        <h2 className="text-2xl font-semibold text-gray-900">Drive Public ingest</h2>
+        <h2 className="text-2xl font-semibold text-gray-900">Public Google Drive</h2>
         <p className="text-sm text-gray-600">
           List files in a public Drive folder and trigger a hydration run for the active workspace{" "}
           <span className="font-semibold text-gray-900">{workspaceId}</span>.
@@ -89,14 +115,22 @@ export default function Files() {
           </button>
           <button
             type="button"
-            onClick={handleHydration}
-            className="rounded-md border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700"
+            onClick={handleIngest}
+            className="rounded-md border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 disabled:opacity-60"
+            disabled={ingesting}
           >
-            Run hydration now
+            {ingesting ? "Queueing..." : "Ingest now"}
           </button>
         </div>
         {status && <p className="text-xs text-gray-500">Drive status: {status}</p>}
-        {hydrationStatus && <p className="text-sm text-emerald-700">{hydrationStatus}</p>}
+        {nextPageToken && (
+          <p className="text-xs text-gray-500">More files available. Next page token: {nextPageToken}</p>
+        )}
+        {hydrationStatus && (
+          <p className="text-sm text-emerald-700">
+            {hydrationStatus} <Link to={`/hydration/${workspaceId}`}>View hydration status</Link>
+          </p>
+        )}
         {error && <p className="text-sm text-red-600">{error}</p>}
       </form>
 
@@ -105,17 +139,29 @@ export default function Files() {
         {files.length === 0 ? (
           <p className="mt-2 text-sm text-gray-500">No files loaded yet.</p>
         ) : (
-          <div className="mt-3 space-y-3">
-            {files.map((file) => (
-              <article key={file.source_document_id} className="rounded-lg border border-gray-200 bg-white p-4">
-                <p className="text-sm font-semibold text-gray-900">{file.name}</p>
-                <p className="text-xs text-gray-500">{file.mime_type || "unknown type"}</p>
-                {file.modified_time && (
-                  <p className="text-xs text-gray-500">Modified: {new Date(file.modified_time).toLocaleString()}</p>
-                )}
-                {file.size_bytes && <p className="text-xs text-gray-500">Size: {file.size_bytes} bytes</p>}
-              </article>
-            ))}
+          <div className="mt-3 overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wide text-gray-500">
+                  <th className="pb-2 pr-4">Name</th>
+                  <th className="pb-2 pr-4">MIME type</th>
+                  <th className="pb-2 pr-4">Modified</th>
+                  <th className="pb-2">Size</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {files.map((file) => (
+                  <tr key={file.id} className="text-gray-700">
+                    <td className="py-2 pr-4 font-medium text-gray-900">{file.name}</td>
+                    <td className="py-2 pr-4">{file.mimeType || "-"}</td>
+                    <td className="py-2 pr-4">
+                      {file.modifiedTime ? new Date(file.modifiedTime).toLocaleString() : "-"}
+                    </td>
+                    <td className="py-2">{file.size ? `${file.size} bytes` : "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </section>

@@ -8,6 +8,7 @@ import { PDPProvider } from "./contexts/PDPContext";
 import { apiFetch } from "./lib/api";
 import Analytics from "./pages/Analytics";
 import Files from "./pages/Files";
+import Progress from "./pages/Progress";
 import Settings from "./pages/Settings";
 import SplitLayout from "./layout/SplitLayout";
 import "./App.css";
@@ -284,6 +285,14 @@ export default function App() {
           element={(
             <SplitLayout>
               <Files />
+            </SplitLayout>
+          )}
+        />
+        <Route
+          path="/progress"
+          element={(
+            <SplitLayout>
+              <Progress />
             </SplitLayout>
           )}
         />

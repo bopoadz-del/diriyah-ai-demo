@@ -105,6 +105,9 @@ export default function Sidebar({
           <NavLink to="/analytics" className={({ isActive }) => `sidebar__nav-link ${isActive ? "is-active" : ""}`}>
             Analytics
           </NavLink>
+          <NavLink to="/progress" className={({ isActive }) => `sidebar__nav-link ${isActive ? "is-active" : ""}`}>
+            Progress
+          </NavLink>
           <NavLink to="/files" className={({ isActive }) => `sidebar__nav-link ${isActive ? "is-active" : ""}`}>
             Files
           </NavLink>

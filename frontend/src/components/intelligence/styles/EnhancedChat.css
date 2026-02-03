@@ -121,6 +121,28 @@
   font-size: 0.85rem;
 }
 
+.citations {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.citations li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: start;
+}
+
+.citation-index {
+  font-weight: 600;
+  color: #0f172a;
+}
+
 .error-message {
   justify-self: center;
   display: inline-flex;

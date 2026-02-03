@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { apiFetch, getWorkspaceId } from "../lib/api";
 
 export default function Files() {
@@ -10,7 +10,7 @@ export default function Files() {
   const [loading, setLoading] = useState(false);
   const [ingesting, setIngesting] = useState(false);
   const [error, setError] = useState(null);
-  const workspaceId = getWorkspaceId();
+  const workspaceId = useMemo(() => getWorkspaceId(), []);
 
   const workspaceId = useMemo(() => getWorkspaceId(), []);
 

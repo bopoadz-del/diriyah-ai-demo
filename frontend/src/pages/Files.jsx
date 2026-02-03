@@ -1,7 +1,34 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { apiFetch, getWorkspaceId } from "../lib/api";
 
+const FOLDER_STORAGE_KEY = "gdrive_public_folder_id";
+
+const extractFolderId = (input) => {
+  const trimmed = input.trim();
+  if (!trimmed) return "";
+  const foldersIndex = trimmed.indexOf("/folders/");
+  if (foldersIndex !== -1) {
+    const after = trimmed.slice(foldersIndex + "/folders/".length);
+    return after.split(/[/?#]/)[0];
+  }
+  const idMatch = trimmed.match(/[?&]id=([^&#]+)/);
+  if (idMatch) {
+    return idMatch[1];
+  }
+  return trimmed;
+};
+
+const readStoredFolderId = () => {
+  try {
+    return localStorage.getItem(FOLDER_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+};
+
 export default function Files() {
+  const [folderInput, setFolderInput] = useState(readStoredFolderId);
   const [folderId, setFolderId] = useState(readStoredFolderId);
   const [files, setFiles] = useState([]);
   const [nextPageToken, setNextPageToken] = useState(null);
@@ -10,8 +37,7 @@ export default function Files() {
   const [loading, setLoading] = useState(false);
   const [ingesting, setIngesting] = useState(false);
   const [error, setError] = useState(null);
-  const workspaceId = useMemo(() => getWorkspaceId(), []);
-
+  const [connectMessage, setConnectMessage] = useState(null);
   const workspaceId = useMemo(() => getWorkspaceId(), []);
 
   useEffect(() => {
@@ -32,7 +58,7 @@ export default function Files() {
 
     const trimmedFolderId = folderId.trim();
     if (!trimmedFolderId) {
-      setError("Enter a folder ID to list files.");
+      setError("Enter a folder link or ID to list files.");
       return;
     }
 
@@ -59,7 +85,7 @@ export default function Files() {
 
     const trimmedFolderId = folderId.trim();
     if (!trimmedFolderId) {
-      setError("Enter a folder ID to ingest.");
+      setError("Enter a folder link or ID to ingest.");
       return;
     }
 
@@ -95,23 +121,34 @@ export default function Files() {
       <form onSubmit={handleList} className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
         <div>
           <label htmlFor="folder-id" className="text-sm font-semibold text-gray-700">
-            Public folder ID
+            Google Drive Folder URL (or ID)
           </label>
           <input
             id="folder-id"
-            value={folderId}
-            onChange={(event) => setFolderId(event.target.value)}
-            placeholder="Enter Google Drive folder ID"
+            value={folderInput}
+            onChange={(event) => {
+              const nextInput = event.target.value;
+              const extractedId = extractFolderId(nextInput);
+              setFolderInput(nextInput);
+              setFolderId(extractedId);
+              try {
+                localStorage.setItem(FOLDER_STORAGE_KEY, extractedId);
+              } catch {
+                // Ignore storage failures (private mode, etc.)
+              }
+            }}
+            placeholder="https://drive.google.com/drive/folders/<ID>"
             className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900"
           />
+          <p className="mt-2 text-xs text-gray-500">Demo mode reads only folders shared as "Anyone with the link".</p>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             type="submit"
             className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
             disabled={loading}
           >
-            {loading ? "Listing..." : "List files"}
+            {loading ? "Listing..." : "List Files"}
           </button>
           <button
             type="button"
@@ -119,9 +156,21 @@ export default function Files() {
             className="rounded-md border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 disabled:opacity-60"
             disabled={ingesting}
           >
-            {ingesting ? "Queueing..." : "Ingest now"}
+            {ingesting ? "Queueing..." : "Ingest Now"}
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              setConnectMessage(
+                "Google Sign-In (private Drive) is coming soon. For now, paste a public folder link.",
+              )
+            }
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+          >
+            Connect Google Drive
           </button>
         </div>
+        {connectMessage && <p className="text-xs text-gray-500">{connectMessage}</p>}
         {status && <p className="text-xs text-gray-500">Drive status: {status}</p>}
         {nextPageToken && (
           <p className="text-xs text-gray-500">More files available. Next page token: {nextPageToken}</p>

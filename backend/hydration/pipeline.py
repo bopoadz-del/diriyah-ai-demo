@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from backend.hydration.alerts import AlertManager
 from backend.hydration.connectors.google_drive import GoogleDriveConnector
+from backend.hydration.connectors.google_drive_public import GoogleDrivePublicConnector
 from backend.hydration.connectors.server_fs import ServerFSConnector
 from backend.hydration.extractors.router import get_extractor
 from backend.hydration.indexing import IndexingClient
@@ -64,6 +65,7 @@ class HydrationPipeline:
         self.alerts = AlertManager(db)
         self.connectors = connectors or {
             SourceType.GOOGLE_DRIVE: GoogleDriveConnector,
+            SourceType.GOOGLE_DRIVE_PUBLIC: GoogleDrivePublicConnector,
             SourceType.SERVER_FS: ServerFSConnector,
         }
 

@@ -5,7 +5,25 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .db import init_db
-from .api import projects, chats, messages, drive, upload, speech, vision, ai, admin, settings, analytics
+from .api import (
+    projects,
+    chats,
+    messages,
+    drive,
+    upload,
+    speech,
+    vision,
+    ai,
+    admin,
+    settings,
+    analytics,
+    schedule_analysis,
+    audio_analysis,
+    archive_analysis,
+    cad_analysis,
+    pdf_analysis,
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +32,7 @@ _FALSE_VALUES = {"0", "false", "no", "n", "off"}
 
 
 def env_flag(name: str, default: bool) -> tuple[bool, str | None]:
+    """Read an environment variable as a boolean flag."""
     raw = os.getenv(name)
     if raw is None:
         return default, None
@@ -33,6 +52,7 @@ if enabled:
 else:
     logger.info("Skipping DB init on startup")
 
+# Create FastAPI application
 app = FastAPI(title="Diriyah Brain AI")
 
 # Environment detection: default to production for security
@@ -42,7 +62,6 @@ IS_PROD = ENV in ("prod", "production")
 # CORS middleware - secure configuration for production
 _cors_origins_raw = os.getenv("CORS_ALLOW_ORIGINS", "").strip()
 _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()] if _cors_origins_raw else ["*"]
-# In production with wildcard origins, disable credentials for security
 _cors_allow_credentials = not (IS_PROD and _cors_origins == ["*"])
 if IS_PROD and _cors_origins == ["*"]:
     logger.warning("CORS: wildcard origins in production - credentials disabled for security")
@@ -54,6 +73,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Register existing routers
 app.include_router(projects.router, prefix="/api")
 app.include_router(chats.router, prefix="/api")
 app.include_router(messages.router, prefix="/api")
@@ -66,6 +86,15 @@ app.include_router(admin.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
 
+# Register new enterprise analysis routers
+app.include_router(schedule_analysis.router, prefix="/api")
+app.include_router(audio_analysis.router, prefix="/api")
+app.include_router(archive_analysis.router, prefix="/api")
+app.include_router(cad_analysis.router, prefix="/api")
+app.include_router(pdf_analysis.router, prefix="/api")
+
+
 @app.get("/health")
-def health():
+def health() -> dict:
+    """Simple health check endpoint."""
     return {"status": "ok"}

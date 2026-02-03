@@ -99,8 +99,31 @@ def _init_db_if_configured() -> None:
     if enabled:
         logger.info("Initialising database on startup")
         init_db()
+        _seed_demo_admin_user()
     else:
         logger.info("Skipping DB init on startup")
+
+
+def _seed_demo_admin_user() -> None:
+    """Seed a demo admin user when no user with id=1 exists."""
+
+    try:
+        from backend.backend.db import SessionLocal
+        from backend.backend.models import User
+
+        db = SessionLocal()
+        try:
+            existing = db.query(User).filter(User.id == 1).first()
+            if existing:
+                return
+            demo_user = User(id=1, name="Demo Admin", email="demo-admin@local", role="admin")
+            db.add(demo_user)
+            db.commit()
+            logger.info("Seeded demo admin user", extra={"user_id": demo_user.id})
+        finally:
+            db.close()
+    except Exception as exc:
+        logger.warning("Failed to seed demo admin user: %s", exc)
 
 
 _init_db_if_configured()
@@ -191,6 +214,7 @@ def _iter_router_specs() -> Iterable[Tuple[str, str]]:
         ("backend.api.drive", "Drive"),
         ("backend.api.drive_diagnose", "Drive"),
         ("backend.api.drive_scan", "Drive"),
+        ("backend.api.drive_public", "Drive Public"),
         ("backend.api.openai_test", "OpenAI"),
         ("backend.api.parsing", "Parsing"),
         ("backend.api.progress_tracking", "Progress Tracking"),

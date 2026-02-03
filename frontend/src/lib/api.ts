@@ -1,6 +1,6 @@
 const API_BASE = import.meta.env.VITE_API_URL || '';
 const DEFAULT_WORKSPACE = import.meta.env.VITE_WORKSPACE_ID || 'demo';
-const DEFAULT_USER = import.meta.env.VITE_USER_ID || 'demo';
+const DEFAULT_USER = import.meta.env.VITE_USER_ID || '1';
 const DEFAULT_TENANT = 'demo';
 
 const safeGet = (k: string) => {

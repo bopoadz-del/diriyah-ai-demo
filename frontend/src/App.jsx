@@ -264,22 +264,6 @@ export default function App() {
         <Route path="/app" element={<MainShell />} />
         <Route path="/hydration/:workspaceId" element={<HydrationRoute />} />
         <Route
-          path="/dashboard"
-          element={(
-            <SplitLayout>
-              <ProjectDashboard />
-            </SplitLayout>
-          )}
-        />
-        <Route
-          path="/chat"
-          element={(
-            <SplitLayout>
-              <ChatWindow />
-            </SplitLayout>
-          )}
-        />
-        <Route
           path="/analytics"
           element={(
             <SplitLayout>

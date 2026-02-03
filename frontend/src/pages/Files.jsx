@@ -22,6 +22,16 @@ export default function Files() {
     }
   }, [folderId]);
 
+  const workspaceId = useMemo(() => getWorkspaceId(), []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(FOLDER_STORAGE_KEY, folderId);
+    } catch {
+      // Ignore storage failures (private mode, etc.)
+    }
+  }, [folderId]);
+
   const handleList = async (event) => {
     event.preventDefault();
     setError(null);

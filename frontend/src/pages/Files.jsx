@@ -1,5 +1,16 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { apiFetch, getWorkspaceId } from "../lib/api";
+
+const FOLDER_STORAGE_KEY = "diriyah.publicDriveFolderId";
+
+const readStoredFolderId = () => {
+  try {
+    return localStorage.getItem(FOLDER_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+};
 
 export default function Files() {
   const [folderId, setFolderId] = useState(readStoredFolderId);
@@ -10,8 +21,6 @@ export default function Files() {
   const [loading, setLoading] = useState(false);
   const [ingesting, setIngesting] = useState(false);
   const [error, setError] = useState(null);
-  const workspaceId = useMemo(() => getWorkspaceId(), []);
-
   const workspaceId = useMemo(() => getWorkspaceId(), []);
 
   useEffect(() => {

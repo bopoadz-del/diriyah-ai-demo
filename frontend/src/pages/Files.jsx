@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { apiFetch, getWorkspaceId } from "../lib/api";
 
 export default function Files() {
@@ -8,7 +8,7 @@ export default function Files() {
   const [hydrationStatus, setHydrationStatus] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const workspaceId = getWorkspaceId();
+  const workspaceId = useMemo(() => getWorkspaceId(), []);
 
   const handleList = async (event) => {
     event.preventDefault();

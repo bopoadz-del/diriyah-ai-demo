@@ -120,6 +120,7 @@ def add_document(project_id: str, text: str, source: str):
     with open(META_PATH, "wb") as f:
         pickle.dump(metadata, f)
 
+
 def query_rag(project_id: str, query: str, top_k: int = 3):
     if len(metadata) == 0:
         return "No documents indexed yet."
